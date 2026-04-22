@@ -6,7 +6,7 @@ Target distributions (calibrated, not guessed):
   • default_risk = 0  (non-default)  : ~65–70%
   • loan_approved = 1 (approved)     : ~57–62%
 
-25,000 rows | 33 columns | realistic Indian banking behaviour
+25,000 rows | 34 columns | realistic Indian banking behaviour
 """
 
 import numpy as np
@@ -35,6 +35,55 @@ regions   = np.random.choice(
     ["Urban", "Semi-Urban", "Rural"],
     size=N, p=[0.45, 0.35, 0.20]
 )
+
+CITY_MAP = {
+    "Urban": {
+        "cities": [
+            "Mumbai", "Delhi", "Bengaluru", "Hyderabad", "Chennai",
+            "Pune", "Kolkata", "Ahmedabad", "Surat", "Jaipur",
+            "Lucknow", "Kochi", "Chandigarh", "Indore", "Nagpur"
+        ],
+        "weights": [
+            0.13, 0.12, 0.11, 0.09, 0.08,
+            0.08, 0.07, 0.07, 0.05, 0.04,
+            0.04, 0.04, 0.03, 0.03, 0.02
+        ],
+    },
+    "Semi-Urban": {
+        "cities": [
+            "Agra", "Varanasi", "Bhopal", "Coimbatore", "Vadodara",
+            "Visakhapatnam", "Patna", "Rajkot", "Mysuru", "Amritsar",
+            "Jabalpur", "Meerut", "Nashik", "Aurangabad", "Jodhpur",
+            "Ranchi", "Guwahati", "Dehradun", "Raipur", "Bhubaneswar"
+        ],
+        "weights": [
+            0.07, 0.07, 0.07, 0.06, 0.06,
+            0.06, 0.06, 0.05, 0.05, 0.05,
+            0.04, 0.04, 0.05, 0.04, 0.04,
+            0.04, 0.04, 0.04, 0.04, 0.03
+        ],
+    },
+    "Rural": {
+        "cities": [
+            "Muzaffarpur", "Gorakhpur", "Aligarh", "Moradabad", "Bareilly",
+            "Saharanpur", "Bhagalpur", "Darbhanga", "Sitapur", "Hardoi",
+            "Nandurbar", "Osmanabad", "Bidar", "Kolar", "Raichur",
+            "Araria", "Kishanganj", "Supaul", "Madhepura", "Sheohar"
+        ],
+        "weights": [
+            0.08, 0.08, 0.07, 0.07, 0.06,
+            0.06, 0.06, 0.06, 0.05, 0.05,
+            0.04, 0.04, 0.04, 0.04, 0.03,
+            0.04, 0.04, 0.04, 0.04, 0.01
+        ],
+    },
+}
+
+city = np.empty(N, dtype=object)
+for region_name, config in CITY_MAP.items():
+    mask = regions == region_name
+    city[mask] = np.random.choice(config["cities"], size=mask.sum(), p=config["weights"])
+
 emp_types = np.random.choice(
     ["Salaried", "Self-Employed", "Business Owner", "Unemployed"],
     size=N, p=[0.50, 0.25, 0.18, 0.07]
@@ -272,6 +321,7 @@ df = pd.DataFrame({
     "loan_income_ratio"        : loan_income_ratio,
     "debt_to_income_ratio"     : debt_to_income,
     "region"                   : regions,
+    "city"                     : city,
     "default_risk"             : default_risk,
     "loan_approved"            : loan_approved,
     "confidence_score"         : confidence_score,

@@ -1,0 +1,15 @@
+{
+  "best_model": "Logistic",
+  "selection_metric": "AUC",
+  "deferral_rate": 0.3192,
+  "accuracy_non_deferred": 0.6656874265569918,
+  "decision_distribution": {
+    "REJECT": 706,
+    "DEFER": 1596,
+    "APPROVE": 2698
+  },
+  "artifacts": {
+    "metrics_csv": "artifacts\\model_metrics.csv",
+    "predictions_csv": "artifacts\\prediction_outputs.csv"
+  }
+}
