@@ -76,6 +76,11 @@ export interface LoanApplication {
   loanPurpose: LoanPurpose
   loanTenure: number
   interestRate?: number
+  ml_prob?: number
+  cbes_prob?: number
+  cbes_score?: number
+  confidence?: number
+  finalDecision?: 'APPROVE' | 'REJECT' | 'DEFER'
   applicationData: {
     firstName: string
     lastName: string

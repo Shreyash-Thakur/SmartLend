@@ -117,6 +117,7 @@ class LoanApplicationResponse(BaseModel):
     interestRate: float | None = None
     ml_prob: float | None = None
     cbes_prob: float | None = None
+    cbes_score: float | None = None
     confidence: float | None = None
     finalDecision: str | None = None
     applicationData: dict[str, Any]
@@ -163,3 +164,15 @@ class DashboardMetricsResponse(BaseModel):
     approvalRate: int
     avgLoanAmount: int
     automationRate: int
+
+
+class StatsResponse(BaseModel):
+    totalApplications: int
+    approved: int
+    rejected: int
+    deferred: int
+    approvalRate: float
+    rejectionRate: float
+    deferralRate: float
+    averageCBES: float
+    averageMLProbability: float

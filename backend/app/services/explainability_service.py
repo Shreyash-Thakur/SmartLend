@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.models import LoanApplication
+from backend.app.models import LoanApplication
 
 
 def _impact_sign_for_decision(decision: str, raw_impact: float) -> float:

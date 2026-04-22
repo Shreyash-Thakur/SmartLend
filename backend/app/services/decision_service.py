@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 import uuid
 
-from app.models import LoanApplication
+from backend.app.models import LoanApplication
 
 
 def _decision_to_status(decision: str) -> str:
@@ -62,6 +62,7 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
         "interestRate": float(input_data.get("interestRate", input_data.get("interest_rate", 12.0))),
         "ml_prob": round(app_item.ml_prob, 4),
         "cbes_prob": round(app_item.cbes_prob, 4),
+        "cbes_score": round(app_item.cbes_prob, 4),
         "confidence": confidence,
         "decisionCode": app_item.final_decision,
         "finalDecision": app_item.final_decision,

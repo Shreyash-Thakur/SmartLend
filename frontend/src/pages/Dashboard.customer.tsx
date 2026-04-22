@@ -11,7 +11,7 @@ import { trackEvent } from '@/services/analytics'
 
 export const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate()
-  const { applications, addApplication, isLoading } = useApplicationData({ scope: 'customer' })
+  const { applications, addApplication, isLoading, error } = useApplicationData({ scope: 'customer' })
 
   const handleSubmitApplication = async (data: Parameters<typeof addApplication>[0]) => {
     const application = await addApplication(data)
@@ -36,12 +36,12 @@ export const CustomerDashboard: React.FC = () => {
                 Start a new SmartLend application
               </h2>
               <p className="mt-4 max-w-xl text-base leading-7 text-neutral-600">
-                Your dashboard now shows only applications created in this session. Organization seed
-                records stay on the org side, so this space feels like a real applicant portal.
+                This portal reads directly from the backend. New submissions are persisted in SQLite and
+                remain visible after refresh.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <QuickChip icon={<Sparkles className="h-4 w-4" />} label="Session-only history" />
+              <QuickChip icon={<Sparkles className="h-4 w-4" />} label="DB-backed history" />
               <QuickChip icon={<ShieldCheck className="h-4 w-4" />} label="33-column intake ready" />
             </div>
           </div>
@@ -54,6 +54,14 @@ export const CustomerDashboard: React.FC = () => {
           <StatPanel label="Requested Value" value={formatCurrency(submittedValue)} accent="from-sky-500 to-cyan-500" />
         </div>
       </section>
+
+      {error && (
+        <section className="mb-8">
+          <Card className="border-red-200 bg-red-50">
+            <p className="text-red-700">{error}</p>
+          </Card>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <section className="lg:col-span-2">
@@ -126,8 +134,8 @@ export const CustomerDashboard: React.FC = () => {
               </div>
               <h3 className="text-2xl font-semibold text-neutral-900">No customer applications yet</h3>
               <p className="mt-3 max-w-lg text-neutral-600">
-                This dashboard starts empty by design. Once you create an application in this session,
-                it will appear here and remain separate from the organization sample records.
+                Submit an application to create your first backend record. Once created, it will persist
+                and reappear on refresh.
               </p>
               <Button
                 className="mt-6 rounded-2xl"

@@ -94,3 +94,15 @@ export interface TrendDataPoint {
   rejected?: number
   deferred?: number
 }
+
+export interface StatsResponse {
+  totalApplications: number
+  approved: number
+  rejected: number
+  deferred: number
+  approvalRate: number
+  rejectionRate: number
+  deferralRate: number
+  averageCBES: number
+  averageMLProbability: number
+}

@@ -86,10 +86,12 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
                     <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Applicant</th>
                   )}
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Loan Amount</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Decision</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">ML Prob</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">CBES</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Confidence</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Submitted</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Purpose</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Decision</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,11 +109,11 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
                     <td className="px-4 py-3 text-sm">
                       <Badge status={app.status === 'processing' ? 'pending' : app.status} />
                     </td>
+                    <td className="px-4 py-3 text-sm text-neutral-600">{(app.ml_prob ?? 0).toFixed(4)}</td>
+                    <td className="px-4 py-3 text-sm text-neutral-600">{(app.cbes_score ?? app.cbes_prob ?? 0).toFixed(4)}</td>
+                    <td className="px-4 py-3 text-sm text-neutral-600">{(app.confidence ?? 0).toFixed(4)}</td>
                     <td className="px-4 py-3 text-sm text-neutral-600">{formatDate(app.createdAt)}</td>
                     <td className="px-4 py-3 text-sm capitalize text-neutral-600">{app.loanPurpose}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-600 capitalize">
-                      {app.decision?.status ?? 'Pending'}
-                    </td>
                   </tr>
                 ))}
               </tbody>

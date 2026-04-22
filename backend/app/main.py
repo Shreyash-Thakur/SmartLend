@@ -7,9 +7,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.database import init_db
-from app.routers.applications import router as applications_router
-from app.services.ml_service import get_predictor
+from backend.app.database import init_db
+from backend.app.routers.applications import router as applications_router
+from backend.app.services.ml_service import get_predictor
 
 logging.basicConfig(
     level=logging.INFO,

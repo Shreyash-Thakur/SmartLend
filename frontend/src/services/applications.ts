@@ -1,293 +1,194 @@
 import type {
-  DashboardMetrics,
   FileUploadResponse,
   ManualDecisionRequest,
   PublicMetrics,
+  StatsResponse,
   TrendDataPoint,
 } from '@/types/api'
 import type { LoanApplication, LoanApplicationFormData } from '@/types/application'
-import { dashboardMetrics, mockApplications, publicMetrics, trendData } from '@/lib/mockData'
 import { apiClient } from '@/services/api.client'
-import { simulateFileExtraction } from '@/services/fileParser'
 
-let applicationState = [...mockApplications]
-
-function wait<T>(value: T, timeout = 350): Promise<T> {
-  return new Promise((resolve) => {
-    window.setTimeout(() => resolve(value), timeout)
-  })
-}
-
-async function withApiFallback<T>(apiCall: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
-  try {
-    return await apiCall()
-  } catch {
-    return fallback()
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
   }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+  return fallback
 }
 
-function buildDashboardMetrics(applications: LoanApplication[]): DashboardMetrics {
-  const approved = applications.filter((application) => application.status === 'approved').length
-  const rejected = applications.filter((application) => application.status === 'rejected').length
-  const deferred = applications.filter((application) => application.status === 'deferred').length
-  const autoDecided = applications.filter((application) => application.decision?.decidedBy === 'model').length
-  const avgLoanAmount =
-    applications.length > 0
-      ? Math.round(applications.reduce((sum, application) => sum + application.loanAmount, 0) / applications.length)
-      : 0
+function mapFinalDecisionToStatus(finalDecision?: string): LoanApplication['status'] {
+  const decision = (finalDecision ?? '').toUpperCase()
+  if (decision === 'APPROVE') return 'approved'
+  if (decision === 'REJECT') return 'rejected'
+  if (decision === 'DEFER') return 'deferred'
+  return 'submitted'
+}
+
+function extractApiError(error: unknown): Error {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'ECONNABORTED'
+  ) {
+    return new Error('Request timed out. Please check that the backend is running on port 8000.')
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: string }).message === 'string' &&
+    (error as { message: string }).message.toLowerCase().includes('network error')
+  ) {
+    return new Error('Unable to connect to backend service. Start the API server and retry.')
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof (error as { response?: unknown }).response === 'object'
+  ) {
+    const response = (error as { response?: { data?: { error?: string; details?: string } } }).response
+    const details = response?.data?.details
+    const code = response?.data?.error
+    if (details || code) {
+      return new Error([code, details].filter(Boolean).join(': '))
+    }
+  }
+  if (error instanceof Error) {
+    return error
+  }
+  return new Error('Request failed')
+}
+
+function normalizeApplication(application: LoanApplication): LoanApplication {
+  const applicationData = (application.applicationData ?? {}) as Record<string, unknown>
+  const residentialAssetsValue = asNumber(applicationData.residentialAssetsValue)
+  const commercialAssetsValue = asNumber(applicationData.commercialAssetsValue)
+  const bankBalance = asNumber(applicationData.bankBalance)
+  const assets =
+    asNumber(applicationData.assets) ||
+    asNumber(applicationData.totalAssets) ||
+    residentialAssetsValue + commercialAssetsValue + bankBalance
+
+  const decisionMeta = (applicationData._decision_meta ?? {}) as Record<string, unknown>
+  const engineeredFeatures = (decisionMeta.engineered_features ?? {}) as Record<string, unknown>
+  const debtToIncomeRatio =
+    asNumber(applicationData.debtToIncomeRatio) ||
+    asNumber(applicationData.debt_to_income_ratio) ||
+    asNumber(engineeredFeatures.debt_to_income_ratio) * 100
+
+  const creditScore = asNumber(applicationData.creditScore) || asNumber(applicationData.cibilScore)
+  const rootConfidence = asNumber((application as unknown as Record<string, unknown>).confidence)
 
   return {
-    totalApplications: applications.length,
-    approved,
-    rejected,
-    deferred,
-    averageProcessingTime: dashboardMetrics.averageProcessingTime,
-    approvalRate: applications.length > 0 ? Math.round((approved / applications.length) * 100) : 0,
-    avgLoanAmount,
-    automationRate: applications.length > 0 ? Math.round((autoDecided / applications.length) * 100) : 0,
+    ...application,
+    source: application.source ?? 'customer',
+    status: application.status ?? mapFinalDecisionToStatus(application.finalDecision),
+    ml_prob: asNumber(application.ml_prob),
+    cbes_prob: asNumber(application.cbes_prob),
+    cbes_score: asNumber(application.cbes_score) || asNumber(application.cbes_prob),
+    confidence: rootConfidence,
+    applicationData: {
+      ...applicationData,
+      assets,
+      totalAssets: asNumber(applicationData.totalAssets) || assets,
+      creditScore: creditScore || undefined,
+      debtToIncomeRatio: debtToIncomeRatio || undefined,
+      monthlyIncome: asNumber(applicationData.monthlyIncome),
+      emi: asNumber(applicationData.emi),
+      age: asNumber(applicationData.age, 0),
+      firstName: String(applicationData.firstName ?? application.applicantName ?? 'Applicant'),
+      lastName: String(applicationData.lastName ?? ''),
+      gender: String(applicationData.gender ?? 'other').toLowerCase() as LoanApplication['applicationData']['gender'],
+      employmentType: String(applicationData.employmentType ?? 'salaried').toLowerCase() as LoanApplication['applicationData']['employmentType'],
+    },
   }
 }
 
 export async function getPublicMetrics(): Promise<PublicMetrics> {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.get<PublicMetrics>('/public-metrics')
-      return response.data
-    },
-    () => wait(publicMetrics),
-  )
+  try {
+    const response = await apiClient.get<PublicMetrics>('/public-metrics')
+    return response.data
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
-export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.get<DashboardMetrics>('/dashboard-metrics')
-      return response.data
-    },
-    () => wait(buildDashboardMetrics(applicationState)),
-  )
+export async function getStats(): Promise<StatsResponse> {
+  try {
+    const response = await apiClient.get<StatsResponse>('/stats')
+    return response.data
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
 export async function getApplications(scope: 'all' | 'customer' | 'org' = 'all'): Promise<LoanApplication[]> {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.get<LoanApplication[]>('/applications', {
-        params: { scope },
-      })
-      applicationState = [...response.data]
-      return response.data
-    },
-    async () => {
-      if (scope === 'customer') {
-        return wait(applicationState.filter((application) => application.source === 'customer'))
-      }
-
-      if (scope === 'org') {
-        return wait([...applicationState])
-      }
-
-      return wait([...applicationState])
-    },
-  )
+  try {
+    const response = await apiClient.get<LoanApplication[]>('/applications', { params: { scope } })
+    return response.data.map(normalizeApplication)
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
-export async function getApplicationById(applicationId: string) {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.get<LoanApplication>(`/applications/${applicationId}`)
-      return response.data
-    },
-    () => wait(applicationState.find((application) => application.id === applicationId) ?? null),
-  )
+export async function getApplicationById(applicationId: string): Promise<LoanApplication | null> {
+  try {
+    const response = await apiClient.get<LoanApplication>(`/applications/${applicationId}`)
+    return normalizeApplication(response.data)
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
 export async function getTrendData(): Promise<TrendDataPoint[]> {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.get<TrendDataPoint[]>('/trends')
-      return response.data
-    },
-    () => wait(trendData),
-  )
+  try {
+    const response = await apiClient.get<TrendDataPoint[]>('/trends')
+    return response.data
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
-export async function createApplication(
-  formData: LoanApplicationFormData,
-): Promise<LoanApplication> {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.post<LoanApplication>('/applications', formData)
-      applicationState = [response.data, ...applicationState]
-      return response.data
-    },
-    async () => {
-      const timestamp = new Date().toISOString()
-      const applicantName = `${formData.firstName} ${formData.lastName}`.trim()
-      const annualIncome = formData.annualIncome ?? formData.monthlyIncome * 12
-      const totalAssets =
-        formData.totalAssets ??
-        (formData.residentialAssetsValue ?? 0) +
-          (formData.commercialAssetsValue ?? 0) +
-          (formData.bankBalance ?? 0)
-      const totalEmi = (formData.emi ?? 0) + (formData.existingEmis ?? 0)
-      const emiIncomeRatio =
-        formData.emiIncomeRatio ?? (formData.monthlyIncome ? (totalEmi / formData.monthlyIncome) * 100 : 0)
-      const loanIncomeRatio =
-        formData.loanIncomeRatio ?? (annualIncome ? (formData.loanAmount / annualIncome) * 100 : 0)
-      const debtToIncomeRatio =
-        formData.debtToIncomeRatio ??
-        (formData.monthlyIncome
-          ? (((formData.liabilities ?? 0) + totalEmi * 12) / (formData.monthlyIncome * 12)) * 100
-          : 0)
-      const created: LoanApplication = {
-        id: `app-${crypto.randomUUID()}`,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        status: 'submitted',
-        source: 'customer',
-        applicantId: formData.applicantId ?? `cust-${crypto.randomUUID().slice(0, 8)}`,
-        applicantName,
-        email: formData.email,
-        phone: formData.phone,
-        loanAmount: formData.loanAmount,
-        loanPurpose: formData.loanPurpose,
-        loanTenure: formData.loanTenure,
-        interestRate: formData.interestRate,
-        applicationData: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          gender: formData.gender,
-          maritalStatus: formData.maritalStatus,
-          education: formData.education,
-          monthlyIncome: formData.monthlyIncome,
-          annualIncome,
-          emi: formData.emi,
-          existingEmis: formData.existingEmis,
-          employmentType: formData.employmentType,
-          yearsOfEmployment: formData.yearsOfEmployment,
-          assets: totalAssets,
-          residentialAssetsValue: formData.residentialAssetsValue,
-          commercialAssetsValue: formData.commercialAssetsValue,
-          bankBalance: formData.bankBalance,
-          totalAssets,
-          liabilities: formData.liabilities,
-          creditScore: formData.creditScore,
-          creditHistory: formData.creditHistory,
-          totalLoans: formData.totalLoans,
-          activeLoans: formData.activeLoans,
-          closedLoans: formData.closedLoans,
-          missedPayments: formData.missedPayments,
-          creditUtilizationRatio: formData.creditUtilizationRatio,
-          emiIncomeRatio,
-          loanIncomeRatio,
-          debtToIncomeRatio,
-          age: formData.age,
-          dependents: formData.dependents,
-          residenceType: formData.residenceType,
-          region: formData.region,
-          city: formData.city,
-        },
-        documents: [],
-      }
-
-      applicationState = [created, ...applicationState]
-      return wait(created, 500)
-    },
-  )
+export async function createApplication(formData: LoanApplicationFormData): Promise<LoanApplication> {
+  try {
+    const response = await apiClient.post<LoanApplication>('/applications', formData)
+    return normalizeApplication(response.data)
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
 export async function uploadApplicationDocument(
   applicationId: string,
   file: File,
 ): Promise<FileUploadResponse> {
-  return withApiFallback(
-    async () => {
-      const formData = new FormData()
-      formData.append('file', file)
-      const response = await apiClient.post<FileUploadResponse>(
-        `/applications/${applicationId}/documents`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } },
-      )
-      return response.data
-    },
-    async () => {
-      const uploaded = await simulateFileExtraction(file)
-      applicationState = applicationState.map((application) =>
-        application.id === applicationId
-          ? {
-              ...application,
-              updatedAt: new Date().toISOString(),
-              documents: [
-                ...(application.documents ?? []),
-                {
-                  id: crypto.randomUUID(),
-                  fileName: uploaded.fileName,
-                  documentType: uploaded.documentType as 'pdf' | 'csv' | 'jpg' | 'png',
-                  fileSize: uploaded.fileSize,
-                  uploadedAt: uploaded.uploadedAt,
-                  extractedData: uploaded.extractedData,
-                },
-              ],
-            }
-          : application,
-      )
-
-      return wait(uploaded)
-    },
-  )
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post<FileUploadResponse>(
+      `/applications/${applicationId}/documents`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    return response.data
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }
 
 export async function submitManualDecision(
   applicationId: string,
   payload: ManualDecisionRequest,
-) {
-  return withApiFallback(
-    async () => {
-      const response = await apiClient.post<LoanApplication>(`/applications/${applicationId}/decision`, payload)
-      applicationState = applicationState.map((entry) =>
-        entry.id === applicationId ? response.data : entry,
-      )
-      return response.data
-    },
-    async () => {
-      const application = applicationState.find((entry) => entry.id === applicationId)
-
-      if (!application) {
-        return wait(null)
-      }
-
-      const updated: LoanApplication = {
-        ...application,
-        status: payload.status,
-        updatedAt: new Date().toISOString(),
-        decision: {
-          ...(application.decision ?? {
-            id: crypto.randomUUID(),
-            riskScore: 0.4,
-            cbessScore: 70,
-            uncertainty: 0.2,
-            confidence: 'medium',
-            explanation: '',
-            positiveFactors: [],
-            negativeFactors: [],
-            featureImportance: [],
-            modelVersion: 'cbes-v2',
-          }),
-          status: payload.status,
-          decidedAt: new Date().toISOString(),
-          decidedBy: 'human',
-          explanation: payload.notes,
-          analystNotes: payload.notes,
-          analystId: 'analyst-placeholder',
-        },
-      }
-
-      applicationState = applicationState.map((entry) =>
-        entry.id === applicationId ? updated : entry,
-      )
-
-      return wait(updated, 450)
-    },
-  )
+): Promise<LoanApplication | null> {
+  try {
+    const response = await apiClient.post<LoanApplication>(`/applications/${applicationId}/decision`, payload)
+    return normalizeApplication(response.data)
+  } catch (error) {
+    throw extractApiError(error)
+  }
 }

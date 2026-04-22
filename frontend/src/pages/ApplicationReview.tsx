@@ -10,11 +10,38 @@ import { formatCurrency } from '@/lib/utils'
 export const ApplicationReview: React.FC = () => {
   const { applicationId } = useParams()
   const navigate = useNavigate()
-  const { application, overrideDecision, isLoading } = useApplicationData(applicationId)
+  const { application, overrideDecision, isLoading, error } = useApplicationData(applicationId)
   const [manualDecision, setManualDecision] = useState<'approved' | 'rejected' | null>(null)
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const decisionMeta = useDecisionExplanation(application?.decision)
+
+  if (isLoading && !application) {
+    return (
+      <DashboardLayout title="Application Review">
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-neutral-600">Loading application...</p>
+          </div>
+        </Card>
+      </DashboardLayout>
+    )
+  }
+
+  if (error && !application) {
+    return (
+      <DashboardLayout title="Application Review">
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-red-700">{error}</p>
+            <Button variant="secondary" onClick={() => navigate(-1)} className="mt-4">
+              Go Back
+            </Button>
+          </div>
+        </Card>
+      </DashboardLayout>
+    )
+  }
 
   if (!application) {
     return (

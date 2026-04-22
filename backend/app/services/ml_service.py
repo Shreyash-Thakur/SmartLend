@@ -20,11 +20,26 @@ def clamp(x: float, low: float, high: float) -> float:
 
 
 def dynamic_hybrid_decision(ml_prob: float, cbes_prob: float, alpha: float = 0.25) -> tuple[str, float, float, float]:
-    # CBES shifts thresholds only; the final direction still comes from ML score crossing those thresholds.
+    # CBES influences threshold center while ML still determines the final class.
+    # Keep a non-zero defer band so REVIEW can always happen when ML is uncertain.
     alpha = clamp(alpha, 0.2, 0.4)
-    delta = (0.5 - cbes_prob) * alpha
-    approval_threshold = clamp(0.5 + delta, 0.35, 0.65)
-    rejection_threshold = clamp(0.5 - delta, 0.35, 0.65)
+
+    # Higher CBES lowers center (easier approve, harder reject); lower CBES does the opposite.
+    center = clamp(0.5 - ((cbes_prob - 0.5) * alpha), 0.42, 0.58)
+
+    # Wider defer band near neutral CBES, narrower at strong CBES extremes.
+    neutrality = 1.0 - min(1.0, abs(cbes_prob - 0.5) * 2.0)
+    defer_band = 0.06 + (0.08 * neutrality)
+
+    rejection_threshold = clamp(center - (defer_band / 2), 0.20, 0.60)
+    approval_threshold = clamp(center + (defer_band / 2), 0.40, 0.80)
+
+    # Enforce strict ordering to avoid overlap, preserving DEFER space.
+    if approval_threshold <= rejection_threshold:
+        midpoint = (approval_threshold + rejection_threshold) / 2
+        rejection_threshold = clamp(midpoint - 0.03, 0.20, 0.60)
+        approval_threshold = clamp(midpoint + 0.03, 0.40, 0.80)
+
     confidence = abs(ml_prob - 0.5)
 
     if ml_prob >= approval_threshold:

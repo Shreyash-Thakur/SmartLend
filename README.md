@@ -59,8 +59,7 @@ Set-Location ..
 From the repository root:
 
 ```powershell
-Set-Location backend
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 The API will be available at:
@@ -83,10 +82,10 @@ The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000` via `fron
 
 - `GET /api/health`
 - `GET /api/public-metrics`
-- `GET /api/dashboard-metrics`
+- `GET /api/stats`
 - `GET /api/trends`
 - `GET /api/metrics`
-- `GET /api/applications`
+- `GET /api/applications?scope=org|customer|all`
 - `GET /api/applications/{application_id}`
 - `GET /api/applications/{application_id}/explain`
 - `POST /api/applications`
@@ -99,8 +98,10 @@ The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000` via `fron
 1. Submit a loan application from the frontend or directly to the API.
 2. Backend validates the payload and computes ML + CBES decision metadata.
 3. Application data is stored in SQLite at `backend/smartlend.db`.
-4. The frontend can fetch applications, metrics, and explanation data through `/api`.
-5. Review workflows can upload documents and apply manual decision overrides.
+4. Organization dashboard fetches one unified list where training dataset rows and DB-backed live applications appear together.
+5. Stats panel fetches dynamic rates and averages from `/api/stats` (no static fallback data).
+6. The frontend fetches all dashboard/review data through `/api` and surfaces backend errors directly.
+7. Review workflows can upload documents and apply manual decision overrides.
 
 ## Notes
 

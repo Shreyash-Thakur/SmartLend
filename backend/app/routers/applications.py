@@ -12,9 +12,9 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models import LoanApplication
-from app.schemas import (
+from backend.app.database import get_db
+from backend.app.models import LoanApplication
+from backend.app.schemas import (
     ApplicationExplainResponse,
     DashboardMetricsResponse,
     DocumentUploadResponse,
@@ -22,11 +22,13 @@ from app.schemas import (
     LoanApplicationResponse,
     ManualDecisionRequest,
     PublicMetricsResponse,
+    StatsResponse,
 )
-from app.services.decision_service import apply_manual_decision, build_application_response, build_dashboard_metrics
-from app.services.explainability_service import build_explainability_payload
-from app.services.ml_service import get_predictor
-from app.services.parser_service import parse_document
+from backend.app.services.decision_service import apply_manual_decision, build_application_response, build_dashboard_metrics
+from backend.app.services.explainability_service import build_explainability_payload
+from backend.app.services.ml_service import get_predictor
+from backend.app.services.parser_service import parse_document
+from backend.app.services.training_data_service import get_training_application_by_id, get_training_applications
 
 logger = logging.getLogger(__name__)
 
@@ -109,11 +111,28 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
     payload["responseStatus"] = "success"
     payload["ml_prob"] = round(app_item.ml_prob, 4)
     payload["cbes_prob"] = round(app_item.cbes_prob, 4)
+    payload["cbes_score"] = round(app_item.cbes_prob, 4)
     payload["decisionCode"] = app_item.final_decision
     payload["finalDecision"] = app_item.final_decision
     payload["confidence"] = round(app_item.confidence, 4)
     payload["decisionMeta"] = decision_meta
     return payload
+
+
+def _sort_applications(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _sort_key(item: dict[str, Any]) -> datetime:
+        created_at = item.get("createdAt")
+        if isinstance(created_at, datetime):
+            return created_at if created_at.tzinfo else created_at.replace(tzinfo=timezone.utc)
+        if isinstance(created_at, str):
+            try:
+                parsed = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                return datetime.min.replace(tzinfo=timezone.utc)
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+    return sorted(items, key=_sort_key, reverse=True)
 
 
 @router.post("/applications", response_model=LoanApplicationResponse)
@@ -190,16 +209,31 @@ def list_applications(
     if scope not in {"all", "org", "customer"}:
         raise HTTPException(status_code=400, detail=_error_payload("Bad input", "Invalid scope"))
 
-    items = db.query(LoanApplication).order_by(LoanApplication.created_at.desc()).all()
-    return [build_application_response(item) for item in items]
+    db_items = db.query(LoanApplication).order_by(LoanApplication.created_at.desc()).all()
+    api_items = [build_application_response(item) for item in db_items]
+
+    for item in api_items:
+        item["cbes_score"] = item.get("cbes_prob")
+
+    if scope == "customer":
+        return api_items
+
+    training_items = get_training_applications()
+    return _sort_applications([*api_items, *training_items])
 
 
 @router.get("/applications/{application_id}", response_model=LoanApplicationResponse)
 def get_application(application_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    training_item = get_training_application_by_id(application_id)
+    if training_item is not None:
+        return training_item
+
     item = db.query(LoanApplication).filter(LoanApplication.id == application_id).first()
     if item is None:
         raise HTTPException(status_code=404, detail=_error_payload("Not found", "Application not found"))
-    return build_application_response(item)
+    payload = build_application_response(item)
+    payload["cbes_score"] = payload.get("cbes_prob")
+    return payload
 
 
 @router.post("/applications/{application_id}/decision", response_model=LoanApplicationResponse)
@@ -326,14 +360,21 @@ def dashboard_metrics(db: Session = Depends(get_db)) -> dict[str, int]:
 
 @router.get("/public-metrics", response_model=PublicMetricsResponse)
 def public_metrics(db: Session = Depends(get_db)) -> dict[str, int | float]:
-    items = db.query(LoanApplication).all()
-    metrics = build_dashboard_metrics(items)
+    db_items = [build_application_response(item) for item in db.query(LoanApplication).all()]
+    for item in db_items:
+        item["cbes_score"] = item.get("cbes_prob")
+    all_items = [*db_items, *get_training_applications()]
+    total = len(all_items)
+    approved = sum(1 for item in all_items if item.get("finalDecision") == "APPROVE")
+    deferred = sum(1 for item in all_items if item.get("finalDecision") == "DEFER")
+    automation_rate = round(((total - deferred) / total) * 100) if total else 0
+    approval_rate = round((approved / total) * 100, 2) if total else 0.0
 
     return {
-        "applicationsProcessed": metrics["totalApplications"],
-        "approvalSpeedup": 2.3,
-        "accuracy": 94.2,
-        "automationRate": metrics["automationRate"],
+        "applicationsProcessed": total,
+        "approvalSpeedup": round(1 + (automation_rate / 100), 2),
+        "accuracy": approval_rate,
+        "automationRate": automation_rate,
     }
 
 
@@ -398,4 +439,44 @@ def decision_metrics(db: Session = Depends(get_db)) -> dict[str, Any]:
         "deferral_rate": round(deferred / total, 4),
         "avg_ml_prob": round(sum(item.ml_prob for item in items) / total, 4),
         "avg_cbes_prob": round(sum(item.cbes_prob for item in items) / total, 4),
+    }
+
+
+@router.get("/stats", response_model=StatsResponse)
+def stats(db: Session = Depends(get_db)) -> dict[str, int | float]:
+    db_items = [build_application_response(item) for item in db.query(LoanApplication).all()]
+    for item in db_items:
+        item["cbes_score"] = item.get("cbes_prob")
+
+    applications = [*db_items, *get_training_applications()]
+    total = len(applications)
+    if total == 0:
+        return {
+            "totalApplications": 0,
+            "approved": 0,
+            "rejected": 0,
+            "deferred": 0,
+            "approvalRate": 0.0,
+            "rejectionRate": 0.0,
+            "deferralRate": 0.0,
+            "averageCBES": 0.0,
+            "averageMLProbability": 0.0,
+        }
+
+    approved = sum(1 for item in applications if item.get("finalDecision") == "APPROVE")
+    rejected = sum(1 for item in applications if item.get("finalDecision") == "REJECT")
+    deferred = sum(1 for item in applications if item.get("finalDecision") == "DEFER")
+    avg_cbes = sum(float(item.get("cbes_score", 0.0) or 0.0) for item in applications) / total
+    avg_ml = sum(float(item.get("ml_prob", 0.0) or 0.0) for item in applications) / total
+
+    return {
+        "totalApplications": total,
+        "approved": approved,
+        "rejected": rejected,
+        "deferred": deferred,
+        "approvalRate": round((approved / total) * 100, 2),
+        "rejectionRate": round((rejected / total) * 100, 2),
+        "deferralRate": round((deferred / total) * 100, 2),
+        "averageCBES": round(avg_cbes, 4),
+        "averageMLProbability": round(avg_ml, 4),
     }

@@ -6,7 +6,7 @@ import uuid
 from sqlalchemy import JSON, DateTime, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database import Base
+from backend.app.database import Base
 
 
 class LoanApplication(Base):

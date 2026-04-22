@@ -17,37 +17,55 @@ import {
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, KPICard } from '@/components/common'
-import { ApplicationTable, MetricsGrid } from '@/components/sections'
+import { ApplicationTable } from '@/components/sections'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { useUiStore } from '@/store/uiStore'
-import { getDashboardMetrics, getTrendData } from '@/services/applications'
-import type { DashboardMetrics, TrendDataPoint } from '@/types/api'
+import { getStats, getTrendData } from '@/services/applications'
+import type { StatsResponse, TrendDataPoint } from '@/types/api'
 import { formatCurrency } from '@/lib/utils'
 
 export const OrganizationDashboard: React.FC = () => {
   const navigate = useNavigate()
-  const { applications } = useApplicationData({ scope: 'org' })
+  const { applications, isLoading, error } = useApplicationData({ scope: 'org' })
   const { activeTab, setActiveTab } = useUiStore()
-  const [metrics, setMetrics] = React.useState<DashboardMetrics | null>(null)
+  const [stats, setStats] = React.useState<StatsResponse | null>(null)
   const [trends, setTrends] = React.useState<TrendDataPoint[]>([])
+  const [dashboardError, setDashboardError] = React.useState<string | null>(null)
+  const [statsLoading, setStatsLoading] = React.useState(true)
 
   useEffect(() => {
-    void getDashboardMetrics().then(setMetrics)
-    void getTrendData().then(setTrends)
+    const loadDashboardData = async () => {
+      setDashboardError(null)
+      setStatsLoading(true)
+      try {
+        const [trendsResponse, statsResponse] = await Promise.all([
+          getTrendData(),
+          getStats(),
+        ])
+        setTrends(trendsResponse)
+        setStats(statsResponse)
+      } catch (fetchError) {
+        setDashboardError(fetchError instanceof Error ? fetchError.message : 'Failed to load dashboard data')
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+
+    void loadDashboardData()
   }, [])
 
   const approvalDistribution = useMemo(
     () => [
-      { label: 'Approved', value: metrics?.approved ?? 0, fill: '#10b981' },
-      { label: 'Rejected', value: metrics?.rejected ?? 0, fill: '#ef4444' },
-      { label: 'Deferred', value: metrics?.deferred ?? 0, fill: '#ec4899' },
+      { label: 'Approved', value: stats?.approved ?? 0, fill: '#10b981' },
+      { label: 'Rejected', value: stats?.rejected ?? 0, fill: '#ef4444' },
+      { label: 'Deferred', value: stats?.deferred ?? 0, fill: '#ec4899' },
       {
         label: 'Processing',
         value: applications.filter((application) => application.status === 'processing').length,
         fill: '#f59e0b',
       },
     ],
-    [applications, metrics],
+    [applications, stats],
   )
 
   const categoryAnalysis = useMemo(() => {
@@ -80,29 +98,31 @@ export const OrganizationDashboard: React.FC = () => {
     activeTab === 'deferred'
       ? applications.filter((a) => a.status === 'deferred')
       : applications
+  const uploadedCount = applications.filter((a) => a.source === 'seed').length
+  const submittedCount = applications.filter((a) => a.source === 'customer').length
 
   const handleRowClick = (application: { id: string }) => navigate(`/review/${application.id}`)
 
   return (
     <DashboardLayout title="Organization Dashboard" role="organization">
       <section className="mb-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[36px] bg-gradient-to-br from-[#d8ebe4] via-[#edf5ef] to-[#f7fbfb] p-8 shadow-[0_30px_100px_rgba(118,176,165,0.26)]">
+        <div className="rounded-[36px] border border-[#d6e7e4] bg-gradient-to-br from-[#edf6f4] via-[#f6faf9] to-[#f9fcfd] p-8 shadow-[0_30px_100px_rgba(118,176,165,0.18)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Organization Control Room</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Operations Dashboard</p>
               <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">
-                Review seeded applications and new session submissions together
+                Unified application pipeline
               </h2>
               <p className="mt-4 text-base leading-7 text-neutral-600">
-                This workspace keeps historical sample applicants visible for analyst review while also
-                surfacing any new applications created through the customer flow.
+                All records below come from the live backend and are shown in one operational queue.
+                Applications are grouped by source as Uploaded and Submitted for faster triage.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <OrgChip icon={<Users className="h-4 w-4" />} label={`${applications.filter((a) => a.source === 'seed').length} seeded records`} />
-              <OrgChip icon={<BriefcaseBusiness className="h-4 w-4" />} label={`${applications.filter((a) => a.source === 'customer').length} customer session records`} />
-              <OrgChip icon={<Activity className="h-4 w-4" />} label="Analyst workflow ready" />
-              <OrgChip icon={<Clock3 className="h-4 w-4" />} label="Human review queue visible" />
+              <OrgChip icon={<Users className="h-4 w-4" />} label={`${uploadedCount} uploaded applications`} />
+              <OrgChip icon={<BriefcaseBusiness className="h-4 w-4" />} label={`${submittedCount} submitted applications`} />
+              <OrgChip icon={<Activity className="h-4 w-4" />} label="Analyst workflow active" />
+              <OrgChip icon={<Clock3 className="h-4 w-4" />} label="Real-time backend sync" />
             </div>
           </div>
         </div>
@@ -110,16 +130,16 @@ export const OrganizationDashboard: React.FC = () => {
         <div className="grid gap-4">
           <Card className="rounded-[30px] border-white/80 bg-neutral-900 text-white">
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Data Sources</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Application Sources</p>
               <p className="text-4xl font-semibold">{applications.length}</p>
               <div className="grid gap-3 text-sm text-white/75">
                 <div className="flex items-center justify-between">
-                  <span>Seeded Org Applicants</span>
-                  <span>{applications.filter((a) => a.source === 'seed').length}</span>
+                  <span>Uploaded</span>
+                  <span>{uploadedCount}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Live Customer Applications</span>
-                  <span>{applications.filter((a) => a.source === 'customer').length}</span>
+                  <span>Submitted</span>
+                  <span>{submittedCount}</span>
                 </div>
               </div>
             </div>
@@ -127,14 +147,34 @@ export const OrganizationDashboard: React.FC = () => {
         </div>
       </section>
 
-      {metrics && <MetricsGrid metrics={metrics} />}
-      {metrics && (
-        <section className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-          <KPICard label="Avg Loan Amount" value={metrics.avgLoanAmount} format="currency" />
-          <KPICard label="Approval Rate" value={metrics.approvalRate} format="percentage" />
-          <KPICard label="Automation Rate" value={metrics.automationRate} format="percentage" />
+      {(error || dashboardError) && (
+        <section className="mb-8">
+          <Card className="border-red-200 bg-red-50">
+            <p className="text-red-700">
+              Connection issue: {error ?? dashboardError}
+            </p>
+          </Card>
         </section>
       )}
+
+      <section className="mb-8">
+        <Card title="Live Stats">
+          {statsLoading ? (
+            <p className="text-neutral-600">Loading stats...</p>
+          ) : stats ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <KPICard label="Total Applications" value={stats.totalApplications} format="number" />
+              <KPICard label="Approval Rate" value={stats.approvalRate} format="percentage" />
+              <KPICard label="Rejection Rate" value={stats.rejectionRate} format="percentage" />
+              <KPICard label="Deferral Rate" value={stats.deferralRate} format="percentage" />
+              <KPICard label="Average CBES" value={stats.averageCBES} format="number" />
+              <KPICard label="Average ML Score" value={stats.averageMLProbability} format="number" />
+            </div>
+          ) : (
+            <p className="text-neutral-600">Stats unavailable</p>
+          )}
+        </Card>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card title="Approval Distribution">
@@ -201,17 +241,17 @@ export const OrganizationDashboard: React.FC = () => {
 
       <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 shadow-md">
         <div className="grid gap-4 md:grid-cols-3">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-6">Approval Distribution</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-6">Operations Snapshot</h3>
           <div>
             <p className="text-sm text-neutral-500">Average Loan Amount</p>
             <p className="text-2xl font-semibold text-neutral-900">
-              {metrics ? formatCurrency(metrics.avgLoanAmount) : '--'}
+              {stats ? formatCurrency(Math.round(applications.reduce((sum, app) => sum + app.loanAmount, 0) / Math.max(applications.length, 1))) : '--'}
             </p>
           </div>
           <div>
-            <p className="text-sm text-neutral-500">Average Processing Time</p>
+            <p className="text-sm text-neutral-500">Source Mix</p>
             <p className="text-2xl font-semibold text-neutral-900">
-              {metrics ? `${Math.round(metrics.averageProcessingTime / 60)} min` : '--'}
+              {applications.length ? `${Math.round((submittedCount / applications.length) * 100)}% submitted` : '--'}
             </p>
           </div>
           <div>
@@ -243,7 +283,7 @@ export const OrganizationDashboard: React.FC = () => {
                 : 'text-neutral-600 hover:text-neutral-900'
             }`}
           >
-            Deferred Review ({metrics?.deferred ?? 0})
+            Deferred Review ({stats?.deferred ?? 0})
           </button>
         </div>
 
@@ -251,7 +291,7 @@ export const OrganizationDashboard: React.FC = () => {
           <ApplicationTable
             data={displayApplications}
             onRowClick={handleRowClick}
-            isLoading={false}
+            isLoading={isLoading}
             pageSize={25}
             showApplicant
           />

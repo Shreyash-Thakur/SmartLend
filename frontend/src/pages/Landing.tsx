@@ -11,6 +11,7 @@ import { PageTransition } from '@/components/layouts'
 export const Landing: React.FC = () => {
   const navigate = useNavigate()
   const [metrics, setMetrics] = useState<PublicMetrics | null>(null)
+  const [metricsError, setMetricsError] = useState<string | null>(null)
 
   const features = [
     {
@@ -52,7 +53,17 @@ export const Landing: React.FC = () => {
   ]
 
   useEffect(() => {
-    void getPublicMetrics().then(setMetrics)
+    const loadMetrics = async () => {
+      setMetricsError(null)
+      try {
+        const response = await getPublicMetrics()
+        setMetrics(response)
+      } catch (error) {
+        setMetricsError(error instanceof Error ? error.message : 'Failed to load public metrics')
+      }
+    }
+
+    void loadMetrics()
   }, [])
 
   return (
@@ -144,22 +155,25 @@ export const Landing: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center text-white">
             <div>
-              <p className="text-4xl font-bold">{metrics?.applicationsProcessed ?? 0}+</p>
+              <p className="text-4xl font-bold">{metrics ? `${metrics.applicationsProcessed}+` : '--'}</p>
               <p className="text-lg mt-2">Applications Processed</p>
             </div>
             <div>
-              <p className="text-4xl font-bold">{metrics?.accuracy ?? 0}%</p>
+              <p className="text-4xl font-bold">{metrics ? `${metrics.accuracy}%` : '--'}</p>
               <p className="text-lg mt-2">Accuracy Rate</p>
             </div>
             <div>
-              <p className="text-4xl font-bold">{metrics?.approvalSpeedup ?? 0}x</p>
+              <p className="text-4xl font-bold">{metrics ? `${metrics.approvalSpeedup}x` : '--'}</p>
               <p className="text-lg mt-2">Faster Approvals</p>
             </div>
             <div>
-              <p className="text-4xl font-bold">{metrics?.automationRate ?? 0}%</p>
+              <p className="text-4xl font-bold">{metrics ? `${metrics.automationRate}%` : '--'}</p>
               <p className="text-lg mt-2">Automation Rate</p>
             </div>
           </div>
+          {metricsError && (
+            <p className="mt-6 text-center text-sm text-red-100">{metricsError}</p>
+          )}
         </div>
       </section>
 
