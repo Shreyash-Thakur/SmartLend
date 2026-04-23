@@ -21,12 +21,14 @@ from backend.app.schemas import (
     LoanApplicationInput,
     LoanApplicationResponse,
     ManualDecisionRequest,
+    ModelAnalysisResponse,
     PublicMetricsResponse,
     StatsResponse,
 )
 from backend.app.services.decision_service import apply_manual_decision, build_application_response, build_dashboard_metrics
 from backend.app.services.explainability_service import build_explainability_payload
 from backend.app.services.ml_service import get_predictor
+from backend.app.services.model_analysis_service import get_model_analysis_payload
 from backend.app.services.parser_service import parse_document
 from backend.app.services.training_data_service import get_training_application_by_id, get_training_applications
 
@@ -72,6 +74,7 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
     decision_meta = {
         "approval_threshold": prediction.approval_threshold,
         "rejection_threshold": prediction.rejection_threshold,
+        "selected_model": prediction.selected_model,
         "cbes_components": prediction.cbes_components,
         "engineered_features": prediction.engineered_features,
     }
@@ -480,3 +483,11 @@ def stats(db: Session = Depends(get_db)) -> dict[str, int | float]:
         "averageCBES": round(avg_cbes, 4),
         "averageMLProbability": round(avg_ml, 4),
     }
+
+
+@router.get("/model-analysis", response_model=ModelAnalysisResponse)
+def model_analysis(limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, Any]:
+    payload = get_model_analysis_payload(limit=limit)
+    if not payload["models"] and not payload["cases"]:
+        raise HTTPException(status_code=404, detail=_error_payload("Not found", "Model analysis artifacts are unavailable"))
+    return payload

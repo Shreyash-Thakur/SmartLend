@@ -5,6 +5,7 @@ from typing import Any
 import uuid
 
 from backend.app.models import LoanApplication
+from backend.app.services.explainability_service import build_explainability_payload
 
 
 def _decision_to_status(decision: str) -> str:
@@ -44,6 +45,17 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     risk_score = clamp_float(1 - app_item.ml_prob)
     confidence = clamp_float(app_item.confidence)
     documents = list(app_item.documents or [])
+    explain_payload = build_explainability_payload(app_item)
+
+    feature_importance = [
+        {
+            "name": str(item.get("name", "Feature")),
+            "impact": float(item.get("impact", 0.0)),
+            "value": float(item.get("value", 0.0)),
+            "baseValue": float(item.get("targetValue", item.get("value", 0.0))),
+        }
+        for item in explain_payload.get("topFactors", [])
+    ]
 
     return {
         "id": app_item.id,
@@ -76,10 +88,10 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
             "cbessScore": round(app_item.cbes_prob * 100, 2),
             "uncertainty": clamp_float(1 - confidence),
             "confidence": _confidence_band(confidence),
-            "explanation": "Dynamic hybrid ML + CBES decision applied.",
-            "positiveFactors": ["Income and repayment features support this outcome."],
-            "negativeFactors": ["Leverage and utilization were evaluated."],
-            "featureImportance": [],
+            "explanation": str(explain_payload.get("explanation", "Dynamic hybrid ML + CBES decision applied.")),
+            "positiveFactors": list(explain_payload.get("positiveFactors", [])),
+            "negativeFactors": list(explain_payload.get("negativeFactors", [])),
+            "featureImportance": feature_importance,
             "modelVersion": "cbes-v2",
         },
         "documents": documents,

@@ -106,3 +106,73 @@ export interface StatsResponse {
   averageCBES: number
   averageMLProbability: number
 }
+
+export interface ModelMetricItem {
+  model: string
+  accuracy: number
+  precision: number
+  recall: number
+  auc: number
+  f1: number
+  rank: number
+  tuned: boolean
+}
+
+export interface ModelPredictionSummaryItem {
+  model: string
+  approveCount: number
+  rejectCount: number
+  accuracyFromCases: number
+}
+
+export interface ModelCaseItem {
+  applicantId: string
+  yTrue: number
+  expectedDecision: 'APPROVE' | 'REJECT'
+  hybridDecision: 'APPROVE' | 'REJECT' | 'DEFER'
+  hybridConfidence: number
+  approvalThreshold: number
+  rejectionThreshold: number
+  cbesProb: number
+  bestModelProb: number
+  modelProbabilities: Record<string, number>
+  modelPredictions: Record<string, 'APPROVE' | 'REJECT'>
+}
+
+export interface ModelAnalysisSummary {
+  totalCases: number
+  deferredCases: number
+  deferralRate: number
+  automatedCoverage: number
+  automatedAccuracy: number
+  overallHybridAccuracy: number
+  bestModel: string
+  selectedAlpha: number
+}
+
+export interface ModelConfusionItem {
+  model: string
+  tp: number
+  fp: number
+  tn: number
+  fn: number
+  f1FromCases: number
+}
+
+export interface ProbabilityBandItem {
+  band: string
+  approve: number
+  reject: number
+  defer: number
+  total: number
+}
+
+export interface ModelAnalysisResponse {
+  models: ModelMetricItem[]
+  modelsByProbabilityColumns: string[]
+  summary: ModelAnalysisSummary
+  modelPredictionSummary: ModelPredictionSummaryItem[]
+  confusionByModel: ModelConfusionItem[]
+  probabilityBands: ProbabilityBandItem[]
+  cases: ModelCaseItem[]
+}

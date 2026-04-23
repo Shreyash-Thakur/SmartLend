@@ -5,9 +5,41 @@ from typing import Any
 from backend.app.models import LoanApplication
 
 
+FEATURE_LABELS = {
+    "debt_to_income_ratio": "Debt To Income Ratio",
+    "emi_income_ratio": "EMI To Income Ratio",
+    "cibil_score": "CIBIL Score",
+    "credit_component": "Credit Strength",
+    "capacity_component": "Repayment Capacity",
+    "asset_component": "Collateral And Liquidity",
+    "stability_component": "Employment Stability",
+    "missed_payment_ratio": "Missed Payment Ratio",
+    "loan_income_ratio": "Loan To Income Ratio",
+}
+
+
 def _impact_sign_for_decision(decision: str, raw_impact: float) -> float:
     # Negative impact means risk-increasing; flip for approve view so top factors align with final decision semantics.
     return raw_impact if decision == "REJECT" else -raw_impact
+
+
+def _to_label(feature: str) -> str:
+    return FEATURE_LABELS.get(feature, feature.replace("_", " ").title())
+
+
+def _counterfactual_target(feature: str, value: float) -> float:
+    targets = {
+        "debt_to_income_ratio": 0.4,
+        "emi_income_ratio": 0.35,
+        "cibil_score": 720,
+        "credit_component": 0.6,
+        "capacity_component": 0.6,
+        "asset_component": 0.55,
+        "stability_component": 0.55,
+        "missed_payment_ratio": 0.08,
+        "loan_income_ratio": 0.65,
+    }
+    return float(targets.get(feature, value))
 
 
 def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
@@ -85,10 +117,27 @@ def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
     ]
 
     decision = app_item.final_decision
+    value_lookup = {
+        "debt_to_income_ratio": dti,
+        "emi_income_ratio": emi_ratio,
+        "cibil_score": cibil,
+        "credit_component": float(components.get("credit_component", 0.5)),
+        "capacity_component": float(components.get("capacity_component", 0.5)),
+        "asset_component": float(components.get("asset_component", max(0.0, min(asset_coverage / 2, 1.0)))),
+        "stability_component": float(components.get("stability_component", employment_stability)),
+        "missed_payment_ratio": missed_ratio,
+        "loan_income_ratio": loan_income,
+    }
+
     scored = [
         {
             "feature": item["feature"],
+            "name": _to_label(item["feature"]),
             "impact": round(_impact_sign_for_decision(decision, float(item["impact"])), 4),
+            "direction": "supports_decision" if _impact_sign_for_decision(decision, float(item["impact"])) >= 0 else "opposes_decision",
+            "severity": round(min(1.0, abs(float(item["impact"])) * 1.6), 4),
+            "value": round(float(value_lookup.get(item["feature"], 0.0)), 4),
+            "targetValue": round(_counterfactual_target(item["feature"], float(value_lookup.get(item["feature"], 0.0))), 4),
             "reason": item["reason"],
         }
         for item in raw_factors
@@ -121,6 +170,28 @@ def _build_suggestions(app_item: LoanApplication, top_factors: list[dict[str, An
     return suggestions[:3]
 
 
+def _build_counterfactuals(top_factors: list[dict[str, Any]], decision: str) -> list[dict[str, Any]]:
+    if decision == "APPROVE":
+        return []
+
+    recs: list[dict[str, Any]] = []
+    for item in top_factors:
+        if item["impact"] < 0:
+            current = float(item.get("value", 0.0))
+            target = float(item.get("targetValue", current))
+            recs.append(
+                {
+                    "feature": item["feature"],
+                    "name": item["name"],
+                    "current": round(current, 4),
+                    "target": round(target, 4),
+                    "delta": round(target - current, 4),
+                    "priority": "high" if abs(item["impact"]) >= 0.2 else "medium",
+                }
+            )
+    return recs[:3]
+
+
 def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     data = app_item.input_data or {}
     meta = data.get("_decision_meta", {}) if isinstance(data.get("_decision_meta", {}), dict) else {}
@@ -128,18 +199,37 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     top_factors = _build_top_factors(app_item)
     suggestions = _build_suggestions(app_item, top_factors)
     reasons = [factor["reason"] for factor in top_factors[:3]]
+    positive_factors = [factor["reason"] for factor in top_factors if factor["impact"] > 0][:3]
+    negative_factors = [factor["reason"] for factor in top_factors if factor["impact"] < 0][:3]
+    counterfactuals = _build_counterfactuals(top_factors, app_item.final_decision)
+
+    components = meta.get("cbes_components", {}) if isinstance(meta.get("cbes_components", {}), dict) else {}
+    factor_buckets = {
+        "credit": round(float(components.get("credit_component", 0.0)), 4),
+        "capacity": round(float(components.get("capacity_component", 0.0)), 4),
+        "collateral": round(float(components.get("asset_component", 0.0)), 4),
+        "stability": round(float(components.get("stability_component", 0.0)), 4),
+    }
+
+    explanation_text = (
+        "Top factors are ranked by directional impact on the final hybrid decision, combining tuned ML probability with CBES components."
+    )
 
     return {
         "id": app_item.id,
         "decision": app_item.final_decision,
         "topFactors": top_factors,
         "reasons": reasons,
+        "positiveFactors": positive_factors,
+        "negativeFactors": negative_factors,
         "suggestions": suggestions,
+        "counterfactuals": counterfactuals,
+        "factorBuckets": factor_buckets,
         "mlProb": round(app_item.ml_prob, 4),
         "cbesProb": round(app_item.cbes_prob, 4),
         "confidence": round(app_item.confidence, 4),
         "riskScore": round(1 - app_item.ml_prob, 4),
-        "explanation": "Decision factors ranked from engineered ML + CBES components.",
+        "explanation": explanation_text,
         "modelVersion": "cbes-v2",
         "thresholds": {
             "approval": round(float(meta.get("approval_threshold", 0.5)), 4),

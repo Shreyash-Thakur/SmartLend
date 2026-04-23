@@ -4,15 +4,24 @@ from dataclasses import dataclass
 from pathlib import Path
 import logging
 import re
+import sys
 from typing import Any
 
 import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import RandomizedSearchCV, train_test_split
 from sklearn.preprocessing import StandardScaler
 
 
 DATASET_PATH = Path(__file__).resolve().parents[2] / "synthetic_indian_loan_dataset.csv"
 logger = logging.getLogger(__name__)
+
+# Process-based CV workers can fail to deserialize on Windows (especially with newer Python versions).
+# Keep startup tuning stable by forcing serial search there.
+SEARCH_N_JOBS = 1 if sys.platform.startswith("win") else -1
 
 
 def clamp(x: float, low: float, high: float) -> float:
@@ -65,12 +74,15 @@ class PredictionResult:
     rejection_threshold: float
     cbes_components: dict[str, float]
     engineered_features: dict[str, float]
+    selected_model: str
 
 
 class MLPredictor:
     def __init__(self, dataset_path: Path) -> None:
         self.dataset_path = dataset_path
-        self.model = LogisticRegression(max_iter=1000)
+        self.model: Any = LogisticRegression(max_iter=1000)
+        self.selected_model_name = "LogisticRegression"
+        self.model_input_mode = "scaled"
         self.scaler = StandardScaler()
         self.feature_columns: list[str] = []
         self.template_row: dict[str, Any] = {}
@@ -93,8 +105,69 @@ class MLPredictor:
         X = pd.get_dummies(X, drop_first=True)
 
         self.feature_columns = list(X.columns)
-        X_scaled = self.scaler.fit_transform(X)
-        self.model.fit(X_scaled, y)
+        X_train, X_val, y_train, y_val = train_test_split(
+            X,
+            y,
+            test_size=0.2,
+            random_state=42,
+            stratify=y,
+        )
+
+        X_train_scaled = self.scaler.fit_transform(X_train)
+        X_val_scaled = self.scaler.transform(X_val)
+
+        logistic_search = RandomizedSearchCV(
+            LogisticRegression(max_iter=2000, solver="liblinear", random_state=42),
+            param_distributions={
+                "C": np.logspace(-2, 2, 25),
+                "class_weight": [None, "balanced"],
+            },
+            n_iter=12,
+            cv=3,
+            scoring="roc_auc",
+            random_state=42,
+            n_jobs=SEARCH_N_JOBS,
+            refit=True,
+        )
+        logistic_search.fit(X_train_scaled, y_train)
+        logistic_model = logistic_search.best_estimator_
+        logistic_auc = roc_auc_score(y_val, logistic_model.predict_proba(X_val_scaled)[:, 1])
+
+        rf_search = RandomizedSearchCV(
+            RandomForestClassifier(random_state=42, n_jobs=-1),
+            param_distributions={
+                "n_estimators": [200, 300, 400, 500],
+                "max_depth": [None, 8, 12, 16],
+                "min_samples_split": [2, 5, 10],
+                "min_samples_leaf": [1, 2, 4],
+                "class_weight": [None, "balanced"],
+            },
+            n_iter=14,
+            cv=3,
+            scoring="roc_auc",
+            random_state=42,
+            n_jobs=SEARCH_N_JOBS,
+            refit=True,
+        )
+        rf_search.fit(X_train, y_train)
+        rf_model = rf_search.best_estimator_
+        rf_auc = roc_auc_score(y_val, rf_model.predict_proba(X_val)[:, 1])
+
+        if rf_auc > logistic_auc:
+            self.model = rf_model
+            self.selected_model_name = "RandomForest"
+            self.model_input_mode = "raw"
+        else:
+            self.model = logistic_model
+            self.selected_model_name = "LogisticRegression"
+            self.model_input_mode = "scaled"
+
+        logger.info(
+            "Predictor tuned | selected_model=%s logistic_auc=%.4f random_forest_auc=%.4f",
+            self.selected_model_name,
+            logistic_auc,
+            rf_auc,
+        )
 
     def _prepare_input_frame(self, df: pd.DataFrame) -> pd.DataFrame:
         prepared = df.copy()
@@ -190,8 +263,11 @@ class MLPredictor:
             features = pd.get_dummies(one_row, drop_first=True)
             features = features.reindex(columns=self.feature_columns, fill_value=0)
 
-            scaled = self.scaler.transform(features)
-            ml_prob = float(self.model.predict_proba(scaled)[0, 1])
+            if self.model_input_mode == "scaled":
+                model_input = self.scaler.transform(features)
+            else:
+                model_input = features
+            ml_prob = float(self.model.predict_proba(model_input)[0, 1])
 
             final_decision, confidence, approval_threshold, rejection_threshold = dynamic_hybrid_decision(ml_prob, cbes_prob)
 
@@ -214,6 +290,7 @@ class MLPredictor:
                 rejection_threshold=float(rejection_threshold),
                 cbes_components=cbes_components,
                 engineered_features=engineered_features,
+                selected_model=self.selected_model_name,
             )
         except Exception as exc:
             logger.exception("Prediction failed")

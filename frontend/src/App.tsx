@@ -10,6 +10,9 @@ const CustomerDashboard = lazy(async () => ({
 const OrganizationDashboard = lazy(async () => ({
   default: (await import('@/pages/Dashboard.org')).OrganizationDashboard,
 }))
+const ModelAnalysisDashboard = lazy(async () => ({
+  default: (await import('@/pages/Dashboard.models')).ModelAnalysisDashboard,
+}))
 const ApplicationReview = lazy(async () => ({
   default: (await import('@/pages/ApplicationReview')).ApplicationReview,
 }))
@@ -27,6 +30,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/dashboard/customer" element={<CustomerDashboard />} />
         <Route path="/dashboard/org" element={<OrganizationDashboard />} />
+        <Route path="/dashboard/models" element={<ModelAnalysisDashboard />} />
         <Route path="/review/:applicationId" element={<ApplicationReview />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

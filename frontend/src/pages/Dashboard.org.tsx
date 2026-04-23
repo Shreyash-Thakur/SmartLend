@@ -16,7 +16,7 @@ import {
   YAxis,
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
-import { Card, KPICard } from '@/components/common'
+import { Button, Card, KPICard } from '@/components/common'
 import { ApplicationTable } from '@/components/sections'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { useUiStore } from '@/store/uiStore'
@@ -124,6 +124,11 @@ export const OrganizationDashboard: React.FC = () => {
               <OrgChip icon={<Activity className="h-4 w-4" />} label="Analyst workflow active" />
               <OrgChip icon={<Clock3 className="h-4 w-4" />} label="Real-time backend sync" />
             </div>
+          </div>
+          <div className="mt-6">
+            <Button variant="secondary" onClick={() => navigate('/dashboard/models')}>
+              Open Model Analysis Dashboard
+            </Button>
           </div>
         </div>
 

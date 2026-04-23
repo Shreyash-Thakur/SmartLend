@@ -7,6 +7,7 @@ from typing import Any
 import csv
 
 from backend.app.services.ml_service import DATASET_PATH
+from backend.app.services.ml_service import dynamic_hybrid_decision
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
@@ -74,8 +75,9 @@ def _ml_probability(row: dict[str, Any]) -> float:
     return max(0.0, min(1.0 - confidence, 0.5))
 
 
-def _final_decision(approved_label: int) -> str:
-    return "APPROVE" if approved_label == 1 else "REJECT"
+def _final_decision(ml_prob: float, cbes_prob: float) -> str:
+    final_decision, _, _, _ = dynamic_hybrid_decision(ml_prob, cbes_prob)
+    return final_decision
 
 
 def _status_for_decision(decision: str) -> str:
@@ -95,7 +97,7 @@ def _build_training_application(row: dict[str, Any], index: int) -> dict[str, An
     applicant_id = str(row.get("applicant_id") or f"TRAIN{index + 1:06d}")
     ml_prob = _ml_probability(row)
     cbes_prob = _cbes_probability(row)
-    final_decision = _final_decision(_to_int(row.get("loan_approved")))
+    final_decision = _final_decision(ml_prob, cbes_prob)
     confidence = max(0.0, min(abs(ml_prob - 0.5), 1.0))
     created_at = _training_timestamp(index)
 

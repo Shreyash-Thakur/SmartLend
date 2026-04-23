@@ -139,7 +139,11 @@ class ApplicationExplainResponse(BaseModel):
     decision: str
     topFactors: list[dict[str, Any]] = Field(default_factory=list)
     reasons: list[str]
+    positiveFactors: list[str] = Field(default_factory=list)
+    negativeFactors: list[str] = Field(default_factory=list)
     suggestions: list[str]
+    counterfactuals: list[dict[str, Any]] = Field(default_factory=list)
+    factorBuckets: dict[str, float] = Field(default_factory=dict)
     mlProb: float
     cbesProb: float
     confidence: float
@@ -176,3 +180,73 @@ class StatsResponse(BaseModel):
     deferralRate: float
     averageCBES: float
     averageMLProbability: float
+
+
+class ModelMetricItem(BaseModel):
+    model: str
+    accuracy: float
+    precision: float
+    recall: float
+    auc: float
+    f1: float = 0.0
+    rank: int = 0
+    tuned: bool = True
+
+
+class ModelPredictionSummaryItem(BaseModel):
+    model: str
+    approveCount: int
+    rejectCount: int
+    accuracyFromCases: float
+
+
+class ModelCaseItem(BaseModel):
+    applicantId: str
+    yTrue: int
+    expectedDecision: str
+    hybridDecision: str
+    hybridConfidence: float
+    approvalThreshold: float
+    rejectionThreshold: float
+    cbesProb: float
+    bestModelProb: float
+    modelProbabilities: dict[str, float]
+    modelPredictions: dict[str, str]
+
+
+class ModelAnalysisSummary(BaseModel):
+    totalCases: int
+    deferredCases: int
+    deferralRate: float
+    automatedCoverage: float
+    automatedAccuracy: float
+    overallHybridAccuracy: float
+    bestModel: str = ""
+    selectedAlpha: float = 0.25
+
+
+class ModelConfusionItem(BaseModel):
+    model: str
+    tp: int
+    fp: int
+    tn: int
+    fn: int
+    f1FromCases: float
+
+
+class ProbabilityBandItem(BaseModel):
+    band: str
+    approve: int
+    reject: int
+    defer: int
+    total: int
+
+
+class ModelAnalysisResponse(BaseModel):
+    models: list[ModelMetricItem]
+    modelsByProbabilityColumns: list[str]
+    summary: ModelAnalysisSummary
+    modelPredictionSummary: list[ModelPredictionSummaryItem]
+    confusionByModel: list[ModelConfusionItem] = Field(default_factory=list)
+    probabilityBands: list[ProbabilityBandItem] = Field(default_factory=list)
+    cases: list[ModelCaseItem]

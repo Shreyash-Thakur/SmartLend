@@ -1,5 +1,6 @@
 import type {
   FileUploadResponse,
+  ModelAnalysisResponse,
   ManualDecisionRequest,
   PublicMetrics,
   StatsResponse,
@@ -121,6 +122,15 @@ export async function getPublicMetrics(): Promise<PublicMetrics> {
 export async function getStats(): Promise<StatsResponse> {
   try {
     const response = await apiClient.get<StatsResponse>('/stats')
+    return response.data
+  } catch (error) {
+    throw extractApiError(error)
+  }
+}
+
+export async function getModelAnalysis(limit = 300): Promise<ModelAnalysisResponse> {
+  try {
+    const response = await apiClient.get<ModelAnalysisResponse>('/model-analysis', { params: { limit } })
     return response.data
   } catch (error) {
     throw extractApiError(error)
