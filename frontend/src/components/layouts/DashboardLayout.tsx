@@ -46,42 +46,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
             <div className="flex items-center gap-4">
               <nav className="hidden items-center gap-2 md:flex">
-                <NavLink
-                  to="/dashboard/customer"
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900'
-                        : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
-                    }`
-                  }
-                >
-                  Customer
-                </NavLink>
-                <NavLink
-                  to="/dashboard/org"
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900'
-                        : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
-                    }`
-                  }
-                >
-                  Organization
-                </NavLink>
-                <NavLink
-                  to="/dashboard/models"
-                  className={({ isActive }) =>
-                    `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900'
-                        : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
-                    }`
-                  }
-                >
-                  Model Analysis
-                </NavLink>
+                {role === 'customer' ? (
+                  <DashboardNavLink to="/dashboard/customer" label="Dashboard" />
+                ) : (
+                  <>
+                    <DashboardNavLink to="/dashboard/org" label="Dashboard" />
+                    <DashboardNavLink to="/review" label="Review" />
+                    <DashboardNavLink to="/dashboard/models" label="Model Analysis" />
+                  </>
+                )}
               </nav>
               <span className="hidden text-sm text-neutral-600 md:inline capitalize">{role} dashboard</span>
               <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
@@ -107,5 +80,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
       </footer>
     </div>
+  )
+}
+
+function DashboardNavLink({ to, label }: { to: string; label: string }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-primary-100 text-primary-900'
+            : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+        }`
+      }
+    >
+      {label}
+    </NavLink>
   )
 }

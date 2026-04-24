@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, BriefcaseBusiness, Clock3, Users } from 'lucide-react'
+import { Activity, BriefcaseBusiness, Clock3, MapPinned, Users } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -126,9 +126,14 @@ export const OrganizationDashboard: React.FC = () => {
             </div>
           </div>
           <div className="mt-6">
-            <Button variant="secondary" onClick={() => navigate('/dashboard/models')}>
-              Open Model Analysis Dashboard
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={() => navigate('/dashboard/models')}>
+                Open Model Analysis Dashboard
+              </Button>
+              <Button variant="primary" leftIcon={<MapPinned className="h-4 w-4" />} onClick={() => navigate('/analytics/geo')}>
+                Open Geo Analytics
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -200,10 +205,10 @@ export const OrganizationDashboard: React.FC = () => {
         <Card title="Applications Over Time">
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trends}>
+              <LineChart data={trends} margin={{ top: 16, right: 24, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" />
-                <YAxis />
+                <YAxis allowDecimals={false} width={42} />
                 <Tooltip />
                 <Line type="monotone" dataKey="count" stroke="#16a34a" strokeWidth={3} />
               </LineChart>
@@ -214,10 +219,10 @@ export const OrganizationDashboard: React.FC = () => {
         <Card title="Category Analysis">
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryAnalysis}>
+              <BarChart data={categoryAnalysis} margin={{ top: 16, right: 24, bottom: 36, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" />
-                <YAxis />
+                <XAxis dataKey="label" interval={0} angle={-18} textAnchor="end" height={60} />
+                <YAxis allowDecimals={false} width={42} />
                 <Tooltip />
                 <Bar dataKey="value" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -228,10 +233,10 @@ export const OrganizationDashboard: React.FC = () => {
         <Card title="Risk Score Distribution">
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={riskScoreDistribution}>
+              <BarChart data={riskScoreDistribution} margin={{ top: 16, right: 24, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" />
-                <YAxis />
+                <YAxis allowDecimals={false} width={42} />
                 <Tooltip />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                   {riskScoreDistribution.map((entry) => (

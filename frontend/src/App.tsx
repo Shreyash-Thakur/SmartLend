@@ -1,6 +1,11 @@
-import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/store/authStore'
 
+const AuthPage = lazy(async () => ({
+  default: (await import('@/pages/AuthPage')).AuthPage,
+}))
 const Landing = lazy(async () => ({
   default: (await import('@/pages/Landing')).Landing,
 }))
@@ -16,8 +21,44 @@ const ModelAnalysisDashboard = lazy(async () => ({
 const ApplicationReview = lazy(async () => ({
   default: (await import('@/pages/ApplicationReview')).ApplicationReview,
 }))
+const ReviewPage = lazy(async () => ({
+  default: (await import('@/pages/ReviewPage')).ReviewPage,
+}))
+const GeoAnalytics = lazy(async () => ({
+  default: (await import('@/pages/GeoAnalytics')).GeoAnalytics,
+}))
+
+const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'customer' | 'org' }) => {
+  const { isAuthenticated, role } = useAuth()
+  const navigate = useNavigate()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />
+  }
+
+  if (requiredRole && role !== requiredRole) {
+    return <Navigate to={role === 'customer' ? '/dashboard/customer' : '/dashboard/org'} replace />
+  }
+
+  return <>{children}</>
+}
 
 export default function App() {
+  const { isAuthenticated, loading, role } = useAuth()
+  const { initializeAuth } = useAuthStore()
+
+  useEffect(() => {
+    initializeAuth()
+  }, [initializeAuth])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50 text-neutral-600">
+        Loading SmartLend...
+      </div>
+    )
+  }
+
   return (
     <Suspense
       fallback={
@@ -27,11 +68,59 @@ export default function App() {
       }
     >
       <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/dashboard/customer" element={<CustomerDashboard />} />
-        <Route path="/dashboard/org" element={<OrganizationDashboard />} />
-        <Route path="/dashboard/models" element={<ModelAnalysisDashboard />} />
-        <Route path="/review/:applicationId" element={<ApplicationReview />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route
+          path="/"
+          element={isAuthenticated ? <Navigate to={role === 'org' ? '/dashboard/org' : '/dashboard/customer'} /> : <Landing />}
+        />
+        <Route
+          path="/dashboard/customer"
+          element={
+            <ProtectedRoute requiredRole="customer">
+              <CustomerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/org"
+          element={
+            <ProtectedRoute requiredRole="org">
+              <OrganizationDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/models"
+          element={
+            <ProtectedRoute requiredRole="org">
+              <ModelAnalysisDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics/geo"
+          element={
+            <ProtectedRoute requiredRole="org">
+              <GeoAnalytics />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/review"
+          element={
+            <ProtectedRoute requiredRole="org">
+              <ReviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/review/:applicationId"
+          element={
+            <ProtectedRoute requiredRole="org">
+              <ApplicationReview />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

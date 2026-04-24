@@ -27,6 +27,7 @@ export const loanApplicationSchema = z
     totalAssets: z.number().min(0).optional(),
     liabilities: z.number().min(0).optional(),
     creditScore: z.number().min(300).max(900).optional(),
+    cibilScore: z.number().min(300).max(900),
     creditHistory: z.enum(['excellent', 'good', 'average', 'poor']).optional(),
     totalLoans: z.number().min(0).max(50).optional(),
     activeLoans: z.number().min(0).max(25).optional(),
@@ -41,7 +42,7 @@ export const loanApplicationSchema = z
     employmentType: z.enum(['salaried', 'self-employed', 'business', 'retired']),
     yearsOfEmployment: z.number().min(0).max(45).optional(),
     residenceType: z.enum(['owned', 'rented', 'with_family']).optional(),
-    region: z.enum(['north', 'south', 'east', 'west', 'central', 'north_east']).optional(),
+    region: z.enum(['rural', 'urban', 'semi_urban']),
     city: z.string().min(2).max(80).optional(),
   })
   .superRefine((data, ctx) => {

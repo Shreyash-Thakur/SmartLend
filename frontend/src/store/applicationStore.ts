@@ -17,7 +17,7 @@ interface ApplicationStore {
   loadApplication: (applicationId: string) => Promise<void>
   addApplication: (payload: LoanApplicationFormData) => Promise<LoanApplication>
   uploadDocument: (applicationId: string, file: File) => Promise<void>
-  overrideDecision: (applicationId: string, status: 'approved' | 'rejected', notes: string) => Promise<void>
+  overrideDecision: (applicationId: string, status: 'approved' | 'rejected' | 'deferred', notes: string) => Promise<void>
 }
 
 export const useApplicationStore = create<ApplicationStore>((set) => ({

@@ -21,12 +21,9 @@ export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed'
 export type EducationLevel = 'high_school' | 'diploma' | 'graduate' | 'postgraduate' | 'doctorate'
 
 export type Region =
-  | 'north'
-  | 'south'
-  | 'east'
-  | 'west'
-  | 'central'
-  | 'north_east'
+  | 'rural'
+  | 'urban'
+  | 'semi_urban'
 
 export interface FeatureContribution {
   name: string
@@ -100,6 +97,7 @@ export interface LoanApplication {
     totalAssets?: number
     liabilities?: number
     creditScore?: number
+    cibilScore?: number
     creditHistory?: 'excellent' | 'good' | 'average' | 'poor'
     totalLoans?: number
     activeLoans?: number
@@ -143,6 +141,7 @@ export interface LoanApplicationFormData {
   totalAssets?: number
   liabilities?: number
   creditScore?: number
+  cibilScore?: number
   creditHistory?: 'excellent' | 'good' | 'average' | 'poor'
   totalLoans?: number
   activeLoans?: number

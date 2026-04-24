@@ -1,60 +1,66 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Controller } from 'react-hook-form'
-import { Landmark, MapPin, Wallet } from 'lucide-react'
+import { AlertCircle, FileText, Landmark, MapPin, Wallet } from 'lucide-react'
 import { Button, Input, Select } from '@/components/common'
+import { FileUploadArea } from '@/components/forms'
 import type { LoanApplicationFormData } from '@/types/application'
 import type { ApplicationFormProps } from '@/types/ui'
 import { loanApplicationSchema, useFormValidation } from '@/hooks/useFormValidation'
-import { FileUploadArea } from './FileUploadArea'
 
-const defaultValues: LoanApplicationFormData = {
-  applicantId: '',
+const INTEREST_RATE_SLABS = {
+  personal: { min: 10.5, max: 14.0, default: 12.0 },
+  home: { min: 8.0, max: 9.0, default: 8.5 },
+  business: { min: 12.0, max: 15.0, default: 13.5 },
+  auto: { min: 9.0, max: 11.0, default: 10.0 },
+  education: { min: 7.0, max: 8.5, default: 7.75 },
+}
+
+const MEAN_CREDIT_UTILIZATION_RATIO = 0.35
+
+const defaultValues: Partial<LoanApplicationFormData> = {
   firstName: '',
   lastName: '',
   email: '',
   phone: '',
-  gender: 'male',
-  maritalStatus: 'single',
-  education: 'graduate',
-  age: 30,
+  gender: '' as LoanApplicationFormData['gender'],
+  maritalStatus: '' as LoanApplicationFormData['maritalStatus'],
+  age: undefined,
   dependents: 0,
-  employmentType: 'salaried',
-  yearsOfEmployment: 5,
-  monthlyIncome: 50000,
-  annualIncome: 600000,
-  loanPurpose: 'business',
-  loanAmount: 500000,
-  loanTenure: 60,
-  interestRate: 11.5,
-  emi: 8000,
+  employmentType: '' as LoanApplicationFormData['employmentType'],
+  yearsOfEmployment: 0,
+  monthlyIncome: undefined,
+  annualIncome: undefined,
+  loanPurpose: '' as LoanApplicationFormData['loanPurpose'],
+  loanAmount: undefined,
+  loanTenure: 36,
+  interestRate: 12.0,
+  emi: 0,
   existingEmis: 0,
-  residentialAssetsValue: 350000,
+  residentialAssetsValue: 0,
   commercialAssetsValue: 0,
-  bankBalance: 180000,
-  totalAssets: 530000,
-  assets: 530000,
-  liabilities: 100000,
-  creditScore: 720,
-  creditHistory: 'good',
-  totalLoans: 2,
-  activeLoans: 1,
-  closedLoans: 1,
+  bankBalance: 0,
+  totalAssets: 0,
+  assets: 0,
+  liabilities: 0,
+  cibilScore: undefined,
+  totalLoans: 0,
+  activeLoans: 0,
+  closedLoans: 0,
   missedPayments: 0,
-  creditUtilizationRatio: 28,
-  emiIncomeRatio: 16,
-  loanIncomeRatio: 83,
-  debtToIncomeRatio: 22,
-  residenceType: 'owned',
-  region: 'west',
+  creditUtilizationRatio: MEAN_CREDIT_UTILIZATION_RATIO,
+  emiIncomeRatio: 0,
+  loanIncomeRatio: 0,
+  debtToIncomeRatio: 0,
+  region: '' as LoanApplicationFormData['region'],
   city: '',
 }
 
 const steps = [
   'Identity',
-  'Income',
-  'Assets',
-  'Credit',
+  'Income & Loan',
+  'Assets & Credit',
   'Documents',
+  'Review',
 ]
 
 export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
@@ -63,7 +69,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
   isLoading = false,
   isMultiStep = true,
 }) => {
-  const storageKey = 'smartlend.loan-application.draft.v2'
+  const storageKey = 'smartlend.loan-application.draft.v3'
   const savedDraft = useMemo(() => {
     const raw = localStorage.getItem(storageKey)
     return raw ? (JSON.parse(raw) as Partial<LoanApplicationFormData>) : undefined
@@ -83,17 +89,33 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
 
   const values = watch()
   const monthlyIncome = values.monthlyIncome || 0
-  const annualIncome = values.annualIncome || monthlyIncome * 12
+  const annualIncome = monthlyIncome ? monthlyIncome * 12 : values.annualIncome || 0
   const totalAssets =
     (values.residentialAssetsValue || 0) +
     (values.commercialAssetsValue || 0) +
     (values.bankBalance || 0)
   const totalEmis = (values.emi || 0) + (values.existingEmis || 0)
   const emiIncomeRatio = monthlyIncome ? (totalEmis / monthlyIncome) * 100 : 0
-  const loanIncomeRatio = annualIncome ? (values.loanAmount / annualIncome) * 100 : 0
+  const requestedLoanAmount = values.loanAmount || 0
+  const loanIncomeRatio = annualIncome ? (requestedLoanAmount / annualIncome) * 100 : 0
   const debtToIncomeRatio =
     annualIncome ? (((values.liabilities || 0) + totalEmis * 12) / annualIncome) * 100 : 0
   const maxEmi = monthlyIncome ? Math.round(monthlyIncome * 0.4) : 0
+
+  const getCreditCategory = (score: number | undefined) => {
+    if (!score) return 'N/A'
+    if (score > 750) return 'Good'
+    if (score >= 600) return 'Average'
+    return 'Bad'
+  }
+
+  const getInterestRate = (loanPurpose: keyof typeof INTEREST_RATE_SLABS | '', income: number) => {
+    if (!loanPurpose || !INTEREST_RATE_SLABS[loanPurpose]) return 0
+    const slab = INTEREST_RATE_SLABS[loanPurpose]
+    if (income >= 150000) return slab.min
+    if (income >= 75000) return Number(((slab.min + slab.max) / 2).toFixed(2))
+    return slab.max
+  }
 
   useEffect(() => {
     reset({
@@ -104,13 +126,23 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
   }, [initialData, reset, savedDraft])
 
   useEffect(() => {
-    setValue('annualIncome', Math.round(annualIncome))
+    if (monthlyIncome) {
+      setValue('annualIncome', Math.round(monthlyIncome * 12))
+    }
     setValue('totalAssets', Math.round(totalAssets))
     setValue('assets', Math.round(totalAssets))
     setValue('emiIncomeRatio', Number(emiIncomeRatio.toFixed(2)))
     setValue('loanIncomeRatio', Number(loanIncomeRatio.toFixed(2)))
     setValue('debtToIncomeRatio', Number(debtToIncomeRatio.toFixed(2)))
-  }, [annualIncome, debtToIncomeRatio, emiIncomeRatio, loanIncomeRatio, setValue, totalAssets])
+    setValue('creditUtilizationRatio', MEAN_CREDIT_UTILIZATION_RATIO)
+  }, [annualIncome, debtToIncomeRatio, emiIncomeRatio, loanIncomeRatio, monthlyIncome, setValue, totalAssets])
+
+  useEffect(() => {
+    const loanPurpose = values.loanPurpose as keyof typeof INTEREST_RATE_SLABS
+    if (loanPurpose && INTEREST_RATE_SLABS[loanPurpose]) {
+      setValue('interestRate', getInterestRate(loanPurpose, monthlyIncome))
+    }
+  }, [monthlyIncome, values.loanPurpose, setValue])
 
   useEffect(() => {
     const subscription = watch((value) => {
@@ -122,7 +154,6 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
   const submitForm = async (data: LoanApplicationFormData) => {
     await onSubmit(data)
     localStorage.removeItem(storageKey)
-    setSelectedFile(null)
     if (isMultiStep) {
       setCurrentStep(0)
     }
@@ -134,7 +165,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
     <form onSubmit={handleSubmit(submitForm)} className="space-y-8">
       {isMultiStep && (
         <div className="rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-lg backdrop-blur-xl">
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-4">
             {steps.map((step, index) => (
               <button
                 key={step}
@@ -160,8 +191,8 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
         <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Applicant Profile</p>
-              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Identity and residency</h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Personal Information</p>
+              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Identity and Contact</h3>
             </div>
             <div className="rounded-2xl bg-primary-50 p-3 text-primary-600">
               <MapPin className="h-6 w-6" />
@@ -169,26 +200,27 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Input label="Applicant ID" placeholder="Auto-generated if blank" {...register('applicantId')} />
-            <Input label="First Name" required {...register('firstName')} error={errors.firstName?.message} />
-            <Input label="Last Name" required {...register('lastName')} error={errors.lastName?.message} />
-            <Input label="Email" type="email" required {...register('email')} error={errors.email?.message} />
-            <Input label="Phone" required {...register('phone')} error={errors.phone?.message} />
-            <Input label="City" required {...register('city')} error={errors.city?.message} />
+            <Input label="First Name *" required {...register('firstName')} error={errors.firstName?.message} />
+            <Input label="Last Name *" required {...register('lastName')} error={errors.lastName?.message} />
+            <Input label="Email *" type="email" required {...register('email')} error={errors.email?.message} />
+            <Input label="Phone *" required {...register('phone')} error={errors.phone?.message} />
+            <Input label="City *" required {...register('city')} error={errors.city?.message} />
 
             <Controller
               control={control}
               name="gender"
               render={({ field }) => (
                 <Select
-                  label="Gender"
+                  label="Gender *"
                   options={[
+                    { value: '', label: 'Select...' },
                     { value: 'male', label: 'Male' },
                     { value: 'female', label: 'Female' },
                     { value: 'other', label: 'Other' },
                   ]}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
+                  error={errors.gender?.message}
                 />
               )}
             />
@@ -198,8 +230,9 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
               name="maritalStatus"
               render={({ field }) => (
                 <Select
-                  label="Marital Status"
+                  label="Marital Status *"
                   options={[
+                    { value: '', label: 'Select...' },
                     { value: 'single', label: 'Single' },
                     { value: 'married', label: 'Married' },
                     { value: 'divorced', label: 'Divorced' },
@@ -207,30 +240,12 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
                   ]}
                   value={field.value || ''}
                   onChange={field.onChange}
+                  error={errors.maritalStatus?.message}
                 />
               )}
             />
 
-            <Controller
-              control={control}
-              name="education"
-              render={({ field }) => (
-                <Select
-                  label="Education"
-                  options={[
-                    { value: 'high_school', label: 'High School' },
-                    { value: 'diploma', label: 'Diploma' },
-                    { value: 'graduate', label: 'Graduate' },
-                    { value: 'postgraduate', label: 'Postgraduate' },
-                    { value: 'doctorate', label: 'Doctorate' },
-                  ]}
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-
-            <Input label="Age" type="number" required {...register('age', { valueAsNumber: true })} error={errors.age?.message} />
+            <Input label="Age *" type="number" required {...register('age', { valueAsNumber: true })} error={errors.age?.message} />
             <Input
               label="Dependents"
               type="number"
@@ -243,34 +258,16 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
               name="region"
               render={({ field }) => (
                 <Select
-                  label="Region"
+                  label="Region Type *"
                   options={[
-                    { value: 'north', label: 'North' },
-                    { value: 'south', label: 'South' },
-                    { value: 'east', label: 'East' },
-                    { value: 'west', label: 'West' },
-                    { value: 'central', label: 'Central' },
-                    { value: 'north_east', label: 'North East' },
+                    { value: '', label: 'Select...' },
+                    { value: 'rural', label: 'Rural' },
+                    { value: 'urban', label: 'Urban' },
+                    { value: 'semi_urban', label: 'Semi-Urban' },
                   ]}
                   value={field.value || ''}
                   onChange={field.onChange}
-                />
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="residenceType"
-              render={({ field }) => (
-                <Select
-                  label="Residence Type"
-                  options={[
-                    { value: 'owned', label: 'Owned' },
-                    { value: 'rented', label: 'Rented' },
-                    { value: 'with_family', label: 'With Family' },
-                  ]}
-                  value={field.value || ''}
-                  onChange={field.onChange}
+                  error={errors.region?.message}
                 />
               )}
             />
@@ -282,8 +279,8 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
         <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Income Layer</p>
-              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Employment and loan request</h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Income & Employment</p>
+              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Employment and Loan Request</h3>
             </div>
             <div className="rounded-2xl bg-accent-50 p-3 text-accent-500">
               <Wallet className="h-6 w-6" />
@@ -296,83 +293,81 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
               name="employmentType"
               render={({ field }) => (
                 <Select
-                  label="Employment Type"
+                  label="Employment Type *"
                   options={[
+                    { value: '', label: 'Select...' },
                     { value: 'salaried', label: 'Salaried' },
-                    { value: 'self-employed', label: 'Self Employed' },
-                    { value: 'business', label: 'Business Owner' },
+                    { value: 'self-employed', label: 'Self-Employed' },
+                    { value: 'business', label: 'Business' },
                     { value: 'retired', label: 'Retired' },
                   ]}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
+                  error={errors.employmentType?.message}
                 />
               )}
             />
+
             <Input
-              label="Years Employed"
+              label="Years of Employment"
               type="number"
               {...register('yearsOfEmployment', { valueAsNumber: true })}
               error={errors.yearsOfEmployment?.message}
             />
+
+            <Input label="Monthly Income *" type="number" required {...register('monthlyIncome', { valueAsNumber: true })} error={errors.monthlyIncome?.message} />
+
             <Input
-              label="Monthly Income"
+              label="Annual Income (Auto)"
               type="number"
-              required
-              {...register('monthlyIncome', { valueAsNumber: true })}
-              error={errors.monthlyIncome?.message}
+              disabled
+              {...register('annualIncome', { valueAsNumber: true })}
             />
-            <Input label="Annual Income" type="number" value={annualIncome} readOnly icon={<Wallet className="h-4 w-4" />} />
-            <Input
-              label="Loan Amount"
-              type="number"
-              required
-              {...register('loanAmount', { valueAsNumber: true })}
-              error={errors.loanAmount?.message}
-            />
-            <Input
-              label="Loan Term (Months)"
-              type="number"
-              required
-              {...register('loanTenure', { valueAsNumber: true })}
-              error={errors.loanTenure?.message}
-            />
+
             <Controller
               control={control}
               name="loanPurpose"
               render={({ field }) => (
                 <Select
-                  label="Loan Type"
+                  label="Loan Purpose *"
                   options={[
-                    { value: 'home', label: 'Home Loan' },
-                    { value: 'auto', label: 'Auto Loan' },
-                    { value: 'personal', label: 'Personal Loan' },
-                    { value: 'business', label: 'Business Loan' },
-                    { value: 'education', label: 'Education Loan' },
+                    { value: '', label: 'Select...' },
+                    { value: 'personal', label: 'Personal' },
+                    { value: 'home', label: 'Home' },
+                    { value: 'business', label: 'Business' },
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'education', label: 'Education' },
                   ]}
-                  value={field.value}
+                  value={field.value || ''}
                   onChange={field.onChange}
+                  error={errors.loanPurpose?.message}
                 />
               )}
             />
+
+            <Input label="Loan Amount *" type="number" required {...register('loanAmount', { valueAsNumber: true })} error={errors.loanAmount?.message} />
+            <Input label="Loan Tenure (months)" type="number" {...register('loanTenure', { valueAsNumber: true })} />
+
             <Input
               label="Interest Rate (%)"
               type="number"
               step="0.1"
+              disabled
               {...register('interestRate', { valueAsNumber: true })}
-              error={errors.interestRate?.message}
+              hint="Auto-assigned from loan type and income slab"
             />
+
             <Input
-              label={`Primary EMI (Max ${maxEmi.toLocaleString('en-IN')})`}
-              type="number"
-              required
-              {...register('emi', { valueAsNumber: true })}
-              error={errors.emi?.message}
-            />
-            <Input
-              label="Existing EMIs"
+              label="Existing Monthly EMI"
               type="number"
               {...register('existingEmis', { valueAsNumber: true })}
-              error={errors.existingEmis?.message}
+            />
+
+            <Input
+              label="EMI:Income Ratio (%)"
+              type="number"
+              disabled
+              {...register('emiIncomeRatio', { valueAsNumber: true })}
             />
           </div>
         </section>
@@ -382,10 +377,10 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
         <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Balance Sheet</p>
-              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Assets and liabilities</h3>
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Assets & Credit</p>
+              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Financial Profile</h3>
             </div>
-            <div className="rounded-2xl bg-yellow-100 p-3 text-yellow-600">
+            <div className="rounded-2xl bg-secondary-50 p-3 text-secondary-600">
               <Landmark className="h-6 w-6" />
             </div>
           </div>
@@ -395,127 +390,195 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
               label="Residential Assets Value"
               type="number"
               {...register('residentialAssetsValue', { valueAsNumber: true })}
-              error={errors.residentialAssetsValue?.message}
             />
+
             <Input
               label="Commercial Assets Value"
               type="number"
               {...register('commercialAssetsValue', { valueAsNumber: true })}
-              error={errors.commercialAssetsValue?.message}
             />
+
             <Input
               label="Bank Balance"
               type="number"
               {...register('bankBalance', { valueAsNumber: true })}
-              error={errors.bankBalance?.message}
             />
-            <Input label="Total Assets" type="number" value={Math.round(totalAssets)} readOnly />
-            <Input label="Assets Mirror Field" type="number" value={Math.round(totalAssets)} readOnly />
+
             <Input
-              label="Liabilities"
+              label="Total Assets (Auto)"
+              type="number"
+              disabled
+              {...register('totalAssets', { valueAsNumber: true })}
+            />
+
+            <Input
+              label="Total Liabilities"
               type="number"
               {...register('liabilities', { valueAsNumber: true })}
-              error={errors.liabilities?.message}
             />
-          </div>
 
-          <div className="mt-6 rounded-[28px] bg-neutral-900 p-6 text-white shadow-lg">
-            <div className="grid gap-4 md:grid-cols-3">
-              <PreviewMetric label="EMI / Income Ratio" value={`${emiIncomeRatio.toFixed(1)}%`} />
-              <PreviewMetric label="Loan / Income Ratio" value={`${loanIncomeRatio.toFixed(1)}%`} />
-              <PreviewMetric label="Debt / Income Ratio" value={`${debtToIncomeRatio.toFixed(1)}%`} />
+            <Input label="CIBIL Score *" type="number" required {...register('cibilScore', { valueAsNumber: true })} error={errors.cibilScore?.message} />
+
+            <div className="rounded-lg bg-blue-50 p-3 border border-blue-200">
+              <p className="text-sm font-medium text-blue-900">
+                Category: <span className="font-bold">{getCreditCategory(values.cibilScore)}</span>
+              </p>
             </div>
+
+            <Input
+              label="Total Loans"
+              type="number"
+              {...register('totalLoans', { valueAsNumber: true })}
+            />
+
+            <Input
+              label="Active Loans"
+              type="number"
+              {...register('activeLoans', { valueAsNumber: true })}
+            />
+
+            <Input
+              label="Closed Loans"
+              type="number"
+              {...register('closedLoans', { valueAsNumber: true })}
+            />
+
+            <Input
+              label="Missed Payments"
+              type="number"
+              {...register('missedPayments', { valueAsNumber: true })}
+            />
+
+            <Input
+              label="Loan:Income Ratio (%)"
+              type="number"
+              disabled
+              {...register('loanIncomeRatio', { valueAsNumber: true })}
+            />
+
+            <Input
+              label="Debt:Income Ratio (%)"
+              type="number"
+              disabled
+              {...register('debtToIncomeRatio', { valueAsNumber: true })}
+            />
           </div>
         </section>
       )}
 
       {renderStepVisibility(3) && (
         <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
-          <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Credit Layer</p>
-            <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Bureau and repayment history</h3>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Supporting Documents</p>
+              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Upload Documents</h3>
+            </div>
+            <div className="rounded-2xl bg-purple-50 p-3 text-purple-600">
+              <FileText className="h-6 w-6" />
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Input
-              label="CIBIL Score"
-              type="number"
-              {...register('creditScore', { valueAsNumber: true })}
-              error={errors.creditScore?.message}
-            />
-            <Controller
-              control={control}
-              name="creditHistory"
-              render={({ field }) => (
-                <Select
-                  label="Credit History"
-                  options={[
-                    { value: 'excellent', label: 'Excellent' },
-                    { value: 'good', label: 'Good' },
-                    { value: 'average', label: 'Average' },
-                    { value: 'poor', label: 'Poor' },
-                  ]}
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-            <Input label="Total Loans" type="number" {...register('totalLoans', { valueAsNumber: true })} />
-            <Input label="Active Loans" type="number" {...register('activeLoans', { valueAsNumber: true })} />
-            <Input label="Closed Loans" type="number" {...register('closedLoans', { valueAsNumber: true })} />
-            <Input label="Missed Payments" type="number" {...register('missedPayments', { valueAsNumber: true })} />
-            <Input
-              label="Credit Utilization Ratio (%)"
-              type="number"
-              step="0.1"
-              {...register('creditUtilizationRatio', { valueAsNumber: true })}
-            />
-            <Input label="EMI / Income Ratio (%)" type="number" value={emiIncomeRatio.toFixed(2)} readOnly />
-            <Input label="Loan / Income Ratio (%)" type="number" value={loanIncomeRatio.toFixed(2)} readOnly />
-            <Input label="Debt / Income Ratio (%)" type="number" value={debtToIncomeRatio.toFixed(2)} readOnly />
+          <div className="grid gap-4 lg:grid-cols-3">
+            {['Income proof', 'Payslip', 'Property proof'].map((documentType) => (
+              <div key={documentType} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm font-semibold text-neutral-900">{documentType}</p>
+                <p className="mt-1 text-xs text-neutral-500">PDF, JPG, or PNG up to 5MB</p>
+              </div>
+            ))}
           </div>
+
+          <div className="mt-5">
+            <FileUploadArea
+              acceptedFormats={['pdf', 'jpg', 'png']}
+              maxSize={5 * 1024 * 1024}
+              onFileSelect={async (file) => {
+                setSelectedFile(file)
+              }}
+            />
+          </div>
+
+          {selectedFile && (
+            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+              <p className="text-sm text-green-900">
+                <span className="font-medium">Selected:</span> {selectedFile.name}
+              </p>
+            </div>
+          )}
         </section>
       )}
 
       {renderStepVisibility(4) && (
         <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Documents and review</p>
-              <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Final verification</h3>
-            </div>
-            <div className="rounded-2xl bg-primary-500 px-4 py-2 text-sm font-semibold text-white">
-              Session-only draft
-            </div>
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Application Summary</p>
+            <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Review Your Details</h3>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-4">
-              <FileUploadArea
-                acceptedFormats={['pdf', 'csv']}
-                maxSize={5 * 1024 * 1024}
-                onFileSelect={async (file) => {
-                  setSelectedFile(file)
-                }}
-              />
-              {selectedFile && (
-                <div className="rounded-2xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-900">
-                  Ready to attach after creation: {selectedFile.name}
-                </div>
-              )}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-lg bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-600">Applicant</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {values.firstName} {values.lastName}
+                </p>
+                <p className="mt-1 text-sm text-gray-600">{values.email}</p>
+              </div>
+
+              <div className="rounded-lg bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-600">Loan Details</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  ₹{values.loanAmount?.toLocaleString() || 'N/A'}
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  {values.loanPurpose || 'N/A'} • {values.loanTenure} months
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Interest: {values.interestRate || 0}% auto-assigned
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-600">Income</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  ₹{monthlyIncome?.toLocaleString() || 'N/A'}/month
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  EMI Ratio: {emiIncomeRatio.toFixed(1)}%
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Annual: ₹{annualIncome.toLocaleString()}
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-600">Credit Score</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {values.cibilScore || 'N/A'}
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  {getCreditCategory(values.cibilScore)}
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Credit utilization: {(MEAN_CREDIT_UTILIZATION_RATIO * 100).toFixed(0)}% mean value
+                </p>
+              </div>
             </div>
 
-            <div className="rounded-[28px] bg-gradient-to-br from-[#f2f6ee] via-[#edf7f2] to-[#f8fafc] p-5 shadow-inner">
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Underwriting preview</p>
-              <div className="mt-5 space-y-4">
-                <PreviewMetric label="Applicant" value={`${values.firstName || '-'} ${values.lastName || ''}`.trim()} />
-                <PreviewMetric label="Loan Request" value={`₹${Number(values.loanAmount || 0).toLocaleString('en-IN')}`} />
-                <PreviewMetric label="Monthly Income" value={`₹${Number(monthlyIncome).toLocaleString('en-IN')}`} />
-                <PreviewMetric label="CIBIL Score" value={values.creditScore ? String(values.creditScore) : 'Pending'} />
-                <PreviewMetric
-                  label="Auto Confidence Preview"
-                  value={emiIncomeRatio < 25 && (values.creditScore || 0) > 700 ? 'High' : emiIncomeRatio < 40 ? 'Medium' : 'Low'}
-                />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <PreviewMetric label="Region" value={values.region ? String(values.region).replace('_', '-') : 'N/A'} />
+              <PreviewMetric label="Total Assets" value={`₹${Math.round(totalAssets).toLocaleString()}`} />
+              <PreviewMetric label="Loan:Income" value={`${loanIncomeRatio.toFixed(1)}%`} />
+            </div>
+
+            <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-blue-900">Please review your application</p>
+                  <p className="mt-1 text-sm text-blue-800">
+                    Ensure all information is accurate before submission. You can navigate back to correct any details.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -523,22 +586,36 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
       )}
 
       {isMultiStep && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <Button
             type="button"
             variant="ghost"
             onClick={() => setCurrentStep((step) => Math.max(step - 1, 0))}
             disabled={currentStep === 0}
+            className="rounded-xl"
           >
-            Previous
+            ← Previous
           </Button>
+
+          <div className="flex gap-2">
+            {steps.map((_, idx) => (
+              <div
+                key={idx}
+                className={`h-2 flex-1 rounded-full transition-colors ${
+                  idx <= currentStep ? 'bg-primary-500' : 'bg-gray-200'
+                }`}
+              />
+            ))}
+          </div>
+
           <Button
             type="button"
             variant="secondary"
             onClick={() => setCurrentStep((step) => Math.min(step + 1, steps.length - 1))}
             disabled={currentStep === steps.length - 1}
+            className="rounded-xl"
           >
-            Next
+            Next →
           </Button>
         </div>
       )}
@@ -552,7 +629,14 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
         disabled={!isValid || (isMultiStep && currentStep !== steps.length - 1)}
         className="rounded-2xl py-4 shadow-lg"
       >
-        {isSubmitting || isLoading ? 'Submitting Application...' : 'Create Loan Application'}
+        {isSubmitting || isLoading ? (
+          <>
+            <div className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            Submitting...
+          </>
+        ) : (
+          'Submit Application'
+        )}
       </Button>
     </form>
   )

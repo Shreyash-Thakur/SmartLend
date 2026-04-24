@@ -1,6 +1,3 @@
-# ============================================
-# SMARTLEND: HYBRID ML + CBES SYSTEM
-# ============================================
 
 import pandas as pd
 import numpy as np
@@ -18,32 +15,20 @@ from lightgbm import LGBMClassifier
 import warnings
 warnings.filterwarnings("ignore")
 
-# ============================================
-# LOAD DATA
-# ============================================
 
 df = pd.read_csv("synthetic_indian_loan_dataset.csv")
 print("Dataset:", df.shape)
 
-# ============================================
-# ENCODE CATEGORICALS
-# ============================================
 
 for col in df.select_dtypes(include="object").columns:
     df[col] = df[col].astype("category").cat.codes
 
-# ============================================
-# FEATURE ENGINEERING
-# ============================================
 
 df["EMI_INCOME_RATIO"] = df["emi"] / (df["monthly_income"] + 1)
 df["LOAN_INCOME_RATIO"] = df["loan_amount"] / (df["annual_income"] + 1)
 df["DEBT_BURDEN"] = (df["existing_emis"] + df["emi"]) / (df["monthly_income"] + 1)
 df["ASSET_COVERAGE"] = df["total_assets"] / (df["loan_amount"] + 1)
 
-# ============================================
-# CBES SCORE (RULE-BASED)
-# ============================================
 
 def compute_cbes(row):
     score = 0
@@ -93,33 +78,20 @@ df["CBES"] = df.apply(compute_cbes, axis=1)
 # Convert CBES to probability-like score
 df["CBES_PROB"] = 1 / (1 + np.exp(-df["CBES"]))
 
-# ============================================
-# TARGET
-# ============================================
 
 TARGET = "default_risk"
 X = df.drop(columns=[TARGET])
 y = df[TARGET]
 
-# ============================================
-# SPLIT
-# ============================================
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ============================================
-# SCALING
-# ============================================
-
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# ============================================
-# MODEL
-# ============================================
 
 model = LogisticRegression(max_iter=1000)
 model.fit(X_train_scaled, y_train)
@@ -127,16 +99,9 @@ model.fit(X_train_scaled, y_train)
 ml_probs = model.predict_proba(X_test_scaled)[:, 1]
 ml_preds = model.predict(X_test_scaled)
 
-# ============================================
-# CBES PREDICTIONS
-# ============================================
-
 cbes_probs = X_test["CBES_PROB"].values
 cbes_preds = (cbes_probs > 0.5).astype(int)
 
-# ============================================
-# HYBRID LOGIC (YOUR NOVELTY)
-# ============================================
 
 def hybrid_decision(ml_p, cbes_p):
     combined = 0.6 * ml_p + 0.4 * cbes_p
@@ -156,9 +121,6 @@ hybrid_decisions = np.array([
     hybrid_decision(m, c) for m, c in zip(ml_probs, cbes_probs)
 ])
 
-# ============================================
-# EVALUATION
-# ============================================
 
 def evaluate(name, preds, probs):
     acc = accuracy_score(y_test, preds)
@@ -195,9 +157,6 @@ print("\nHYBRID SYSTEM")
 print("Deferral Rate:", round((~mask).sum()/len(mask),4))
 print("Accuracy (Non-Deferred):", round(acc_h,4))
 
-# ============================================
-# VISUALIZATION
-# ============================================
 
 labels = ["ML", "CBES", "Hybrid ND"]
 accuracy_vals = [
