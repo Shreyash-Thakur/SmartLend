@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import {
   signInWithPopup,
   signOut,
-  User as FirebaseUser,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { auth, provider } from '../lib/firebase';
+import { auth, firebaseAuthEnabled, firebaseConfigDiagnostics, provider } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 
 export const useAuth = () => {
@@ -13,6 +12,11 @@ export const useAuth = () => {
   const { setUser, user, setRole, role, logout } = useAuthStore();
 
   useEffect(() => {
+    if (!firebaseAuthEnabled || !auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
@@ -31,6 +35,15 @@ export const useAuth = () => {
   }, [setUser]);
 
   const loginWithGoogle = async () => {
+    if (!firebaseAuthEnabled || !auth || !provider) {
+      setLoading(false);
+      const missingKeys = firebaseConfigDiagnostics.missingConfigKeys.join(', ');
+      throw new Error(
+        `Google sign-in is unavailable. Missing Firebase keys: ${missingKeys}. `
+        + 'Set VITE_FIREBASE_* values in frontend/.env.',
+      );
+    }
+
     try {
       setLoading(true);
       const result = await signInWithPopup(auth, provider);
@@ -50,6 +63,11 @@ export const useAuth = () => {
   };
 
   const logout_user = async () => {
+    if (!firebaseAuthEnabled || !auth) {
+      logout();
+      return;
+    }
+
     try {
       await signOut(auth);
       logout();

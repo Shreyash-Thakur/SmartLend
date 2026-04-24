@@ -10,11 +10,38 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+const requiredKeys = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+] as const;
 
-export const auth = getAuth(app);
-export const provider = new GoogleAuthProvider();
+const missingConfigKeys = requiredKeys.filter((key) => !firebaseConfig[key]);
+const isFirebaseConfigured = missingConfigKeys.length === 0;
 
-provider.setCustomParameters({
-  prompt: 'consent',
-});
+export const firebaseConfigDiagnostics = {
+  enabled: isFirebaseConfigured,
+  missingConfigKeys,
+};
+
+if (!isFirebaseConfigured) {
+  console.warn(
+    `[SmartLend] Firebase environment variables are missing (${missingConfigKeys.join(', ')}). `
+      + 'Google Auth is disabled until all VITE_FIREBASE_* values are set.',
+  );
+}
+
+const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+
+export const auth = app ? getAuth(app) : null;
+export const provider = app ? new GoogleAuthProvider() : null;
+export const firebaseAuthEnabled = isFirebaseConfigured;
+
+if (provider) {
+  provider.setCustomParameters({
+    prompt: 'consent',
+  });
+}

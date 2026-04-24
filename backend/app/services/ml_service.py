@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import logging
+import json
 import re
 import sys
 from typing import Any
@@ -17,11 +18,19 @@ from sklearn.preprocessing import StandardScaler
 
 
 DATASET_PATH = Path(__file__).resolve().parents[2] / "synthetic_indian_loan_dataset.csv"
+PIPELINE_SUMMARY_PATH = Path(__file__).resolve().parents[2] / "artifacts" / "pipeline_summary.json"
 logger = logging.getLogger(__name__)
 
 # Process-based CV workers can fail to deserialize on Windows (especially with newer Python versions).
 # Keep startup tuning stable by forcing serial search there.
 SEARCH_N_JOBS = 1 if sys.platform.startswith("win") else -1
+
+DEFAULT_CBES_WEIGHTS = {
+    "credit": 0.35,
+    "capacity": 0.30,
+    "asset": 0.25,
+    "stability": 0.10,
+}
 
 
 def clamp(x: float, low: float, high: float) -> float:
@@ -73,6 +82,7 @@ class PredictionResult:
     approval_threshold: float
     rejection_threshold: float
     cbes_components: dict[str, float]
+    cbes_weights: dict[str, float]
     engineered_features: dict[str, float]
     selected_model: str
 
@@ -87,7 +97,37 @@ class MLPredictor:
         self.feature_columns: list[str] = []
         self.template_row: dict[str, Any] = {}
         self.numeric_columns: set[str] = set()
+        self.cbes_weights = self._load_cbes_weights()
         self._fit_once()
+
+    def _load_cbes_weights(self) -> dict[str, float]:
+        if not PIPELINE_SUMMARY_PATH.exists():
+            return dict(DEFAULT_CBES_WEIGHTS)
+
+        try:
+            with PIPELINE_SUMMARY_PATH.open("r", encoding="utf-8") as summary_file:
+                payload = json.load(summary_file)
+        except (OSError, json.JSONDecodeError):
+            return dict(DEFAULT_CBES_WEIGHTS)
+
+        raw_weights = payload.get("cbes_weights", {}) if isinstance(payload, dict) else {}
+        if not isinstance(raw_weights, dict):
+            return dict(DEFAULT_CBES_WEIGHTS)
+
+        weights: dict[str, float] = {}
+        for key in ["credit", "capacity", "asset", "stability"]:
+            try:
+                value = float(raw_weights.get(key, DEFAULT_CBES_WEIGHTS[key]))
+            except (TypeError, ValueError):
+                value = DEFAULT_CBES_WEIGHTS[key]
+            weights[key] = max(0.0, value)
+
+        total = sum(weights.values())
+        if total <= 0:
+            return dict(DEFAULT_CBES_WEIGHTS)
+
+        normalized = {key: value / total for key, value in weights.items()}
+        return normalized
 
     def _fit_once(self) -> None:
         if not self.dataset_path.exists():
@@ -235,10 +275,10 @@ class MLPredictor:
 
     def _compute_cbes_prob(self, components: dict[str, float]) -> float:
         cbes_score = (
-            0.35 * components["credit_component"]
-            + 0.3 * components["capacity_component"]
-            + 0.25 * components["asset_component"]
-            + 0.1 * components["stability_component"]
+            self.cbes_weights["credit"] * components["credit_component"]
+            + self.cbes_weights["capacity"] * components["capacity_component"]
+            + self.cbes_weights["asset"] * components["asset_component"]
+            + self.cbes_weights["stability"] * components["stability_component"]
         )
         return clamp(cbes_score, 0, 1)
 
@@ -289,6 +329,7 @@ class MLPredictor:
                 approval_threshold=float(approval_threshold),
                 rejection_threshold=float(rejection_threshold),
                 cbes_components=cbes_components,
+                cbes_weights=self.cbes_weights,
                 engineered_features=engineered_features,
                 selected_model=self.selected_model_name,
             )

@@ -76,6 +76,7 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
         "rejection_threshold": prediction.rejection_threshold,
         "selected_model": prediction.selected_model,
         "cbes_components": prediction.cbes_components,
+        "cbes_weights": prediction.cbes_weights,
         "engineered_features": prediction.engineered_features,
     }
 

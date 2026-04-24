@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/authStore'
 
@@ -30,9 +30,12 @@ const GeoAnalytics = lazy(async () => ({
 
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'customer' | 'org' }) => {
   const { isAuthenticated, role } = useAuth()
-  const navigate = useNavigate()
 
   if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />
+  }
+
+  if (!role) {
     return <Navigate to="/auth" replace />
   }
 
@@ -71,7 +74,17 @@ export default function App() {
         <Route path="/auth" element={<AuthPage />} />
         <Route
           path="/"
-          element={isAuthenticated ? <Navigate to={role === 'org' ? '/dashboard/org' : '/dashboard/customer'} /> : <Landing />}
+          element={
+            isAuthenticated ? (
+              role ? (
+                <Navigate to={role === 'org' ? '/dashboard/org' : '/dashboard/customer'} />
+              ) : (
+                <Navigate to="/auth" replace />
+              )
+            ) : (
+              <Landing />
+            )
+          }
         />
         <Route
           path="/dashboard/customer"

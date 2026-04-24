@@ -1,12 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEffect, useState } from 'react';
+import { firebaseConfigDiagnostics } from '../lib/firebase';
 
 export const AuthPage = () => {
   const navigate = useNavigate();
   const { loginWithGoogle, user, setRole, loading } = useAuth();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [loadingLogin, setLoadingLogin] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && !showRoleSelection) {
@@ -15,11 +17,13 @@ export const AuthPage = () => {
   }, [user, showRoleSelection]);
 
   const handleGoogleLogin = async () => {
+    setLoginError(null);
     setLoadingLogin(true);
     try {
       await loginWithGoogle();
     } catch (error) {
       console.error('Login failed:', error);
+      setLoginError(error instanceof Error ? error.message : 'Unable to sign in with Google.');
       setLoadingLogin(false);
     }
   };
@@ -105,6 +109,18 @@ export const AuthPage = () => {
           </svg>
           {loadingLogin ? 'Signing in...' : 'Sign in with Google'}
         </button>
+
+        {!firebaseConfigDiagnostics.enabled && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3 mt-4">
+            Firebase configuration incomplete. Missing keys: {firebaseConfigDiagnostics.missingConfigKeys.join(', ')}
+          </p>
+        )}
+
+        {loginError && (
+          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md p-3 mt-4">
+            {loginError}
+          </p>
+        )}
 
         <p className="text-sm text-gray-500 text-center mt-6">
           By signing in, you agree to our Terms of Service

@@ -204,11 +204,27 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     counterfactuals = _build_counterfactuals(top_factors, app_item.final_decision)
 
     components = meta.get("cbes_components", {}) if isinstance(meta.get("cbes_components", {}), dict) else {}
+    weights = meta.get("cbes_weights", {}) if isinstance(meta.get("cbes_weights", {}), dict) else {}
+
+    credit_component = float(components.get("credit_component", 0.0))
+    capacity_component = float(components.get("capacity_component", 0.0))
+    asset_component = float(components.get("asset_component", 0.0))
+    stability_component = float(components.get("stability_component", 0.0))
+
+    credit_weight = float(weights.get("credit", 0.35))
+    capacity_weight = float(weights.get("capacity", 0.30))
+    asset_weight = float(weights.get("asset", 0.25))
+    stability_weight = float(weights.get("stability", 0.10))
+
     factor_buckets = {
-        "credit": round(float(components.get("credit_component", 0.0)), 4),
-        "capacity": round(float(components.get("capacity_component", 0.0)), 4),
-        "collateral": round(float(components.get("asset_component", 0.0)), 4),
-        "stability": round(float(components.get("stability_component", 0.0)), 4),
+        "credit": round(credit_component, 4),
+        "capacity": round(capacity_component, 4),
+        "collateral": round(asset_component, 4),
+        "stability": round(stability_component, 4),
+        "creditWeighted": round(credit_component * credit_weight, 4),
+        "capacityWeighted": round(capacity_component * capacity_weight, 4),
+        "collateralWeighted": round(asset_component * asset_weight, 4),
+        "stabilityWeighted": round(stability_component * stability_weight, 4),
     }
 
     explanation_text = (
