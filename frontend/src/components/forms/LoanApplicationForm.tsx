@@ -30,32 +30,32 @@ const defaultValues: Partial<LoanApplicationFormData> = {
   gender: '' as LoanApplicationFormData['gender'],
   maritalStatus: '' as LoanApplicationFormData['maritalStatus'],
   age: undefined,
-  dependents: 0,
+  dependents: undefined,
   employmentType: '' as LoanApplicationFormData['employmentType'],
-  yearsOfEmployment: 0,
+  yearsOfEmployment: undefined,
   monthlyIncome: undefined,
   annualIncome: undefined,
   loanPurpose: '' as LoanApplicationFormData['loanPurpose'],
   loanAmount: undefined,
   loanTenure: 36,
-  interestRate: 12.0,
+  interestRate: undefined,
   emi: 0,
-  existingEmis: 0,
-  residentialAssetsValue: 0,
-  commercialAssetsValue: 0,
-  bankBalance: 0,
-  totalAssets: 0,
-  assets: 0,
-  liabilities: 0,
+  existingEmis: undefined,
+  residentialAssetsValue: undefined,
+  commercialAssetsValue: undefined,
+  bankBalance: undefined,
+  totalAssets: undefined,
+  assets: undefined,
+  liabilities: undefined,
   cibilScore: undefined,
-  totalLoans: 0,
-  activeLoans: 0,
-  closedLoans: 0,
-  missedPayments: 0,
+  totalLoans: undefined,
+  activeLoans: undefined,
+  closedLoans: undefined,
+  missedPayments: undefined,
   creditUtilizationRatio: MEAN_CREDIT_UTILIZATION_RATIO,
-  emiIncomeRatio: 0,
-  loanIncomeRatio: 0,
-  debtToIncomeRatio: 0,
+  emiIncomeRatio: undefined,
+  loanIncomeRatio: undefined,
+  debtToIncomeRatio: undefined,
   region: '' as LoanApplicationFormData['region'],
   city: '',
 }
@@ -93,19 +93,18 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
   } = useFormValidation(loanApplicationSchema)
 
   const values = watch()
-  const monthlyIncome = values.monthlyIncome || 0
-  const annualIncome = monthlyIncome ? monthlyIncome * 12 : values.annualIncome || 0
+  const monthlyIncome = values.monthlyIncome
+  const annualIncome = monthlyIncome ? monthlyIncome * 12 : values.annualIncome
   const totalAssets =
     (values.residentialAssetsValue || 0) +
     (values.commercialAssetsValue || 0) +
     (values.bankBalance || 0)
   const totalEmis = (values.emi || 0) + (values.existingEmis || 0)
-  const emiIncomeRatio = monthlyIncome ? (totalEmis / monthlyIncome) * 100 : 0
-  const requestedLoanAmount = values.loanAmount || 0
-  const loanIncomeRatio = annualIncome ? (requestedLoanAmount / annualIncome) * 100 : 0
+  const emiIncomeRatio = monthlyIncome ? (totalEmis / monthlyIncome) * 100 : undefined
+  const requestedLoanAmount = values.loanAmount
+  const loanIncomeRatio = annualIncome && requestedLoanAmount ? (requestedLoanAmount / annualIncome) * 100 : undefined
   const debtToIncomeRatio =
-    annualIncome ? (((values.liabilities || 0) + totalEmis * 12) / annualIncome) * 100 : 0
-  const maxEmi = monthlyIncome ? Math.round(monthlyIncome * 0.4) : 0
+    annualIncome ? (((values.liabilities || 0) + totalEmis * 12) / annualIncome) * 100 : undefined
 
   const getCreditCategory = (score: number | undefined) => {
     if (!score) return 'N/A'
@@ -133,14 +132,34 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
   useEffect(() => {
     if (monthlyIncome) {
       setValue('annualIncome', Math.round(monthlyIncome * 12))
+    } else {
+      setValue('annualIncome', undefined)
     }
-    setValue('totalAssets', Math.round(totalAssets))
+
+    const hasAssetInput =
+      values.residentialAssetsValue !== undefined
+      || values.commercialAssetsValue !== undefined
+      || values.bankBalance !== undefined
+    const totalAssetsValue = hasAssetInput ? Math.round(totalAssets) : undefined
+
+    setValue('totalAssets', totalAssetsValue)
     setValue('assets', Math.round(totalAssets))
-    setValue('emiIncomeRatio', Number(emiIncomeRatio.toFixed(2)))
-    setValue('loanIncomeRatio', Number(loanIncomeRatio.toFixed(2)))
-    setValue('debtToIncomeRatio', Number(debtToIncomeRatio.toFixed(2)))
+    setValue('emiIncomeRatio', emiIncomeRatio === undefined ? undefined : Number(emiIncomeRatio.toFixed(2)))
+    setValue('loanIncomeRatio', loanIncomeRatio === undefined ? undefined : Number(loanIncomeRatio.toFixed(2)))
+    setValue('debtToIncomeRatio', debtToIncomeRatio === undefined ? undefined : Number(debtToIncomeRatio.toFixed(2)))
     setValue('creditUtilizationRatio', MEAN_CREDIT_UTILIZATION_RATIO)
-  }, [annualIncome, debtToIncomeRatio, emiIncomeRatio, loanIncomeRatio, monthlyIncome, setValue, totalAssets])
+  }, [
+    annualIncome,
+    debtToIncomeRatio,
+    emiIncomeRatio,
+    loanIncomeRatio,
+    monthlyIncome,
+    setValue,
+    totalAssets,
+    values.bankBalance,
+    values.commercialAssetsValue,
+    values.residentialAssetsValue,
+  ])
 
   useEffect(() => {
     const loanPurpose = values.loanPurpose as keyof typeof INTEREST_RATE_SLABS
@@ -209,7 +228,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
             <Input label="Last Name *" required {...register('lastName')} error={errors.lastName?.message} />
             <Input label="Email *" type="email" required {...register('email')} error={errors.email?.message} />
             <Input label="Phone *" required {...register('phone')} error={errors.phone?.message} />
-            <Input label="City *" required {...register('city')} error={errors.city?.message} />
+            <Input label="City" {...register('city')} error={errors.city?.message} />
 
             <Controller
               control={control}
@@ -235,7 +254,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
               name="maritalStatus"
               render={({ field }) => (
                 <Select
-                  label="Marital Status *"
+                  label="Marital Status"
                   options={[
                     { value: '', label: 'Select...' },
                     { value: 'single', label: 'Single' },
@@ -548,10 +567,10 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
                   ₹{monthlyIncome?.toLocaleString() || 'N/A'}/month
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
-                  EMI Ratio: {emiIncomeRatio.toFixed(1)}%
+                  EMI Ratio: {(emiIncomeRatio ?? 0).toFixed(1)}%
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
-                  Annual: ₹{annualIncome.toLocaleString()}
+                  Annual: ₹{Math.round(annualIncome || 0).toLocaleString()}
                 </p>
               </div>
 
@@ -572,7 +591,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <PreviewMetric label="Region" value={values.region ? String(values.region).replace('_', '-') : 'N/A'} />
               <PreviewMetric label="Total Assets" value={`₹${Math.round(totalAssets).toLocaleString()}`} />
-              <PreviewMetric label="Loan:Income" value={`${loanIncomeRatio.toFixed(1)}%`} />
+              <PreviewMetric label="Loan:Income" value={`${(loanIncomeRatio ?? 0).toFixed(1)}%`} />
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -595,12 +614,12 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
                 <div className="mt-3 space-y-2 text-sm text-neutral-700">
                   <p><span className="font-medium text-neutral-900">Employment Type:</span> {displayValue(values.employmentType)}</p>
                   <p><span className="font-medium text-neutral-900">Years of Employment:</span> {displayValue(values.yearsOfEmployment)}</p>
-                  <p><span className="font-medium text-neutral-900">Monthly Income:</span> ₹{Math.round(monthlyIncome).toLocaleString()}</p>
-                  <p><span className="font-medium text-neutral-900">Annual Income:</span> ₹{Math.round(annualIncome).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Monthly Income:</span> ₹{Math.round(monthlyIncome || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Annual Income:</span> ₹{Math.round(annualIncome || 0).toLocaleString()}</p>
                   <p><span className="font-medium text-neutral-900">EMI:</span> ₹{Math.round(values.emi || 0).toLocaleString()}</p>
                   <p><span className="font-medium text-neutral-900">Existing EMI:</span> ₹{Math.round(values.existingEmis || 0).toLocaleString()}</p>
-                  <p><span className="font-medium text-neutral-900">EMI:Income Ratio:</span> {emiIncomeRatio.toFixed(2)}%</p>
-                  <p><span className="font-medium text-neutral-900">Debt:Income Ratio:</span> {debtToIncomeRatio.toFixed(2)}%</p>
+                  <p><span className="font-medium text-neutral-900">EMI:Income Ratio:</span> {(emiIncomeRatio ?? 0).toFixed(2)}%</p>
+                  <p><span className="font-medium text-neutral-900">Debt:Income Ratio:</span> {(debtToIncomeRatio ?? 0).toFixed(2)}%</p>
                 </div>
               </div>
 
@@ -611,7 +630,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
                   <p><span className="font-medium text-neutral-900">Amount:</span> ₹{Math.round(values.loanAmount || 0).toLocaleString()}</p>
                   <p><span className="font-medium text-neutral-900">Tenure:</span> {displayValue(values.loanTenure)} months</p>
                   <p><span className="font-medium text-neutral-900">Interest:</span> {displayValue(values.interestRate)}%</p>
-                  <p><span className="font-medium text-neutral-900">Loan:Income Ratio:</span> {loanIncomeRatio.toFixed(2)}%</p>
+                  <p><span className="font-medium text-neutral-900">Loan:Income Ratio:</span> {(loanIncomeRatio ?? 0).toFixed(2)}%</p>
                 </div>
               </div>
 
@@ -668,15 +687,16 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
             ))}
           </div>
 
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setCurrentStep((step) => Math.min(step + 1, steps.length - 1))}
-            disabled={currentStep === steps.length - 1}
-            className="rounded-xl"
-          >
-            Next →
-          </Button>
+          {currentStep < steps.length - 1 && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setCurrentStep((step) => Math.min(step + 1, steps.length - 1))}
+              className="rounded-xl"
+            >
+              Next →
+            </Button>
+          )}
         </div>
       )}
 

@@ -4,11 +4,13 @@ import { useApplicationStore } from '@/store/applicationStore'
 interface UseApplicationDataOptions {
   applicationId?: string
   scope?: 'all' | 'customer' | 'org'
+  applicantId?: string
 }
 
 export function useApplicationData(options?: string | UseApplicationDataOptions) {
   const applicationId = typeof options === 'string' ? options : options?.applicationId
   const scope = typeof options === 'string' ? 'all' : options?.scope ?? 'all'
+  const applicantId = typeof options === 'string' ? undefined : options?.applicantId
   const {
     applications,
     selectedApplication,
@@ -22,8 +24,11 @@ export function useApplicationData(options?: string | UseApplicationDataOptions)
   } = useApplicationStore()
 
   useEffect(() => {
-    void loadApplications(scope)
-  }, [loadApplications, scope])
+    if (scope === 'customer' && !applicantId) {
+      return
+    }
+    void loadApplications(scope, applicantId)
+  }, [applicantId, loadApplications, scope])
 
   useEffect(() => {
     if (applicationId) {

@@ -13,7 +13,7 @@ interface ApplicationStore {
   selectedApplication: LoanApplication | null
   isLoading: boolean
   error: string | null
-  loadApplications: (scope?: 'all' | 'customer' | 'org') => Promise<void>
+  loadApplications: (scope?: 'all' | 'customer' | 'org', applicantId?: string) => Promise<void>
   loadApplication: (applicationId: string) => Promise<void>
   addApplication: (payload: LoanApplicationFormData) => Promise<LoanApplication>
   uploadDocument: (applicationId: string, file: File) => Promise<void>
@@ -25,10 +25,10 @@ export const useApplicationStore = create<ApplicationStore>((set) => ({
   selectedApplication: null,
   isLoading: false,
   error: null,
-  loadApplications: async (scope = 'all') => {
+  loadApplications: async (scope = 'all', applicantId) => {
     set({ isLoading: true, error: null })
     try {
-      const applications = await getApplications(scope)
+      const applications = await getApplications(scope, applicantId)
       set({ applications, isLoading: false })
     } catch (error) {
       set({ isLoading: false, error: error instanceof Error ? error.message : 'Failed to load applications' })

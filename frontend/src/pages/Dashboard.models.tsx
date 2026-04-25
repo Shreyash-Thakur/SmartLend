@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   Scatter,
   ScatterChart,
+  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -58,7 +59,7 @@ export const ModelAnalysisDashboard: React.FC = () => {
       setError(null)
       try {
         const [analysisResponse, statsResponse] = await Promise.all([
-          getModelAnalysis(700),
+          getModelAnalysis(50000),
           getStats(),
         ])
         setAnalysis(analysisResponse)
@@ -88,12 +89,23 @@ export const ModelAnalysisDashboard: React.FC = () => {
 
   const scatterData = useMemo(
     () =>
-      (analysis?.cases ?? []).slice(0, 700).map((item) => ({
+      (analysis?.cases ?? []).map((item) => ({
         applicantId: item.applicantId,
         x: Number((item.bestModelProb * 100).toFixed(2)),
         y: Number((item.cbesProb * 100).toFixed(2)),
         confidence: Number((item.hybridConfidence * 100).toFixed(2)),
         decision: item.hybridDecision,
+      })),
+    [analysis],
+  )
+
+  const precisionRecallData = useMemo(
+    () =>
+      (analysis?.models ?? []).map((model) => ({
+        model: model.model,
+        precision: asPct(model.precision),
+        recall: asPct(model.recall),
+        auc: asPct(model.auc),
       })),
     [analysis],
   )
@@ -171,6 +183,8 @@ export const ModelAnalysisDashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis type="number" dataKey="x" name="ML Prob" unit="%" domain={[0, 100]} />
                 <YAxis type="number" dataKey="y" name="CBES Prob" unit="%" domain={[0, 100]} />
+                <ReferenceLine x={50} stroke="#94a3b8" strokeDasharray="4 4" />
+                <ReferenceLine y={50} stroke="#94a3b8" strokeDasharray="4 4" />
                 <Tooltip
                   cursor={{ strokeDasharray: '3 3' }}
                   formatter={(value: number, name: string) => [`${value}%`, name]}
@@ -193,6 +207,55 @@ export const ModelAnalysisDashboard: React.FC = () => {
                 ))}
               </ScatterChart>
             </ResponsiveContainer>
+          </div>
+        </Card>
+      </section>
+
+      <section className="mb-6 grid gap-6 lg:grid-cols-2">
+        <Card title="Precision vs Recall Frontier" description="Model-selection tradeoff curve from tuned artifacts.">
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis type="number" dataKey="recall" name="Recall" unit="%" domain={[0, 100]} />
+                <YAxis type="number" dataKey="precision" name="Precision" unit="%" domain={[0, 100]} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [`${value}%`, name]}
+                  labelFormatter={() => 'Model Point'}
+                />
+                <Scatter data={precisionRecallData} fill="#2563eb">
+                  {precisionRecallData.map((point) => (
+                    <Cell key={point.model} fill={point.auc >= 90 ? '#16a34a' : '#2563eb'} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {precisionRecallData.map((point) => (
+              <div key={point.model} className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                <p className="font-medium text-neutral-900">{point.model}</p>
+                <p className="text-neutral-700">Precision {point.precision}% | Recall {point.recall}% | AUC {point.auc}%</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Core ML Theory (Audit Notes)">
+          <div className="space-y-3 text-sm leading-6 text-neutral-700">
+            <p>
+              Hybrid decisioning combines <strong>probabilistic classification</strong> (ML probability) and
+              <strong> rule-based explainability</strong> (CBES score). Cases near decision boundaries are deferred to analysts to reduce wrong auto-decisions.
+            </p>
+            <p>
+              Precision = TP / (TP + FP), Recall = TP / (TP + FN), and F1 = 2PR / (P + R). AUC measures ranking quality across thresholds.
+            </p>
+            <p>
+              Deferral policy improves reliability by routing low-confidence cases for manual adjudication, maximizing automation where confidence is high and minimizing risk where uncertainty is high.
+            </p>
+            <p>
+              This dashboard uses full artifact cases plus live application stats, so metrics are both theoretically grounded and operationally actionable.
+            </p>
           </div>
         </Card>
       </section>

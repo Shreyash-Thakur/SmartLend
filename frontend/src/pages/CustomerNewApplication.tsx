@@ -5,14 +5,19 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Button, Card } from '@/components/common'
 import { LoanApplicationForm } from '@/components/forms'
 import { useApplicationData } from '@/hooks/useApplicationData'
+import { useAuth } from '@/hooks/useAuth'
 import { trackEvent } from '@/services/analytics'
 
 export const CustomerNewApplication: React.FC = () => {
   const navigate = useNavigate()
-  const { addApplication, isLoading, error } = useApplicationData({ scope: 'customer' })
+  const { user } = useAuth()
+  const { addApplication, isLoading, error } = useApplicationData({ scope: 'customer', applicantId: user?.uid })
 
   const handleSubmitApplication = async (data: Parameters<typeof addApplication>[0]) => {
-    const application = await addApplication(data)
+    const application = await addApplication({
+      ...data,
+      applicantId: user?.uid,
+    })
     trackEvent('application_submitted', { applicationId: application.id })
     navigate('/dashboard/customer?view=history')
   }

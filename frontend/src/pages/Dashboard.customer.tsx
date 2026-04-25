@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Clock3, LogOut, PlusCircle } from 'lucide-react'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
@@ -11,16 +11,20 @@ import type { LoanApplication } from '@/types/application'
 export const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const [showApplicationHistory, setShowApplicationHistory] = useState(() =>
     new URLSearchParams(location.search).get('view') === 'history',
   )
-  const { applications, isLoading, error } = useApplicationData({ scope: 'customer' })
+  const { applications, isLoading, error } = useApplicationData({ scope: 'customer', applicantId: user?.uid })
 
   const customerApplications = useMemo(
     () => applications.map((application): LoanApplication => ({ ...application })),
     [applications],
   )
+
+  useEffect(() => {
+    setShowApplicationHistory(new URLSearchParams(location.search).get('view') === 'history')
+  }, [location.search])
 
   const explainabilitySnapshot = useMemo(() => {
     const total = applications.length
@@ -97,7 +101,7 @@ export const CustomerDashboard: React.FC = () => {
         <button
           type="button"
           className="text-left"
-          onClick={() => setShowApplicationHistory(true)}
+          onClick={() => navigate('/dashboard/customer?view=history')}
         >
           <Card className="rounded-[20px] border-2 border-dashed border-indigo-300 bg-indigo-50/50 hover:shadow-lg transition-shadow">
             <div className="flex flex-col items-center justify-center py-12 text-center">

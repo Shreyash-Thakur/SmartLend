@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import logging
@@ -35,6 +36,72 @@ from backend.app.services.training_data_service import get_training_application_
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["applications"])
+
+
+CITY_TO_REGION: dict[str, str] = {
+    "mumbai": "West",
+    "pune": "West",
+    "nagpur": "West",
+    "ahmedabad": "West",
+    "surat": "West",
+    "jaipur": "North",
+    "delhi": "North",
+    "new delhi": "North",
+    "lucknow": "North",
+    "chandigarh": "North",
+    "kolkata": "East",
+    "bhubaneswar": "East",
+    "patna": "East",
+    "guwahati": "East",
+    "chennai": "South",
+    "bengaluru": "South",
+    "bangalore": "South",
+    "hyderabad": "South",
+    "kochi": "South",
+    "thiruvananthapuram": "South",
+    "bhopal": "Central",
+    "raipur": "Central",
+    "indore": "Central",
+}
+
+CITY_TO_STATE: dict[str, str] = {
+    "mumbai": "Maharashtra",
+    "pune": "Maharashtra",
+    "nagpur": "Maharashtra",
+    "ahmedabad": "Gujarat",
+    "surat": "Gujarat",
+    "jaipur": "Rajasthan",
+    "delhi": "Delhi",
+    "new delhi": "Delhi",
+    "lucknow": "Uttar Pradesh",
+    "chandigarh": "Chandigarh",
+    "kolkata": "West Bengal",
+    "bhubaneswar": "Odisha",
+    "patna": "Bihar",
+    "guwahati": "Assam",
+    "chennai": "Tamil Nadu",
+    "bengaluru": "Karnataka",
+    "bangalore": "Karnataka",
+    "hyderabad": "Telangana",
+    "kochi": "Kerala",
+    "thiruvananthapuram": "Kerala",
+    "bhopal": "Madhya Pradesh",
+    "raipur": "Chhattisgarh",
+    "indore": "Madhya Pradesh",
+}
+
+REGION_ALIASES: dict[str, str] = {
+    "north": "North",
+    "northern": "North",
+    "south": "South",
+    "southern": "South",
+    "east": "East",
+    "eastern": "East",
+    "west": "West",
+    "western": "West",
+    "central": "Central",
+    "centre": "Central",
+}
 
 
 def _error_payload(error: str, details: str) -> dict[str, str]:
@@ -139,6 +206,57 @@ def _sort_applications(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(items, key=_sort_key, reverse=True)
 
 
+def _normalize_region(input_data: dict[str, Any]) -> str:
+    raw_region = str(input_data.get("region") or "").strip().lower()
+    if raw_region in REGION_ALIASES:
+        return REGION_ALIASES[raw_region]
+
+    city = str(input_data.get("city") or "").strip().lower()
+    if city in CITY_TO_REGION:
+        return CITY_TO_REGION[city]
+
+    return "Unknown"
+
+
+def _normalize_city(input_data: dict[str, Any]) -> str:
+    city = str(input_data.get("city") or "").strip()
+    if not city:
+        return "Unknown"
+    return city.title()
+
+
+def _normalize_state(input_data: dict[str, Any]) -> str:
+    state = str(input_data.get("state") or input_data.get("province") or "").strip()
+    if state:
+        return state.title()
+
+    city = str(input_data.get("city") or "").strip().lower()
+    if city in CITY_TO_STATE:
+        return CITY_TO_STATE[city]
+
+    return "Unknown"
+
+
+def _apply_decision_counters(bucket: dict[str, float | int], decision: str) -> None:
+    decision_code = (decision or "").upper()
+    if decision_code == "APPROVE":
+        bucket["approved"] += 1
+    elif decision_code == "REJECT":
+        bucket["rejected"] += 1
+    elif decision_code == "DEFER":
+        bucket["deferred"] += 1
+
+
+def _finalize_geo_bucket(bucket: dict[str, float | int]) -> None:
+    applications = int(bucket["applications"])
+    if applications <= 0:
+        return
+
+    bucket["approvalRate"] = round((int(bucket["approved"]) / applications) * 100, 2)
+    bucket["rejectionRate"] = round((int(bucket["rejected"]) / applications) * 100, 2)
+    bucket["deferralRate"] = round((int(bucket["deferred"]) / applications) * 100, 2)
+
+
 @router.post("/applications", response_model=LoanApplicationResponse)
 def create_application(form_data: dict[str, Any], db: Session = Depends(get_db)) -> dict[str, Any]:
     return _create_application_record(form_data, db)
@@ -208,12 +326,17 @@ async def upload_form(file: UploadFile = File(...), db: Session = Depends(get_db
 @router.get("/applications", response_model=list[LoanApplicationResponse])
 def list_applications(
     scope: str = Query(default="all"),
+    applicant_id: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[dict[str, Any]]:
     if scope not in {"all", "org", "customer"}:
         raise HTTPException(status_code=400, detail=_error_payload("Bad input", "Invalid scope"))
 
-    db_items = db.query(LoanApplication).order_by(LoanApplication.created_at.desc()).all()
+    query = db.query(LoanApplication).order_by(LoanApplication.created_at.desc())
+    if scope == "customer" and applicant_id:
+        query = query.filter(LoanApplication.applicant_id == applicant_id)
+
+    db_items = query.all()
     api_items = [build_application_response(item) for item in db_items]
 
     for item in api_items:
@@ -494,8 +617,109 @@ def stats(db: Session = Depends(get_db)) -> dict[str, int | float]:
     }
 
 
+@router.get("/region-metrics")
+def region_metrics(db: Session = Depends(get_db)) -> dict[str, Any]:
+    metrics: dict[str, dict[str, float | int]] = defaultdict(
+        lambda: {
+            "applications": 0,
+            "approved": 0,
+            "rejected": 0,
+            "deferred": 0,
+            "approvalRate": 0.0,
+            "rejectionRate": 0.0,
+            "deferralRate": 0.0,
+        }
+    )
+
+    items = db.query(LoanApplication).all()
+    for app_item in items:
+        input_data = app_item.input_data or {}
+        region = _normalize_region(input_data)
+        bucket = metrics[region]
+        bucket["applications"] += 1
+
+        _apply_decision_counters(bucket, app_item.final_decision)
+
+    training_items = get_training_applications()
+    for training_item in training_items:
+        input_data = dict(training_item.get("applicationData") or {})
+        region = _normalize_region(input_data)
+        bucket = metrics[region]
+        bucket["applications"] += 1
+        _apply_decision_counters(bucket, str(training_item.get("finalDecision") or ""))
+
+    for bucket in metrics.values():
+        _finalize_geo_bucket(bucket)
+
+    return {
+        "regions": dict(sorted(metrics.items())),
+        "totalApplications": len(items) + len(training_items),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/location-metrics")
+def location_metrics(db: Session = Depends(get_db)) -> dict[str, Any]:
+    template = {
+        "applications": 0,
+        "approved": 0,
+        "rejected": 0,
+        "deferred": 0,
+        "approvalRate": 0.0,
+        "rejectionRate": 0.0,
+        "deferralRate": 0.0,
+    }
+    areas: dict[str, dict[str, float | int]] = defaultdict(lambda: dict(template))
+    states: dict[str, dict[str, float | int]] = defaultdict(lambda: dict(template))
+    cities: dict[str, dict[str, float | int]] = defaultdict(lambda: dict(template))
+
+    db_items = db.query(LoanApplication).all()
+    for app_item in db_items:
+        input_data = app_item.input_data or {}
+        area = _normalize_region(input_data)
+        state = _normalize_state(input_data)
+        city = _normalize_city(input_data)
+
+        for bucket in (areas[area], states[state], cities[city]):
+            bucket["applications"] += 1
+            _apply_decision_counters(bucket, app_item.final_decision)
+
+    training_items = get_training_applications()
+    for training_item in training_items:
+        input_data = dict(training_item.get("applicationData") or {})
+        area = _normalize_region(input_data)
+        state = _normalize_state(input_data)
+        city = _normalize_city(input_data)
+        decision_code = str(training_item.get("finalDecision") or "")
+
+        for bucket in (areas[area], states[state], cities[city]):
+            bucket["applications"] += 1
+            _apply_decision_counters(bucket, decision_code)
+
+    for collection in (areas, states, cities):
+        for bucket in collection.values():
+            _finalize_geo_bucket(bucket)
+
+    def _sorted(payload: dict[str, dict[str, float | int]]) -> dict[str, dict[str, float | int]]:
+        return dict(
+            sorted(
+                payload.items(),
+                key=lambda item: int(item[1].get("applications", 0)),
+                reverse=True,
+            )
+        )
+
+    return {
+        "areas": _sorted(areas),
+        "states": _sorted(states),
+        "cities": _sorted(cities),
+        "totalApplications": len(db_items) + len(training_items),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/model-analysis", response_model=ModelAnalysisResponse)
-def model_analysis(limit: int = Query(default=300, ge=1, le=2000)) -> dict[str, Any]:
+def model_analysis(limit: int = Query(default=300, ge=1, le=50000)) -> dict[str, Any]:
     payload = get_model_analysis_payload(limit=limit)
     if not payload["models"] and not payload["cases"]:
         raise HTTPException(status_code=404, detail=_error_payload("Not found", "Model analysis artifacts are unavailable"))

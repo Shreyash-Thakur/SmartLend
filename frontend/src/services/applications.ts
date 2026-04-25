@@ -9,6 +9,30 @@ import type {
 import type { LoanApplication, LoanApplicationFormData } from '@/types/application'
 import { apiClient } from '@/services/api.client'
 
+export interface RegionMetric {
+  applications: number
+  approved: number
+  rejected: number
+  deferred: number
+  approvalRate: number
+  rejectionRate: number
+  deferralRate: number
+}
+
+export interface RegionMetricsResponse {
+  regions: Record<string, RegionMetric>
+  totalApplications: number
+  updatedAt: string
+}
+
+export interface LocationMetricsResponse {
+  areas: Record<string, RegionMetric>
+  states: Record<string, RegionMetric>
+  cities: Record<string, RegionMetric>
+  totalApplications: number
+  updatedAt: string
+}
+
 function asNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -149,10 +173,36 @@ export async function getModelAnalysis(limit = 300): Promise<ModelAnalysisRespon
   }
 }
 
-export async function getApplications(scope: 'all' | 'customer' | 'org' = 'all'): Promise<LoanApplication[]> {
+export async function getApplications(
+  scope: 'all' | 'customer' | 'org' = 'all',
+  applicantId?: string,
+): Promise<LoanApplication[]> {
   try {
-    const response = await apiClient.get<LoanApplication[]>('/applications', { params: { scope } })
+    const response = await apiClient.get<LoanApplication[]>('/applications', {
+      params: {
+        scope,
+        applicant_id: applicantId,
+      },
+    })
     return response.data.map(normalizeApplication)
+  } catch (error) {
+    throw extractApiError(error)
+  }
+}
+
+export async function getRegionMetrics(): Promise<RegionMetricsResponse> {
+  try {
+    const response = await apiClient.get<RegionMetricsResponse>('/region-metrics')
+    return response.data
+  } catch (error) {
+    throw extractApiError(error)
+  }
+}
+
+export async function getLocationMetrics(): Promise<LocationMetricsResponse> {
+  try {
+    const response = await apiClient.get<LocationMetricsResponse>('/location-metrics')
+    return response.data
   } catch (error) {
     throw extractApiError(error)
   }

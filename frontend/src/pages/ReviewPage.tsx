@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Clock3, FileText, XCircle } from 'lucide-react'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Badge, Button, Card } from '@/components/common'
@@ -7,32 +8,53 @@ import type { DecisionType, LoanApplication } from '@/types/application'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 export const ReviewPage: React.FC = () => {
+  const navigate = useNavigate()
   const { applications, overrideDecision, isLoading, error } = useApplicationData({ scope: 'org' })
+  const [activeStatus, setActiveStatus] = useState<'all' | 'submitted' | 'approved' | 'rejected' | 'deferred'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
-  const pendingApplications = useMemo(
-    () =>
-      applications.filter(
-        (application) =>
-          application.source === 'customer' && (application.status === 'submitted' || application.status === 'deferred'),
-      ),
-    [applications],
+  const reviewApplications = useMemo(() => applications, [applications])
+
+  const statusCounts = useMemo(
+    () => ({
+      submitted: reviewApplications.filter((application) => application.status === 'submitted').length,
+      approved: reviewApplications.filter((application) => application.status === 'approved').length,
+      rejected: reviewApplications.filter((application) => application.status === 'rejected').length,
+      deferred: reviewApplications.filter((application) => application.status === 'deferred').length,
+    }),
+    [reviewApplications],
+  )
+
+  const visibleApplications = useMemo(() => {
+    if (activeStatus === 'all') {
+      return reviewApplications
+    }
+    return reviewApplications.filter((application) => application.status === activeStatus)
+  }, [activeStatus, reviewApplications])
+
+  const manualQueue = useMemo(
+    () => reviewApplications.filter(
+      (application) =>
+        application.source === 'customer'
+        && (application.status === 'submitted' || application.status === 'deferred'),
+    ),
+    [reviewApplications],
   )
 
   const recommendedApproved = useMemo(
-    () => pendingApplications.filter((application) => application.modelRecommendation === 'approved'),
-    [pendingApplications],
+    () => manualQueue.filter((application) => application.modelRecommendation === 'approved'),
+    [manualQueue],
   )
 
   const recommendedRejected = useMemo(
-    () => pendingApplications.filter((application) => application.modelRecommendation === 'rejected'),
-    [pendingApplications],
+    () => manualQueue.filter((application) => application.modelRecommendation === 'rejected'),
+    [manualQueue],
   )
 
   const selectedApplication = useMemo(
-    () => pendingApplications.find((application) => application.id === selectedId) ?? pendingApplications[0] ?? null,
-    [pendingApplications, selectedId],
+    () => visibleApplications.find((application) => application.id === selectedId) ?? visibleApplications[0] ?? null,
+    [visibleApplications, selectedId],
   )
 
   const decide = async (application: LoanApplication, status: DecisionType) => {
@@ -59,18 +81,29 @@ export const ReviewPage: React.FC = () => {
     }
   }
 
+  const approveAllPending = async () => {
+    await bulkDecide(manualQueue, 'approved')
+  }
+
+  const rejectAllPending = async () => {
+    await bulkDecide(manualQueue, 'rejected')
+  }
+
   return (
     <DashboardLayout title="Review Queue" role="organization">
       <section className="mb-8 rounded-[32px] border border-[#d6e7e4] bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Analyst Review</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">Deferred applications</h2>
+            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">End-to-end decision desk</h2>
             <p className="mt-3 max-w-2xl text-neutral-600">
-              Review customer applications that the hybrid ML and CBES engine deferred for human decisioning.
+              Review submitted and deferred applications, inspect model evidence and uploaded files, and apply bulk or manual decisions.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Button variant="ghost" onClick={() => navigate('/dashboard/models')}>
+              Open Model Analysis
+            </Button>
             <Button
               variant="primary"
               leftIcon={<CheckCircle2 className="h-4 w-4" />}
@@ -87,8 +120,46 @@ export const ReviewPage: React.FC = () => {
             >
               Reject All Recommended Rejections
             </Button>
+            <Button
+              variant="secondary"
+              disabled={!manualQueue.length || actionLoading}
+              onClick={() => void approveAllPending()}
+            >
+              Approve All Pending
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={!manualQueue.length || actionLoading}
+              onClick={() => void rejectAllPending()}
+            >
+              Reject All Pending
+            </Button>
           </div>
         </div>
+      </section>
+
+      <section className="mb-6 grid gap-3 md:grid-cols-5">
+        {[
+          { key: 'all', label: 'All', count: reviewApplications.length },
+          { key: 'submitted', label: 'Submitted', count: statusCounts.submitted },
+          { key: 'approved', label: 'Approved', count: statusCounts.approved },
+          { key: 'rejected', label: 'Rejected', count: statusCounts.rejected },
+          { key: 'deferred', label: 'Deferred', count: statusCounts.deferred },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setActiveStatus(item.key as typeof activeStatus)}
+            className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+              activeStatus === item.key
+                ? 'border-primary-300 bg-primary-50'
+                : 'border-neutral-200 bg-white hover:bg-neutral-50'
+            }`}
+          >
+            <p className="text-xs uppercase tracking-[0.16em] text-neutral-500">{item.label}</p>
+            <p className="mt-1 text-xl font-semibold text-neutral-900">{item.count}</p>
+          </button>
+        ))}
       </section>
 
       {error && (
@@ -100,18 +171,18 @@ export const ReviewPage: React.FC = () => {
       )}
 
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card title={`Review Queue (${pendingApplications.length})`}>
+        <Card title={`Application Queue (${visibleApplications.length})`}>
           {isLoading ? (
             <p className="text-neutral-600">Loading applications...</p>
-          ) : pendingApplications.length === 0 ? (
+          ) : visibleApplications.length === 0 ? (
             <div className="py-12 text-center">
               <Clock3 className="mx-auto h-10 w-10 text-neutral-400" />
-              <p className="mt-3 font-medium text-neutral-900">No pending customer applications</p>
-              <p className="mt-1 text-sm text-neutral-500">New submitted or deferred applications will appear here.</p>
+              <p className="mt-3 font-medium text-neutral-900">No applications for this status</p>
+              <p className="mt-1 text-sm text-neutral-500">Switch status filters to inspect approved/rejected/deferred records.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {pendingApplications.map((application) => (
+              {visibleApplications.map((application) => (
                 <button
                   key={application.id}
                   type="button"
@@ -176,11 +247,27 @@ export const ReviewPage: React.FC = () => {
                 </p>
               </div>
 
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <p className="text-sm font-semibold text-neutral-900">Uploaded Files</p>
+                {selectedApplication.documents && selectedApplication.documents.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {selectedApplication.documents.map((document) => (
+                      <div key={document.id} className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                        <p className="font-medium text-neutral-900">{document.fileName}</p>
+                        <p className="text-xs text-neutral-600">Type: {document.documentType} | Uploaded: {formatDate(document.uploadedAt)}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-neutral-600">No documents were uploaded for this application.</p>
+                )}
+              </div>
+
               <div className="flex flex-wrap gap-3">
                 <Button
                   variant="primary"
                   leftIcon={<CheckCircle2 className="h-4 w-4" />}
-                  disabled={actionLoading}
+                  disabled={actionLoading || selectedApplication.status === 'approved' || selectedApplication.source !== 'customer'}
                   onClick={() => void decide(selectedApplication, 'approved')}
                 >
                   Accept
@@ -188,7 +275,7 @@ export const ReviewPage: React.FC = () => {
                 <Button
                   variant="secondary"
                   leftIcon={<XCircle className="h-4 w-4" />}
-                  disabled={actionLoading}
+                  disabled={actionLoading || selectedApplication.status === 'rejected' || selectedApplication.source !== 'customer'}
                   onClick={() => void decide(selectedApplication, 'rejected')}
                 >
                   Reject
@@ -196,12 +283,18 @@ export const ReviewPage: React.FC = () => {
                 <Button
                   variant="ghost"
                   leftIcon={<Clock3 className="h-4 w-4" />}
-                  disabled={actionLoading}
+                  disabled={actionLoading || selectedApplication.status === 'deferred' || selectedApplication.source !== 'customer'}
                   onClick={() => void decide(selectedApplication, 'deferred')}
                 >
                   Defer
                 </Button>
               </div>
+
+              {selectedApplication.source !== 'customer' && (
+                <p className="text-xs text-neutral-500">
+                  This is a training-data record. It is visible for analysis but cannot be manually overridden.
+                </p>
+              )}
             </div>
           )}
         </Card>

@@ -3,6 +3,10 @@ import { InputProps } from '@/types/ui'
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, icon, required, className = '', ...rest }, ref) => {
+    const placeholder =
+      rest.placeholder
+      ?? (rest.disabled ? 'Calculated automatically' : 'Enter details')
+
     return (
       <div className="w-full">
         {label && (
@@ -15,6 +19,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div className="relative">
           <input
             ref={ref}
+            placeholder={placeholder}
             className={`
               w-full px-4 py-2
               border rounded-lg

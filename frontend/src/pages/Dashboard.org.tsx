@@ -20,8 +20,8 @@ import { Button, Card, KPICard } from '@/components/common'
 import { ApplicationTable } from '@/components/sections'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { useUiStore } from '@/store/uiStore'
-import { getStats, getTrendData } from '@/services/applications'
-import type { StatsResponse, TrendDataPoint } from '@/types/api'
+import { getStats } from '@/services/applications'
+import type { StatsResponse } from '@/types/api'
 import { formatCurrency } from '@/lib/utils'
 
 export const OrganizationDashboard: React.FC = () => {
@@ -29,7 +29,6 @@ export const OrganizationDashboard: React.FC = () => {
   const { applications, isLoading, error } = useApplicationData({ scope: 'org' })
   const { activeTab, setActiveTab } = useUiStore()
   const [stats, setStats] = React.useState<StatsResponse | null>(null)
-  const [trends, setTrends] = React.useState<TrendDataPoint[]>([])
   const [dashboardError, setDashboardError] = React.useState<string | null>(null)
   const [statsLoading, setStatsLoading] = React.useState(true)
 
@@ -38,11 +37,7 @@ export const OrganizationDashboard: React.FC = () => {
       setDashboardError(null)
       setStatsLoading(true)
       try {
-        const [trendsResponse, statsResponse] = await Promise.all([
-          getTrendData(),
-          getStats(),
-        ])
-        setTrends(trendsResponse)
+        const statsResponse = await getStats()
         setStats(statsResponse)
       } catch (fetchError) {
         setDashboardError(fetchError instanceof Error ? fetchError.message : 'Failed to load dashboard data')
@@ -53,6 +48,31 @@ export const OrganizationDashboard: React.FC = () => {
 
     void loadDashboardData()
   }, [])
+
+  const trends = useMemo(() => {
+    const now = new Date()
+    const weekWindows = [
+      { label: 'Week 1', start: new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000) },
+      { label: 'Week 2', start: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) },
+      { label: 'Week 3', start: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+      { label: 'Week 4', start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
+    ]
+
+    return weekWindows.map((window) => {
+      const bucket = applications.filter((application) => {
+        const created = new Date(application.createdAt)
+        return created >= window.start && created < window.end
+      })
+
+      return {
+        date: window.label,
+        count: bucket.length,
+        approved: bucket.filter((application) => application.finalDecision === 'APPROVE').length,
+        rejected: bucket.filter((application) => application.finalDecision === 'REJECT').length,
+        deferred: bucket.filter((application) => application.finalDecision === 'DEFER').length,
+      }
+    })
+  }, [applications])
 
   const approvalDistribution = useMemo(
     () => [

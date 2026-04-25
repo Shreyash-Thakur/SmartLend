@@ -2,6 +2,17 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z, type ZodTypeAny } from 'zod'
 
+const emptyToUndefined = (value: unknown) => {
+  if (value === '' || value === null || value === undefined) return undefined
+  if (typeof value === 'number' && Number.isNaN(value)) return undefined
+  return value
+}
+
+const optionalEnum = <T extends [string, ...string[]]>(values: T) =>
+  z.preprocess(emptyToUndefined, z.enum(values).optional())
+
+const optionalNumber = (schema: z.ZodNumber) => z.preprocess(emptyToUndefined, schema.optional())
+
 export const loanApplicationSchema = z
   .object({
     applicantId: z.string().optional(),
@@ -10,40 +21,40 @@ export const loanApplicationSchema = z
     email: z.string().email(),
     phone: z.string().min(10).max(15),
     gender: z.enum(['male', 'female', 'other']),
-    maritalStatus: z.enum(['single', 'married', 'divorced', 'widowed']).optional(),
-    education: z.enum(['high_school', 'diploma', 'graduate', 'postgraduate', 'doctorate']).optional(),
+    maritalStatus: optionalEnum(['single', 'married', 'divorced', 'widowed'] as const),
+    education: optionalEnum(['high_school', 'diploma', 'graduate', 'postgraduate', 'doctorate'] as const),
     loanAmount: z.number().min(1).max(10000000),
     loanPurpose: z.enum(['home', 'auto', 'personal', 'business', 'education']),
     loanTenure: z.number().min(12).max(360),
-    interestRate: z.number().min(1).max(30).optional(),
+    interestRate: optionalNumber(z.number().min(1).max(30)),
     monthlyIncome: z.number().min(15000).max(500000),
-    annualIncome: z.number().min(180000).max(6000000).optional(),
+    annualIncome: optionalNumber(z.number().min(180000).max(6000000)),
     emi: z.number().min(0),
-    existingEmis: z.number().min(0).optional(),
+    existingEmis: optionalNumber(z.number().min(0)),
     assets: z.number().min(0),
-    residentialAssetsValue: z.number().min(0).optional(),
-    commercialAssetsValue: z.number().min(0).optional(),
-    bankBalance: z.number().min(0).optional(),
-    totalAssets: z.number().min(0).optional(),
-    liabilities: z.number().min(0).optional(),
-    creditScore: z.number().min(300).max(900).optional(),
+    residentialAssetsValue: optionalNumber(z.number().min(0)),
+    commercialAssetsValue: optionalNumber(z.number().min(0)),
+    bankBalance: optionalNumber(z.number().min(0)),
+    totalAssets: optionalNumber(z.number().min(0)),
+    liabilities: optionalNumber(z.number().min(0)),
+    creditScore: optionalNumber(z.number().min(300).max(900)),
     cibilScore: z.number().min(300).max(900),
-    creditHistory: z.enum(['excellent', 'good', 'average', 'poor']).optional(),
-    totalLoans: z.number().min(0).max(50).optional(),
-    activeLoans: z.number().min(0).max(25).optional(),
-    closedLoans: z.number().min(0).max(50).optional(),
-    missedPayments: z.number().min(0).max(100).optional(),
-    creditUtilizationRatio: z.number().min(0).max(100).optional(),
-    emiIncomeRatio: z.number().min(0).max(100).optional(),
-    loanIncomeRatio: z.number().min(0).max(1000).optional(),
-    debtToIncomeRatio: z.number().min(0).max(100).optional(),
+    creditHistory: optionalEnum(['excellent', 'good', 'average', 'poor'] as const),
+    totalLoans: optionalNumber(z.number().min(0).max(50)),
+    activeLoans: optionalNumber(z.number().min(0).max(25)),
+    closedLoans: optionalNumber(z.number().min(0).max(50)),
+    missedPayments: optionalNumber(z.number().min(0).max(100)),
+    creditUtilizationRatio: optionalNumber(z.number().min(0).max(100)),
+    emiIncomeRatio: optionalNumber(z.number().min(0).max(100)),
+    loanIncomeRatio: optionalNumber(z.number().min(0).max(1000)),
+    debtToIncomeRatio: optionalNumber(z.number().min(0).max(100)),
     age: z.number().min(21).max(65),
-    dependents: z.number().min(0).max(10).optional(),
+    dependents: optionalNumber(z.number().min(0).max(10)),
     employmentType: z.enum(['salaried', 'self-employed', 'business', 'retired']),
-    yearsOfEmployment: z.number().min(0).max(45).optional(),
-    residenceType: z.enum(['owned', 'rented', 'with_family']).optional(),
+    yearsOfEmployment: optionalNumber(z.number().min(0).max(45)),
+    residenceType: optionalEnum(['owned', 'rented', 'with_family'] as const),
     region: z.enum(['rural', 'urban', 'semi_urban']),
-    city: z.string().min(2).max(80).optional(),
+    city: z.preprocess(emptyToUndefined, z.string().min(2).max(80).optional()),
   })
   .superRefine((data, ctx) => {
     if (data.emi > data.monthlyIncome * 0.4) {
