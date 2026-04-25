@@ -180,7 +180,7 @@ export const ApplicationReview: React.FC = () => {
           )}
 
           {/* Manual Decision Override (if deferred) */}
-          {application.status === 'deferred' && (
+          {(application.status === 'deferred' || application.status === 'submitted') && (
             <Card title="Analyst Decision" className="border-2 border-amber-200 bg-amber-50/50">
               <div className="space-y-4">
                 <div>

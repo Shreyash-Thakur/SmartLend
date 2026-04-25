@@ -14,8 +14,8 @@ import {
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, KPICard } from '@/components/common'
-import { getModelAnalysis } from '@/services/applications'
-import type { ModelAnalysisResponse, ModelMetricItem } from '@/types/api'
+import { getModelAnalysis, getStats } from '@/services/applications'
+import type { ModelAnalysisResponse, ModelMetricItem, StatsResponse } from '@/types/api'
 
 const DECISION_COLORS: Record<string, string> = {
   APPROVE: '#10b981',
@@ -48,6 +48,7 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
 
 export const ModelAnalysisDashboard: React.FC = () => {
   const [analysis, setAnalysis] = useState<ModelAnalysisResponse | null>(null)
+  const [stats, setStats] = useState<StatsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,8 +57,12 @@ export const ModelAnalysisDashboard: React.FC = () => {
       setIsLoading(true)
       setError(null)
       try {
-        const response = await getModelAnalysis(700)
-        setAnalysis(response)
+        const [analysisResponse, statsResponse] = await Promise.all([
+          getModelAnalysis(700),
+          getStats(),
+        ])
+        setAnalysis(analysisResponse)
+        setStats(statsResponse)
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : 'Failed to load model analysis')
       } finally {
@@ -120,12 +125,13 @@ export const ModelAnalysisDashboard: React.FC = () => {
       )}
 
       <section className="mb-6">
-        <Card title="Hybrid Deferral Summary" description="Model tuning summary and deferral behavior from recent artifacts.">
+        <Card title="Hybrid Deferral Summary" description="Live totals plus model-evaluation artifact metrics.">
           {isLoading || !analysis ? (
             <p className="text-neutral-600">Loading model analysis...</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <KPICard label="Total Cases" value={analysis.summary.totalCases} />
+              <KPICard label="Live Total Cases" value={stats?.totalApplications ?? 0} />
+              <KPICard label="Evaluation Sample Cases" value={analysis.summary.totalCases} />
               <KPICard label="Deferred Cases" value={analysis.summary.deferredCases} />
               <KPICard label="Deferral Rate" value={analysis.summary.deferralRate} format="percentage" />
               <KPICard label="Automated Coverage" value={analysis.summary.automatedCoverage} format="percentage" />

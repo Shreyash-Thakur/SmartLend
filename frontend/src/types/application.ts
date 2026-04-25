@@ -78,6 +78,8 @@ export interface LoanApplication {
   cbes_score?: number
   confidence?: number
   finalDecision?: 'APPROVE' | 'REJECT' | 'DEFER'
+  modelRecommendation?: DecisionType | 'submitted'
+  manualDecisionApplied?: boolean
   applicationData: {
     firstName: string
     lastName: string

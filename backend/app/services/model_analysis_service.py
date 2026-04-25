@@ -6,6 +6,8 @@ from typing import Any
 import csv
 import json
 
+from backend.app.services.ml_service import dynamic_hybrid_decision
+
 
 ARTIFACTS_DIR = Path(__file__).resolve().parents[2] / "artifacts"
 MODEL_METRICS_PATH = ARTIFACTS_DIR / "model_metrics.csv"
@@ -88,6 +90,12 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
         for row in reader:
             y_true = _to_int(row.get("y_true"))
             expected = "APPROVE" if y_true == 1 else "REJECT"
+            best_model_prob = _to_float(row.get("best_model_prob"))
+            cbes_prob = _to_float(row.get("cbes_prob"))
+            hybrid_decision, hybrid_confidence, approval_threshold, rejection_threshold = dynamic_hybrid_decision(
+                best_model_prob,
+                cbes_prob,
+            )
 
             model_probabilities = {
                 model: _to_float(row.get(f"prob_{model}"))
@@ -103,12 +111,12 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
                     "applicantId": str(row.get("applicant_id", "")),
                     "yTrue": y_true,
                     "expectedDecision": expected,
-                    "hybridDecision": str(row.get("final_decision", "DEFER")).upper(),
-                    "hybridConfidence": _to_float(row.get("confidence")),
-                    "approvalThreshold": _to_float(row.get("approval_threshold")),
-                    "rejectionThreshold": _to_float(row.get("rejection_threshold")),
-                    "cbesProb": _to_float(row.get("cbes_prob")),
-                    "bestModelProb": _to_float(row.get("best_model_prob")),
+                    "hybridDecision": hybrid_decision,
+                    "hybridConfidence": hybrid_confidence,
+                    "approvalThreshold": approval_threshold,
+                    "rejectionThreshold": rejection_threshold,
+                    "cbesProb": cbes_prob,
+                    "bestModelProb": best_model_prob,
                     "modelProbabilities": model_probabilities,
                     "modelPredictions": model_predictions,
                 }

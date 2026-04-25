@@ -1,45 +1,45 @@
 import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Clock3, LogOut, PlusCircle } from 'lucide-react'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Button, Card } from '@/components/common'
-import { LoanApplicationForm } from '@/components/forms'
 import { ApplicationTable } from '@/components/sections'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { useAuth } from '@/hooks/useAuth'
-import { trackEvent } from '@/services/analytics'
 import type { LoanApplication } from '@/types/application'
 
 export const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { logout } = useAuth()
-  const [showApplicationForm, setShowApplicationForm] = useState(false)
-  const [showApplicationHistory, setShowApplicationHistory] = useState(false)
-  const { applications, addApplication, isLoading, error } = useApplicationData({ scope: 'customer' })
+  const [showApplicationHistory, setShowApplicationHistory] = useState(() =>
+    new URLSearchParams(location.search).get('view') === 'history',
+  )
+  const { applications, isLoading, error } = useApplicationData({ scope: 'customer' })
 
   const customerApplications = useMemo(
-    () =>
-      applications.map((application): LoanApplication => ({
-        ...application,
-        status: application.status === 'draft' ? application.status : 'submitted',
-        finalDecision: undefined,
-        decision: application.decision
-          ? {
-              ...application.decision,
-              status: 'deferred' as const,
-              explanation: 'Application submitted and waiting for organization review.',
-            }
-          : application.decision,
-      })),
+    () => applications.map((application): LoanApplication => ({ ...application })),
     [applications],
   )
 
-  const handleSubmitApplication = async (data: Parameters<typeof addApplication>[0]) => {
-    const application = await addApplication(data)
-    trackEvent('application_submitted', { applicationId: application.id })
-    setShowApplicationForm(false)
-    setShowApplicationHistory(true)
-  }
+  const explainabilitySnapshot = useMemo(() => {
+    const total = applications.length
+    const pending = applications.filter((item) => item.status === 'submitted' || item.status === 'deferred').length
+    const approved = applications.filter((item) => item.status === 'approved').length
+    const rejected = applications.filter((item) => item.status === 'rejected').length
+    const avgConfidence =
+      total > 0
+        ? applications.reduce((sum, item) => sum + (item.confidence ?? 0), 0) / total
+        : 0
+
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      avgConfidence: Number((avgConfidence * 100).toFixed(1)),
+    }
+  }, [applications])
 
   const handleLogout = async () => {
     await logout()
@@ -78,7 +78,7 @@ export const CustomerDashboard: React.FC = () => {
         <button
           type="button"
           className="text-left"
-          onClick={() => setShowApplicationForm(true)}
+          onClick={() => navigate('/dashboard/customer/new')}
         >
           <Card className="rounded-[20px] border-2 border-dashed border-blue-300 bg-blue-50/50 hover:shadow-lg transition-shadow">
             <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -114,26 +114,40 @@ export const CustomerDashboard: React.FC = () => {
         </button>
       </section>
 
+      <section className="mb-8">
+        <Card title="Explainability and Decision Clarity" description="All values below are live and calculated from your submitted applications.">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl bg-neutral-50 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">Applications</p>
+              <p className="mt-2 text-2xl font-semibold text-neutral-900">{explainabilitySnapshot.total}</p>
+              <p className="mt-1 text-sm text-neutral-600">Records currently visible in your dashboard.</p>
+            </div>
+            <div className="rounded-2xl bg-amber-50 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-amber-800">Pending Review</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-900">{explainabilitySnapshot.pending}</p>
+              <p className="mt-1 text-sm text-amber-800">Cases waiting for final bank-side confirmation.</p>
+            </div>
+            <div className="rounded-2xl bg-green-50 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-green-800">Approved</p>
+              <p className="mt-2 text-2xl font-semibold text-green-900">{explainabilitySnapshot.approved}</p>
+              <p className="mt-1 text-sm text-green-800">Applications confirmed by organization review.</p>
+            </div>
+            <div className="rounded-2xl bg-blue-50 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-blue-800">Avg Confidence</p>
+              <p className="mt-2 text-2xl font-semibold text-blue-900">{explainabilitySnapshot.avgConfidence}%</p>
+              <p className="mt-1 text-sm text-blue-800">Mean hybrid confidence from model outputs.</p>
+            </div>
+          </div>
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700">
+            SmartLend combines ML probability and CBES explainability to generate a recommendation, then forwards pending cases to the organization queue for final acceptance or rejection. This keeps decisions transparent and auditable.
+          </div>
+        </Card>
+      </section>
+
       {error && (
         <section className="mb-8">
           <Card className="border-red-200 bg-red-50">
             <p className="text-red-700">{error}</p>
-          </Card>
-        </section>
-      )}
-
-      {showApplicationForm && (
-        <section className="mb-8">
-          <Card
-            title="New Loan Application"
-            description="Fill in your details to apply for a loan. All fields are required."
-            className="rounded-[36px] border-white/80"
-          >
-            <LoanApplicationForm
-              onSubmit={handleSubmitApplication}
-              isLoading={isLoading}
-              isMultiStep
-            />
           </Card>
         </section>
       )}
@@ -159,7 +173,7 @@ export const CustomerDashboard: React.FC = () => {
                 <Button
                   className="mt-6 rounded-2xl"
                   rightIcon={<ArrowUpRight className="h-4 w-4" />}
-                  onClick={() => setShowApplicationForm(true)}
+                  onClick={() => navigate('/dashboard/customer/new')}
                 >
                   Create First Application
                 </Button>
@@ -179,7 +193,7 @@ export const CustomerDashboard: React.FC = () => {
               <div>
                 <h3 className="text-lg font-semibold text-amber-950">Under Review</h3>
                 <p className="mt-1 text-sm text-amber-900">
-                  Submitted applications are shown as under review in the customer dashboard. Final decisions are completed by the organization review team.
+                  Submitted applications stay in pending review until the organization confirms the final decision. Model recommendations are visible in the details, while the bank team has final control.
                 </p>
               </div>
             </div>

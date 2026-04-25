@@ -37,32 +37,37 @@ def clamp(x: float, low: float, high: float) -> float:
     return max(low, min(x, high))
 
 
-def dynamic_hybrid_decision(ml_prob: float, cbes_prob: float, alpha: float = 0.25) -> tuple[str, float, float, float]:
-    # CBES influences threshold center while ML still determines the final class.
-    # Keep a non-zero defer band so REVIEW can always happen when ML is uncertain.
-    alpha = clamp(alpha, 0.2, 0.4)
+def dynamic_hybrid_decision(ml_prob: float, cbes_prob: float, alpha: float = 0.12) -> tuple[str, float, float, float]:
+    # Blend model signal with explainability score while preserving a review band.
+    alpha = clamp(alpha, 0.08, 0.22)
+    blended_prob = ((1.0 - alpha) * ml_prob) + (alpha * cbes_prob)
 
-    # Higher CBES lowers center (easier approve, harder reject); lower CBES does the opposite.
-    center = clamp(0.5 - ((cbes_prob - 0.5) * alpha), 0.42, 0.58)
+    # Hard safety rails for clearly weak/strong explainability profiles.
+    if cbes_prob <= 0.12 and ml_prob <= 0.5:
+        confidence = clamp((0.55 - blended_prob) + (0.3 * (0.2 - cbes_prob)), 0.0, 1.0)
+        return "REJECT", confidence, 0.56, 0.26
 
-    # Wider defer band near neutral CBES, narrower at strong CBES extremes.
-    neutrality = 1.0 - min(1.0, abs(cbes_prob - 0.5) * 2.0)
-    defer_band = 0.06 + (0.08 * neutrality)
+    if cbes_prob >= 0.88 and ml_prob >= 0.5:
+        confidence = clamp((blended_prob - 0.45) + (0.3 * (cbes_prob - 0.8)), 0.0, 1.0)
+        return "APPROVE", confidence, 0.56, 0.26
 
-    rejection_threshold = clamp(center - (defer_band / 2), 0.20, 0.60)
-    approval_threshold = clamp(center + (defer_band / 2), 0.40, 0.80)
+    # Increase caution for weaker CBES, decrease for stronger CBES.
+    risk_tilt = clamp((0.5 - cbes_prob) * 0.15, -0.06, 0.06)
+    rejection_threshold = clamp(0.26 + risk_tilt, 0.20, 0.38)
+    approval_threshold = clamp(0.56 + risk_tilt, 0.48, 0.72)
 
-    # Enforce strict ordering to avoid overlap, preserving DEFER space.
-    if approval_threshold <= rejection_threshold:
+    # Ensure there is always a defer window.
+    if approval_threshold - rejection_threshold < 0.18:
         midpoint = (approval_threshold + rejection_threshold) / 2
-        rejection_threshold = clamp(midpoint - 0.03, 0.20, 0.60)
-        approval_threshold = clamp(midpoint + 0.03, 0.40, 0.80)
+        rejection_threshold = clamp(midpoint - 0.09, 0.20, 0.38)
+        approval_threshold = clamp(midpoint + 0.09, 0.48, 0.72)
 
-    confidence = abs(ml_prob - 0.5)
+    agreement = 1.0 - min(1.0, abs(ml_prob - cbes_prob) * 2.0)
+    confidence = clamp((abs(blended_prob - 0.5) * 1.25) + (agreement * 0.2), 0.0, 1.0)
 
-    if ml_prob >= approval_threshold:
+    if blended_prob >= approval_threshold:
         return "APPROVE", confidence, approval_threshold, rejection_threshold
-    if ml_prob <= rejection_threshold:
+    if blended_prob <= rejection_threshold:
         return "REJECT", confidence, approval_threshold, rejection_threshold
     return "DEFER", confidence, approval_threshold, rejection_threshold
 
@@ -310,6 +315,19 @@ class MLPredictor:
             ml_prob = float(self.model.predict_proba(model_input)[0, 1])
 
             final_decision, confidence, approval_threshold, rejection_threshold = dynamic_hybrid_decision(ml_prob, cbes_prob)
+
+            cibil_score = float(merged_row.get("cibil_score", 650.0))
+            debt_to_income_ratio = float(merged_row.get("DEBT_TO_INCOME_RATIO", 0.0))
+            missed_payment_ratio = float(merged_row.get("MISSED_PAYMENT_RATIO", 0.0))
+
+            # Promote deterministic outcomes for very clear risk profiles.
+            if final_decision == "DEFER":
+                if cibil_score <= 560 and debt_to_income_ratio >= 0.45 and missed_payment_ratio >= 0.08:
+                    final_decision = "REJECT"
+                    confidence = max(confidence, 0.72)
+                elif cibil_score >= 780 and debt_to_income_ratio <= 0.25 and cbes_prob >= 0.68:
+                    final_decision = "APPROVE"
+                    confidence = max(confidence, 0.72)
 
             engineered_features = {
                 "emi_income_ratio": float(merged_row.get("EMI_INCOME_RATIO", 0)),

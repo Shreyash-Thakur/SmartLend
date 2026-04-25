@@ -17,6 +17,11 @@ const INTEREST_RATE_SLABS = {
 
 const MEAN_CREDIT_UTILIZATION_RATIO = 0.35
 
+function displayValue(value: string | number | undefined | null) {
+  if (value === undefined || value === null || value === '') return 'N/A'
+  return String(value)
+}
+
 const defaultValues: Partial<LoanApplicationFormData> = {
   firstName: '',
   lastName: '',
@@ -568,6 +573,61 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
               <PreviewMetric label="Region" value={values.region ? String(values.region).replace('_', '-') : 'N/A'} />
               <PreviewMetric label="Total Assets" value={`₹${Math.round(totalAssets).toLocaleString()}`} />
               <PreviewMetric label="Loan:Income" value={`${loanIncomeRatio.toFixed(1)}%`} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">Identity and Contact</p>
+                <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                  <p><span className="font-medium text-neutral-900">Name:</span> {displayValue(`${values.firstName || ''} ${values.lastName || ''}`.trim())}</p>
+                  <p><span className="font-medium text-neutral-900">Email:</span> {displayValue(values.email)}</p>
+                  <p><span className="font-medium text-neutral-900">Phone:</span> {displayValue(values.phone)}</p>
+                  <p><span className="font-medium text-neutral-900">Age:</span> {displayValue(values.age)}</p>
+                  <p><span className="font-medium text-neutral-900">Gender:</span> {displayValue(values.gender)}</p>
+                  <p><span className="font-medium text-neutral-900">Marital Status:</span> {displayValue(values.maritalStatus)}</p>
+                  <p><span className="font-medium text-neutral-900">City:</span> {displayValue(values.city)}</p>
+                  <p><span className="font-medium text-neutral-900">Region:</span> {displayValue(values.region)}</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">Employment and Income</p>
+                <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                  <p><span className="font-medium text-neutral-900">Employment Type:</span> {displayValue(values.employmentType)}</p>
+                  <p><span className="font-medium text-neutral-900">Years of Employment:</span> {displayValue(values.yearsOfEmployment)}</p>
+                  <p><span className="font-medium text-neutral-900">Monthly Income:</span> ₹{Math.round(monthlyIncome).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Annual Income:</span> ₹{Math.round(annualIncome).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">EMI:</span> ₹{Math.round(values.emi || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Existing EMI:</span> ₹{Math.round(values.existingEmis || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">EMI:Income Ratio:</span> {emiIncomeRatio.toFixed(2)}%</p>
+                  <p><span className="font-medium text-neutral-900">Debt:Income Ratio:</span> {debtToIncomeRatio.toFixed(2)}%</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">Loan Request</p>
+                <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                  <p><span className="font-medium text-neutral-900">Purpose:</span> {displayValue(values.loanPurpose)}</p>
+                  <p><span className="font-medium text-neutral-900">Amount:</span> ₹{Math.round(values.loanAmount || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Tenure:</span> {displayValue(values.loanTenure)} months</p>
+                  <p><span className="font-medium text-neutral-900">Interest:</span> {displayValue(values.interestRate)}%</p>
+                  <p><span className="font-medium text-neutral-900">Loan:Income Ratio:</span> {loanIncomeRatio.toFixed(2)}%</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">Assets and Credit</p>
+                <div className="mt-3 space-y-2 text-sm text-neutral-700">
+                  <p><span className="font-medium text-neutral-900">Residential Assets:</span> ₹{Math.round(values.residentialAssetsValue || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Commercial Assets:</span> ₹{Math.round(values.commercialAssetsValue || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Bank Balance:</span> ₹{Math.round(values.bankBalance || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Total Assets:</span> ₹{Math.round(totalAssets).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">Liabilities:</span> ₹{Math.round(values.liabilities || 0).toLocaleString()}</p>
+                  <p><span className="font-medium text-neutral-900">CIBIL Score:</span> {displayValue(values.cibilScore)}</p>
+                  <p><span className="font-medium text-neutral-900">Total Loans:</span> {displayValue(values.totalLoans)}</p>
+                  <p><span className="font-medium text-neutral-900">Missed Payments:</span> {displayValue(values.missedPayments)}</p>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50 p-4">

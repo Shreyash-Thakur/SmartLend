@@ -96,7 +96,7 @@ export const OrganizationDashboard: React.FC = () => {
 
   const displayApplications =
     activeTab === 'deferred'
-      ? applications.filter((a) => a.status === 'deferred')
+      ? applications.filter((a) => a.status === 'deferred' || a.status === 'submitted')
       : applications
   const uploadedCount = applications.filter((a) => a.source === 'seed').length
   const submittedCount = applications.filter((a) => a.source === 'customer').length
@@ -267,7 +267,7 @@ export const OrganizationDashboard: React.FC = () => {
           <div>
             <p className="text-sm text-neutral-500">Human Review Queue</p>
             <p className="text-2xl font-semibold text-neutral-900">
-              {applications.filter((application) => application.status === 'deferred').length}
+              {applications.filter((application) => application.status === 'deferred' || application.status === 'submitted').length}
             </p>
           </div>
         </div>
@@ -293,7 +293,7 @@ export const OrganizationDashboard: React.FC = () => {
                 : 'text-neutral-600 hover:text-neutral-900'
             }`}
           >
-            Deferred Review ({stats?.deferred ?? 0})
+            Pending Review ({applications.filter((a) => a.status === 'deferred' || a.status === 'submitted').length})
           </button>
         </div>
 

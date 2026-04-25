@@ -28,6 +28,14 @@ function mapFinalDecisionToStatus(finalDecision?: string): LoanApplication['stat
   return 'submitted'
 }
 
+function mapFinalDecisionToRecommendation(finalDecision?: string): LoanApplication['modelRecommendation'] {
+  const decision = (finalDecision ?? '').toUpperCase()
+  if (decision === 'APPROVE') return 'approved'
+  if (decision === 'REJECT') return 'rejected'
+  if (decision === 'DEFER') return 'deferred'
+  return 'submitted'
+}
+
 function extractApiError(error: unknown): Error {
   if (
     typeof error === 'object' &&
@@ -89,6 +97,10 @@ function normalizeApplication(application: LoanApplication): LoanApplication {
     ...application,
     source: application.source ?? 'customer',
     status: application.status ?? mapFinalDecisionToStatus(application.finalDecision),
+    modelRecommendation:
+      ((application as unknown as Record<string, unknown>).modelRecommendation as LoanApplication['modelRecommendation'])
+      ?? mapFinalDecisionToRecommendation(application.finalDecision),
+    manualDecisionApplied: Boolean((application as unknown as Record<string, unknown>).manualDecisionApplied),
     ml_prob: asNumber(application.ml_prob),
     cbes_prob: asNumber(application.cbes_prob),
     cbes_score: asNumber(application.cbes_score) || asNumber(application.cbes_prob),

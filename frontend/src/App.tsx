@@ -12,6 +12,9 @@ const Landing = lazy(async () => ({
 const CustomerDashboard = lazy(async () => ({
   default: (await import('@/pages/Dashboard.customer')).CustomerDashboard,
 }))
+const CustomerNewApplication = lazy(async () => ({
+  default: (await import('@/pages/CustomerNewApplication')).CustomerNewApplication,
+}))
 const OrganizationDashboard = lazy(async () => ({
   default: (await import('@/pages/Dashboard.org')).OrganizationDashboard,
 }))
@@ -91,6 +94,14 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="customer">
               <CustomerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/customer/new"
+          element={
+            <ProtectedRoute requiredRole="customer">
+              <CustomerNewApplication />
             </ProtectedRoute>
           }
         />

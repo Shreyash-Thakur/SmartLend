@@ -12,7 +12,7 @@ export const loanApplicationSchema = z
     gender: z.enum(['male', 'female', 'other']),
     maritalStatus: z.enum(['single', 'married', 'divorced', 'widowed']).optional(),
     education: z.enum(['high_school', 'diploma', 'graduate', 'postgraduate', 'doctorate']).optional(),
-    loanAmount: z.number().min(100000).max(10000000),
+    loanAmount: z.number().min(1).max(10000000),
     loanPurpose: z.enum(['home', 'auto', 'personal', 'business', 'education']),
     loanTenure: z.number().min(12).max(360),
     interestRate: z.number().min(1).max(30).optional(),

@@ -24,7 +24,7 @@ export const Landing: React.FC = () => {
       id: 'risk',
       icon: BarChart3,
       title: 'AI Risk Prediction',
-      description: 'ML model trained on 100k+ historical decisions',
+      description: 'ML risk score blended with financial-behavior features',
     },
     {
       id: 'explainability',
@@ -160,7 +160,7 @@ export const Landing: React.FC = () => {
             </div>
             <div>
               <p className="text-4xl font-bold">{metrics ? `${metrics.accuracy}%` : '--'}</p>
-              <p className="text-lg mt-2">Accuracy Rate</p>
+              <p className="text-lg mt-2">Hybrid Decision Quality</p>
             </div>
             <div>
               <p className="text-4xl font-bold">{metrics ? `${metrics.approvalSpeedup}x` : '--'}</p>
@@ -192,6 +192,37 @@ export const Landing: React.FC = () => {
             </p>
           </Card>
         </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        <Card title="Explainability That Supports Clear Decisions" description="Why each decision can be reviewed, audited, and improved.">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <h3 className="text-lg font-semibold text-neutral-900">Clarity from two lenses</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-700">
+                SmartLend combines an ML probability and a CBES explainability score. Agreement between both signals increases confidence, while disagreement triggers analyst review.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <h3 className="text-lg font-semibold text-neutral-900">Accurate public metrics</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-700">
+                Public counters come from live backend records and model-analysis artifacts. They update as new applications are processed and reviewed.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <h3 className="text-lg font-semibold text-neutral-900">Human-in-the-loop controls</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-700">
+                Pending or ambiguous cases are routed to organization analysts. Bulk accept/reject tools speed up operational approval while preserving manual authority.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <h3 className="text-lg font-semibold text-neutral-900">Audit-ready transparency</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-700">
+                Decision traces include recommendation, confidence, and explainability factors so outcomes can be communicated to applicants and compliance teams clearly.
+              </p>
+            </div>
+          </div>
+        </Card>
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">

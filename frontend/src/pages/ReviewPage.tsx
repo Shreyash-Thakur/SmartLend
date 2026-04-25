@@ -11,14 +11,28 @@ export const ReviewPage: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
-  const deferredApplications = useMemo(
-    () => applications.filter((application) => application.status === 'deferred' && application.source === 'customer'),
+  const pendingApplications = useMemo(
+    () =>
+      applications.filter(
+        (application) =>
+          application.source === 'customer' && (application.status === 'submitted' || application.status === 'deferred'),
+      ),
     [applications],
   )
 
+  const recommendedApproved = useMemo(
+    () => pendingApplications.filter((application) => application.modelRecommendation === 'approved'),
+    [pendingApplications],
+  )
+
+  const recommendedRejected = useMemo(
+    () => pendingApplications.filter((application) => application.modelRecommendation === 'rejected'),
+    [pendingApplications],
+  )
+
   const selectedApplication = useMemo(
-    () => deferredApplications.find((application) => application.id === selectedId) ?? deferredApplications[0] ?? null,
-    [deferredApplications, selectedId],
+    () => pendingApplications.find((application) => application.id === selectedId) ?? pendingApplications[0] ?? null,
+    [pendingApplications, selectedId],
   )
 
   const decide = async (application: LoanApplication, status: DecisionType) => {
@@ -33,10 +47,10 @@ export const ReviewPage: React.FC = () => {
     }
   }
 
-  const bulkDecide = async (status: DecisionType) => {
+  const bulkDecide = async (items: LoanApplication[], status: DecisionType) => {
     setActionLoading(true)
     try {
-      for (const application of deferredApplications) {
+      for (const application of items) {
         await overrideDecision(application.id, status, `Bulk analyst action: ${status}.`)
       }
       setSelectedId(null)
@@ -60,18 +74,18 @@ export const ReviewPage: React.FC = () => {
             <Button
               variant="primary"
               leftIcon={<CheckCircle2 className="h-4 w-4" />}
-              disabled={!deferredApplications.length || actionLoading}
-              onClick={() => void bulkDecide('approved')}
+              disabled={!recommendedApproved.length || actionLoading}
+              onClick={() => void bulkDecide(recommendedApproved, 'approved')}
             >
-              Accept All
+              Accept All Recommended Approvals
             </Button>
             <Button
               variant="secondary"
               leftIcon={<XCircle className="h-4 w-4" />}
-              disabled={!deferredApplications.length || actionLoading}
-              onClick={() => void bulkDecide('rejected')}
+              disabled={!recommendedRejected.length || actionLoading}
+              onClick={() => void bulkDecide(recommendedRejected, 'rejected')}
             >
-              Reject All
+              Reject All Recommended Rejections
             </Button>
           </div>
         </div>
@@ -86,18 +100,18 @@ export const ReviewPage: React.FC = () => {
       )}
 
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card title={`Review Queue (${deferredApplications.length})`}>
+        <Card title={`Review Queue (${pendingApplications.length})`}>
           {isLoading ? (
             <p className="text-neutral-600">Loading applications...</p>
-          ) : deferredApplications.length === 0 ? (
+          ) : pendingApplications.length === 0 ? (
             <div className="py-12 text-center">
               <Clock3 className="mx-auto h-10 w-10 text-neutral-400" />
-              <p className="mt-3 font-medium text-neutral-900">No deferred customer applications</p>
-              <p className="mt-1 text-sm text-neutral-500">New deferred submissions will appear here.</p>
+              <p className="mt-3 font-medium text-neutral-900">No pending customer applications</p>
+              <p className="mt-1 text-sm text-neutral-500">New submitted or deferred applications will appear here.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {deferredApplications.map((application) => (
+              {pendingApplications.map((application) => (
                 <button
                   key={application.id}
                   type="button"
@@ -113,13 +127,16 @@ export const ReviewPage: React.FC = () => {
                       <p className="font-semibold text-neutral-900">{application.applicantName}</p>
                       <p className="mt-1 text-sm text-neutral-500">{formatCurrency(application.loanAmount)}</p>
                     </div>
-                    <Badge status="deferred" />
+                    <Badge status={application.status === 'submitted' ? 'pending' : application.status} />
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-neutral-600">
                     <span>ML {(application.ml_prob ?? 0).toFixed(3)}</span>
                     <span>CBES {(application.cbes_score ?? application.cbes_prob ?? 0).toFixed(3)}</span>
                     <span>Conf {(application.confidence ?? 0).toFixed(3)}</span>
                   </div>
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Model recommendation: {application.modelRecommendation ?? 'submitted'}
+                  </p>
                 </button>
               ))}
             </div>
@@ -153,6 +170,9 @@ export const ReviewPage: React.FC = () => {
                 <p className="text-sm font-semibold text-neutral-900">Model Explanation</p>
                 <p className="mt-2 text-sm leading-6 text-neutral-600">
                   {selectedApplication.decision?.explanation ?? 'Hybrid ML and CBES engine deferred this application for analyst review.'}
+                </p>
+                <p className="mt-2 text-xs text-neutral-500">
+                  Recommended action: {selectedApplication.modelRecommendation ?? 'submitted'}
                 </p>
               </div>
 

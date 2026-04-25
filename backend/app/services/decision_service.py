@@ -40,7 +40,9 @@ def _created_at(dt: datetime | None) -> datetime:
 def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     input_data = app_item.input_data or {}
     created_at = _created_at(app_item.created_at)
-    status = _decision_to_status(app_item.final_decision)
+    model_recommendation = _decision_to_status(app_item.final_decision)
+    manual_decision_applied = bool(input_data.get("_manual_decision_applied", False))
+    status = model_recommendation if manual_decision_applied else "submitted"
 
     risk_score = clamp_float(1 - app_item.ml_prob)
     confidence = clamp_float(app_item.confidence)
@@ -78,12 +80,14 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
         "confidence": confidence,
         "decisionCode": app_item.final_decision,
         "finalDecision": app_item.final_decision,
+        "modelRecommendation": model_recommendation,
+        "manualDecisionApplied": manual_decision_applied,
         "applicationData": input_data,
         "decision": {
             "id": f"dec-{uuid.uuid4().hex[:12]}",
-            "status": status,
+            "status": model_recommendation,
             "decidedAt": created_at,
-            "decidedBy": "model",
+            "decidedBy": "human" if manual_decision_applied else "model",
             "riskScore": risk_score,
             "cbessScore": round(app_item.cbes_prob * 100, 2),
             "uncertainty": clamp_float(1 - confidence),
@@ -118,6 +122,7 @@ def apply_manual_decision(app_item: LoanApplication, status: str, notes: str) ->
     # Keep notes in persisted JSON for traceability without schema changes.
     input_data = dict(app_item.input_data or {})
     input_data["_manual_notes"] = notes
+    input_data["_manual_decision_applied"] = True
     app_item.input_data = input_data
 
     return payload

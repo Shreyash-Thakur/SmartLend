@@ -56,7 +56,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   </>
                 )}
               </nav>
-              <span className="hidden text-sm text-neutral-600 md:inline capitalize">{role} dashboard</span>
               <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
                 Back to Home
               </Button>
