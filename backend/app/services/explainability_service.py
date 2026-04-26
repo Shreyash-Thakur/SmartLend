@@ -47,6 +47,29 @@ def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
     meta = data.get("_decision_meta", {}) if isinstance(data.get("_decision_meta", {}), dict) else {}
     engineered = meta.get("engineered_features", {}) if isinstance(meta.get("engineered_features", {}), dict) else {}
     components = meta.get("cbes_components", {}) if isinstance(meta.get("cbes_components", {}), dict) else {}
+    shap_explanation = meta.get("shap_explanation", []) if isinstance(meta.get("shap_explanation", []), list) else []
+
+    if shap_explanation:
+        normalized: list[dict[str, Any]] = []
+        for item in shap_explanation:
+            feature = str(item.get("feature", "feature")) if isinstance(item, dict) else "feature"
+            impact = float(item.get("impact", 0.0)) if isinstance(item, dict) else 0.0
+            direction_impact = _impact_sign_for_decision(app_item.final_decision, impact)
+            normalized.append(
+                {
+                    "feature": feature,
+                    "name": _to_label(feature),
+                    "impact": round(direction_impact, 4),
+                    "direction": "supports_decision" if direction_impact >= 0 else "opposes_decision",
+                    "severity": round(min(1.0, abs(direction_impact) * 2.0), 4),
+                    "value": 0.0,
+                    "targetValue": 0.0,
+                    "reason": f"{_to_label(feature)} contributes {'positively' if direction_impact >= 0 else 'negatively'} to the decision.",
+                }
+            )
+
+        normalized.sort(key=lambda entry: abs(float(entry.get("impact", 0.0))), reverse=True)
+        return normalized[:5]
 
     dti = float(engineered.get("debt_to_income_ratio", 0))
     emi_ratio = float(engineered.get("emi_income_ratio", 0))
@@ -206,10 +229,11 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     components = meta.get("cbes_components", {}) if isinstance(meta.get("cbes_components", {}), dict) else {}
     weights = meta.get("cbes_weights", {}) if isinstance(meta.get("cbes_weights", {}), dict) else {}
 
-    credit_component = float(components.get("credit_component", 0.0))
-    capacity_component = float(components.get("capacity_component", 0.0))
-    asset_component = float(components.get("asset_component", 0.0))
-    stability_component = float(components.get("stability_component", 0.0))
+    credit_component = float(components.get("credit_component", components.get("credit", 0.0)))
+    capacity_component = float(components.get("capacity_component", components.get("capacity", 0.0)))
+    behaviour_component = float(components.get("behaviour", 0.0))
+    asset_component = float(components.get("asset_component", components.get("liquidity", 0.0)))
+    stability_component = float(components.get("stability_component", components.get("stability", 0.0)))
 
     credit_weight = float(weights.get("credit", 0.35))
     capacity_weight = float(weights.get("capacity", 0.30))
@@ -219,10 +243,12 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     factor_buckets = {
         "credit": round(credit_component, 4),
         "capacity": round(capacity_component, 4),
+        "behaviour": round(behaviour_component, 4),
         "collateral": round(asset_component, 4),
         "stability": round(stability_component, 4),
         "creditWeighted": round(credit_component * credit_weight, 4),
         "capacityWeighted": round(capacity_component * capacity_weight, 4),
+        "behaviourWeighted": round(behaviour_component * 0.2, 4),
         "collateralWeighted": round(asset_component * asset_weight, 4),
         "stabilityWeighted": round(stability_component * stability_weight, 4),
     }

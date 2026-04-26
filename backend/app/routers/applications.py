@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import logging
+import re
 import uuid
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -62,6 +63,26 @@ CITY_TO_REGION: dict[str, str] = {
     "bhopal": "Central",
     "raipur": "Central",
     "indore": "Central",
+    "kanpur": "North",
+    "varanasi": "East",
+    "mohali": "North",
+    "noida": "North",
+    "gurugram": "North",
+    "gurgaon": "North",
+    "visakhapatnam": "South",
+    "vishakhapatnam": "South",
+    "mysuru": "South",
+    "mangalore": "South",
+    "kozhikode": "South",
+    "madurai": "South",
+    "coimbatore": "South",
+    "thane": "West",
+    "nashik": "West",
+    "vadodara": "West",
+    "rajkot": "West",
+    "siliguri": "East",
+    "ranchi": "East",
+    "jamshedpur": "East",
 }
 
 CITY_TO_STATE: dict[str, str] = {
@@ -88,7 +109,74 @@ CITY_TO_STATE: dict[str, str] = {
     "bhopal": "Madhya Pradesh",
     "raipur": "Chhattisgarh",
     "indore": "Madhya Pradesh",
+    "kanpur": "Uttar Pradesh",
+    "varanasi": "Uttar Pradesh",
+    "mohali": "Punjab",
+    "noida": "Uttar Pradesh",
+    "gurugram": "Haryana",
+    "gurgaon": "Haryana",
+    "visakhapatnam": "Andhra Pradesh",
+    "vishakhapatnam": "Andhra Pradesh",
+    "mysuru": "Karnataka",
+    "mangalore": "Karnataka",
+    "kozhikode": "Kerala",
+    "madurai": "Tamil Nadu",
+    "coimbatore": "Tamil Nadu",
+    "thane": "Maharashtra",
+    "nashik": "Maharashtra",
+    "vadodara": "Gujarat",
+    "rajkot": "Gujarat",
+    "siliguri": "West Bengal",
+    "ranchi": "Jharkhand",
+    "jamshedpur": "Jharkhand",
 }
+
+STATE_TO_REGION: dict[str, str] = {
+    "andaman and nicobar islands": "South",
+    "andaman and nicobar": "South",
+    "andhra pradesh": "South",
+    "arunachal pradesh": "East",
+    "assam": "East",
+    "bihar": "East",
+    "chandigarh": "North",
+    "chhattisgarh": "Central",
+    "dadra and nagar haveli": "West",
+    "dadra and nagar haveli and daman and diu": "West",
+    "daman and diu": "West",
+    "delhi": "North",
+    "goa": "West",
+    "gujarat": "West",
+    "haryana": "North",
+    "himachal pradesh": "North",
+    "jammu and kashmir": "North",
+    "jharkhand": "East",
+    "karnataka": "South",
+    "kerala": "South",
+    "ladakh": "North",
+    "lakshadweep": "South",
+    "madhya pradesh": "Central",
+    "maharashtra": "West",
+    "manipur": "East",
+    "meghalaya": "East",
+    "mizoram": "East",
+    "nagaland": "East",
+    "odisha": "East",
+    "orissa": "East",
+    "puducherry": "South",
+    "punjab": "North",
+    "rajasthan": "North",
+    "sikkim": "East",
+    "tamil nadu": "South",
+    "telangana": "South",
+    "tripura": "East",
+    "uttar pradesh": "North",
+    "uttarakhand": "North",
+    "west bengal": "East",
+}
+
+
+def _normalize_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 REGION_ALIASES: dict[str, str] = {
     "north": "North",
@@ -141,10 +229,15 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
     decision_meta = {
         "approval_threshold": prediction.approval_threshold,
         "rejection_threshold": prediction.rejection_threshold,
+        "decision_reason": prediction.decision_reason,
+        "disagreement": prediction.disagreement,
+        "confidence_label": prediction.confidence_label,
+        "risk_score": prediction.risk_score,
         "selected_model": prediction.selected_model,
         "cbes_components": prediction.cbes_components,
         "cbes_weights": prediction.cbes_weights,
         "engineered_features": prediction.engineered_features,
+        "shap_explanation": prediction.shap_explanation,
     }
 
     app_item = LoanApplication(
@@ -215,6 +308,10 @@ def _normalize_region(input_data: dict[str, Any]) -> str:
     if city in CITY_TO_REGION:
         return CITY_TO_REGION[city]
 
+    state = _normalize_key(str(input_data.get("state") or input_data.get("province") or ""))
+    if state in STATE_TO_REGION:
+        return STATE_TO_REGION[state]
+
     return "Unknown"
 
 
@@ -228,6 +325,22 @@ def _normalize_city(input_data: dict[str, Any]) -> str:
 def _normalize_state(input_data: dict[str, Any]) -> str:
     state = str(input_data.get("state") or input_data.get("province") or "").strip()
     if state:
+        normalized = _normalize_key(state)
+        if normalized in STATE_TO_REGION:
+            return {
+                "andaman and nicobar islands": "Andaman and Nicobar Islands",
+                "andaman and nicobar": "Andaman and Nicobar",
+                "arunachal pradesh": "Arunachal Pradesh",
+                "dadra and nagar haveli": "Dadra and Nagar Haveli",
+                "dadra and nagar haveli and daman and diu": "Dadra and Nagar Haveli and Daman and Diu",
+                "daman and diu": "Daman and Diu",
+                "himachal pradesh": "Himachal Pradesh",
+                "jammu and kashmir": "Jammu and Kashmir",
+                "madhya pradesh": "Madhya Pradesh",
+                "tamil nadu": "Tamil Nadu",
+                "uttar pradesh": "Uttar Pradesh",
+                "west bengal": "West Bengal",
+            }[normalized]
         return state.title()
 
     city = str(input_data.get("city") or "").strip().lower()

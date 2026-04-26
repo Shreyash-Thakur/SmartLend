@@ -39,13 +39,15 @@ def _created_at(dt: datetime | None) -> datetime:
 
 def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     input_data = app_item.input_data or {}
+    meta = input_data.get("_decision_meta", {}) if isinstance(input_data.get("_decision_meta", {}), dict) else {}
     created_at = _created_at(app_item.created_at)
     model_recommendation = _decision_to_status(app_item.final_decision)
     manual_decision_applied = bool(input_data.get("_manual_decision_applied", False))
     status = model_recommendation if manual_decision_applied else "submitted"
 
-    risk_score = clamp_float(1 - app_item.ml_prob)
+    risk_score = clamp_float(float(meta.get("risk_score", 1 - app_item.ml_prob)))
     confidence = clamp_float(app_item.confidence)
+    confidence_label = str(meta.get("confidence_label", _confidence_band(confidence))).lower()
     documents = list(app_item.documents or [])
     explain_payload = build_explainability_payload(app_item)
 
@@ -91,7 +93,10 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
             "riskScore": risk_score,
             "cbessScore": round(app_item.cbes_prob * 100, 2),
             "uncertainty": clamp_float(1 - confidence),
-            "confidence": _confidence_band(confidence),
+            "confidence": confidence_label,
+            "reason": str(meta.get("decision_reason", "model_ensemble")),
+            "topFeatures": [str(f.get("name", "Unknown")) for f in meta.get("shap_explanation", [])],
+            "cbesBreakdown": meta.get("cbes_components", {}),
             "explanation": str(explain_payload.get("explanation", "Dynamic hybrid ML + CBES decision applied.")),
             "positiveFactors": list(explain_payload.get("positiveFactors", [])),
             "negativeFactors": list(explain_payload.get("negativeFactors", [])),

@@ -1,5 +1,5 @@
 {
-  "best_model": "Logistic",
+  "best_model": "Logistic Regression",
   "selection_metric": "AUC",
   "cbes_weights": {
     "credit": 0.5198,
@@ -8,12 +8,12 @@
     "stability": 0.0856
   },
   "selected_alpha": 0.2,
-  "deferral_rate": 0.2528,
-  "accuracy_non_deferred": 0.5963597430406852,
+  "deferral_rate": 0.24916,
+  "accuracy_non_deferred": 0.6061477811517767,
   "decision_distribution": {
-    "REJECT": 2403,
-    "DEFER": 1264,
-    "APPROVE": 1333
+    "DEFER": 6229,
+    "APPROVE": 6757,
+    "REJECT": 12014
   },
   "artifacts": {
     "metrics_csv": "artifacts\\model_metrics.csv",

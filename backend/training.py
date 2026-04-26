@@ -1,473 +1,430 @@
-import json
-import warnings
-from collections import Counter
-from pathlib import Path
+from __future__ import annotations
 
-import matplotlib.pyplot as plt
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+import joblib
 import numpy as np
 import pandas as pd
+from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
+from sklearn.base import clone
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
-warnings.filterwarnings(
-    "ignore",
-    message="X does not have valid feature names, but LGBMClassifier was fitted with feature names",
-)
+from backend.app.services.analysis import generate_analysis_plots
+from backend.app.services.calibrate import calibrate_tau_d
+from backend.app.services.cbes_engine import COMPONENT_WEIGHTS, compute_cbes_probability
+from backend.app.services.decision_engine import hybrid_decision
+
 
 RANDOM_STATE = 42
 DATA_PATH = Path("synthetic_indian_loan_dataset.csv")
 ARTIFACT_DIR = Path("artifacts")
 PLOTS_DIR = ARTIFACT_DIR / "plots"
-
-DEFAULT_CBES_WEIGHTS = {
-    "credit": 0.35,
-    "capacity": 0.30,
-    "asset": 0.25,
-    "stability": 0.10,
-}
+PIPELINE_PATH = ARTIFACT_DIR / "pipeline.joblib"
+PIPELINE_HASH_PATH = ARTIFACT_DIR / "pipeline.sha256"
 
 
-def clamp(x: float, low: float, high: float) -> float:
-    return max(low, min(x, high))
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    if np.isnan(number) or np.isinf(number):
+        return default
+    return number
 
 
-def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
-    enriched = df.copy()
-    enriched["EMI_INCOME_RATIO"] = enriched["emi"] / (enriched["monthly_income"] + 1)
-    enriched["DEBT_BURDEN"] = (enriched["existing_emis"] + enriched["emi"]) / (enriched["monthly_income"] + 1)
-    enriched["DEBT_TO_INCOME_RATIO"] = (enriched["existing_emis"] * 12 + enriched["loan_amount"]) / (enriched["annual_income"] + 1)
-    enriched["LOAN_INCOME_RATIO"] = enriched["loan_amount"] / (enriched["annual_income"] + 1)
-    enriched["ASSET_COVERAGE"] = enriched["total_assets"] / (enriched["loan_amount"] + 1)
-    enriched["LIQUIDITY_RATIO"] = enriched["bank_balance"] / (enriched["loan_amount"] + 1)
-    enriched["LOAN_ACTIVITY_RATIO"] = enriched["active_loans"] / (enriched["total_loans"] + 1)
-    enriched["REPAYMENT_SCORE"] = enriched["closed_loans"] / (enriched["total_loans"] + 1)
-    enriched["MISSED_PAYMENT_RATIO"] = enriched["missed_payments"] / (enriched["total_loans"] + 1)
-    enriched["EMPLOYMENT_STABILITY"] = enriched["years_employed"] / (enriched["age"] + 1)
-    return enriched
+def build_feature_frame(raw_df: pd.DataFrame) -> pd.DataFrame:
+    df = raw_df.copy()
 
+    for col in [
+        "monthly_income",
+        "annual_income",
+        "loan_amount",
+        "existing_emis",
+        "emi",
+        "bank_balance",
+        "total_assets",
+        "active_loans",
+        "total_loans",
+        "closed_loans",
+        "missed_payments",
+        "years_employed",
+        "age",
+        "cibil_score",
+        "credit_utilization_ratio",
+    ]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
 
-def compute_cbes_components(df: pd.DataFrame) -> dict[str, pd.Series]:
-    cibil_norm = ((df["cibil_score"] - 300) / 600).clip(0, 1)
-    payment_penalty = (1 - df["MISSED_PAYMENT_RATIO"]).clip(0, 1)
-    util_penalty = (1 - df["credit_utilization_ratio"]).clip(0, 1)
-    credit_component = 0.5 * cibil_norm + 0.3 * payment_penalty + 0.2 * util_penalty
+    if "annual_income" not in df.columns and "monthly_income" in df.columns:
+        df["annual_income"] = df["monthly_income"] * 12
 
-    dti_score = (1 - df["DEBT_TO_INCOME_RATIO"]).clip(0.2, 1)
-    emi_score = (1 - df["EMI_INCOME_RATIO"]).clip(0, 1)
-    loan_income_score = (1 - df["LOAN_INCOME_RATIO"]).clip(0, 1)
-    capacity_component = 0.5 * dti_score + 0.3 * emi_score + 0.2 * loan_income_score
+    if "total_assets" not in df.columns:
+        residential = pd.to_numeric(df.get("residential_assets_value", 0), errors="coerce").fillna(0)
+        commercial = pd.to_numeric(df.get("commercial_assets_value", 0), errors="coerce").fillna(0)
+        balance = pd.to_numeric(df.get("bank_balance", 0), errors="coerce").fillna(0)
+        df["total_assets"] = residential + commercial + balance
 
-    asset_score = df["ASSET_COVERAGE"].clip(0, 2) / 2
-    liquidity_score = df["LIQUIDITY_RATIO"].clip(0, 1)
-    asset_component = 0.7 * asset_score + 0.3 * liquidity_score
-
-    stability_component = df["EMPLOYMENT_STABILITY"].clip(0, 1)
-
-    return {
-        "credit": credit_component.clip(0, 1),
-        "capacity": capacity_component.clip(0, 1),
-        "asset": asset_component.clip(0, 1),
-        "stability": stability_component.clip(0, 1),
-    }
-
-
-def combine_cbes_components(components: dict[str, pd.Series], weights: dict[str, float]) -> pd.Series:
-    score = (
-        float(weights["credit"]) * components["credit"]
-        + float(weights["capacity"]) * components["capacity"]
-        + float(weights["asset"]) * components["asset"]
-        + float(weights["stability"]) * components["stability"]
+    df["emi_income_ratio"] = pd.to_numeric(df.get("emi", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("monthly_income", 0), errors="coerce").fillna(0) + 1
     )
-    return score.clip(0, 1)
+    df["debt_to_income_ratio"] = (
+        pd.to_numeric(df.get("existing_emis", 0), errors="coerce").fillna(0) * 12
+        + pd.to_numeric(df.get("loan_amount", 0), errors="coerce").fillna(0)
+    ) / (pd.to_numeric(df.get("annual_income", 0), errors="coerce").fillna(0) + 1)
+    df["loan_income_ratio"] = pd.to_numeric(df.get("loan_amount", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("annual_income", 0), errors="coerce").fillna(0) + 1
+    )
+    df["asset_coverage"] = pd.to_numeric(df.get("total_assets", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("loan_amount", 0), errors="coerce").fillna(0) + 1
+    )
+    df["liquidity_ratio"] = pd.to_numeric(df.get("bank_balance", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("loan_amount", 0), errors="coerce").fillna(0) + 1
+    )
+    df["loan_activity_ratio"] = pd.to_numeric(df.get("active_loans", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("total_loans", 0), errors="coerce").fillna(0) + 1
+    )
+    df["repayment_score"] = pd.to_numeric(df.get("closed_loans", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("total_loans", 0), errors="coerce").fillna(0) + 1
+    )
+    df["missed_payment_ratio"] = pd.to_numeric(df.get("missed_payments", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("total_loans", 0), errors="coerce").fillna(0) + 1
+    )
+    df["employment_stability"] = pd.to_numeric(df.get("years_employed", 0), errors="coerce").fillna(0) / (
+        pd.to_numeric(df.get("age", 0), errors="coerce").fillna(0) + 1
+    )
+    df["repayments_on_time_last_12"] = 12 - np.minimum(
+        pd.to_numeric(df.get("missed_payments", 0), errors="coerce").fillna(0),
+        12,
+    )
+    df["gross_monthly_income"] = pd.to_numeric(df.get("monthly_income", 0), errors="coerce").fillna(0)
+    df["net_monthly_income"] = pd.to_numeric(df.get("monthly_income", 0), errors="coerce").fillna(0)
+    df["monthly_emi"] = pd.to_numeric(df.get("emi", 0), errors="coerce").fillna(0)
+    df["total_monthly_debt"] = pd.to_numeric(df.get("existing_emis", 0), errors="coerce").fillna(0)
+    df["credit_utilization"] = pd.to_numeric(df.get("credit_utilization_ratio", 0), errors="coerce").fillna(0)
+
+    for col in df.columns:
+        if df[col].dtype.kind in "biufc":
+            df[col] = df[col].fillna(float(df[col].median()) if not df[col].dropna().empty else 0.0)
+        else:
+            mode = df[col].mode(dropna=True)
+            df[col] = df[col].fillna(str(mode.iloc[0]) if not mode.empty else "unknown")
+
+    return df
 
 
-def tune_cbes_weights(
-    y_cal: pd.Series,
-    cal_components: dict[str, pd.Series],
-    default_weights: dict[str, float],
-    sample_size: int = 400,
-) -> dict[str, float]:
-    rng = np.random.default_rng(RANDOM_STATE)
+def to_model_matrix(feature_df: pd.DataFrame) -> pd.DataFrame:
+    matrix = pd.get_dummies(feature_df, drop_first=True, dtype=np.float32)
+    return matrix
 
-    best_weights = dict(default_weights)
-    best_auc = roc_auc_score(y_cal, combine_cbes_components(cal_components, best_weights))
-    best_objective = best_auc
 
-    # Dirichlet samples preserve explainability (positive weights summing to 1).
-    for _ in range(sample_size):
-        candidate = rng.dirichlet([3.0, 3.0, 2.0, 1.5])
-        candidate_weights = {
-            "credit": float(candidate[0]),
-            "capacity": float(candidate[1]),
-            "asset": float(candidate[2]),
-            "stability": float(candidate[3]),
-        }
-
-        # Keep components meaningful and avoid collapsing into a single dominant factor.
-        if not (
-            0.20 <= candidate_weights["credit"] <= 0.55
-            and 0.15 <= candidate_weights["capacity"] <= 0.45
-            and 0.10 <= candidate_weights["asset"] <= 0.35
-            and 0.05 <= candidate_weights["stability"] <= 0.20
-        ):
-            continue
-
-        auc = roc_auc_score(y_cal, combine_cbes_components(cal_components, candidate_weights))
-        drift_penalty = 0.025 * sum(abs(candidate_weights[k] - default_weights[k]) for k in default_weights)
-        objective = auc - drift_penalty
-
-        if objective > best_objective:
-            best_objective = objective
-            best_auc = auc
-            best_weights = candidate_weights
-
+def row_to_cbes_input(row: pd.Series) -> dict[str, float]:
     return {
-        key: round(float(value), 4)
-        for key, value in best_weights.items()
+        "cibil_score": _safe_float(row.get("cibil_score"), 620.0),
+        "missed_payment_ratio": _safe_float(row.get("missed_payment_ratio"), 0.2),
+        "credit_utilization": _safe_float(row.get("credit_utilization"), 0.8),
+        "gross_monthly_income": max(_safe_float(row.get("gross_monthly_income"), 30000.0), 1.0),
+        "net_monthly_income": max(_safe_float(row.get("net_monthly_income"), 30000.0), 1.0),
+        "total_monthly_debt": max(_safe_float(row.get("total_monthly_debt"), 15000.0), 0.0),
+        "monthly_emi": max(_safe_float(row.get("monthly_emi"), 10000.0), 0.0),
+        "repayments_on_time_last_12": _safe_float(row.get("repayments_on_time_last_12"), 8.0),
+        "active_loans": max(_safe_float(row.get("active_loans"), 3.0), 0.0),
+        "total_loans": max(_safe_float(row.get("total_loans"), 5.0), 0.0),
+        "bank_balance": max(_safe_float(row.get("bank_balance"), 25000.0), 0.0),
+        "loan_amount": max(_safe_float(row.get("loan_amount"), 300000.0), 1.0),
+        "total_assets": max(_safe_float(row.get("total_assets"), 300000.0), 0.0),
+        "years_employed": max(_safe_float(row.get("years_employed"), 2.0), 0.0),
+        "age": max(_safe_float(row.get("age"), 30.0), 18.0),
     }
 
 
-def find_best_threshold(y_true: pd.Series, probs: np.ndarray) -> float:
-    thresholds = np.linspace(0.3, 0.7, 81)
-    best_threshold = 0.5
-    best_score = -1.0
-
-    y_true_np = y_true.to_numpy() if hasattr(y_true, "to_numpy") else np.asarray(y_true)
-    for threshold in thresholds:
-        preds = (probs >= threshold).astype(int)
-        precision = precision_score(y_true_np, preds, zero_division=0)
-        recall = recall_score(y_true_np, preds, zero_division=0)
-        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
-
-        if f1 > best_score:
-            best_score = f1
-            best_threshold = float(threshold)
-
-    return best_threshold
-
-
-def dynamic_hybrid_decision(ml_prob: float, cbes_prob: float, alpha: float = 0.25) -> tuple[str, float, float, float]:
-    alpha = clamp(alpha, 0.2, 0.4)
-    center = clamp(0.5 - ((cbes_prob - 0.5) * alpha), 0.42, 0.58)
-
-    neutrality = 1.0 - min(1.0, abs(cbes_prob - 0.5) * 2.0)
-    defer_band = 0.06 + (0.08 * neutrality)
-
-    rejection_threshold = clamp(center - (defer_band / 2), 0.2, 0.6)
-    approval_threshold = clamp(center + (defer_band / 2), 0.4, 0.8)
-
-    if approval_threshold <= rejection_threshold:
-        midpoint = (approval_threshold + rejection_threshold) / 2
-        rejection_threshold = clamp(midpoint - 0.03, 0.2, 0.6)
-        approval_threshold = clamp(midpoint + 0.03, 0.4, 0.8)
-
-    confidence = abs(ml_prob - 0.5)
-
-    if ml_prob >= approval_threshold:
-        return "APPROVE", confidence, approval_threshold, rejection_threshold
-    if ml_prob <= rejection_threshold:
-        return "REJECT", confidence, approval_threshold, rejection_threshold
-    return "DEFER", confidence, approval_threshold, rejection_threshold
-
-
-def evaluate_alpha(ml_probs: np.ndarray, cbes_probs: np.ndarray, y_true: np.ndarray, alpha: float) -> tuple[list[str], float, float]:
-    decisions = [dynamic_hybrid_decision(ml, cbes, alpha=alpha)[0] for ml, cbes in zip(ml_probs, cbes_probs)]
-    decisions_np = np.array(decisions)
-    mask = decisions_np != "DEFER"
-    defer_rate = float(np.mean(decisions_np == "DEFER"))
-
-    if np.any(mask):
-        pred_non_defer = (decisions_np[mask] == "APPROVE").astype(int)
-        acc_non_defer = float(accuracy_score(y_true[mask], pred_non_defer))
-    else:
-        acc_non_defer = -1.0
-
-    return decisions, defer_rate, acc_non_defer
+def compute_cv_auc_std(estimator: Any, X: pd.DataFrame, y: pd.Series) -> float:
+    kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    aucs: list[float] = []
+    for train_idx, valid_idx in kfold.split(X, y):
+        X_tr, X_va = X.iloc[train_idx], X.iloc[valid_idx]
+        y_tr, y_va = y.iloc[train_idx], y.iloc[valid_idx]
+        model = clone(estimator)
+        model.fit(X_tr, y_tr)
+        probs = model.predict_proba(X_va)[:, 1]
+        aucs.append(float(roc_auc_score(y_va, probs)))
+    return float(np.std(aucs))
 
 
 def main() -> None:
     if not DATA_PATH.exists():
         raise FileNotFoundError(f"Dataset not found: {DATA_PATH}")
 
-    df = pd.read_csv(DATA_PATH)
-    print("Dataset:", df.shape)
+    raw_df = pd.read_csv(DATA_PATH, engine="python")
+    print("Dataset:", raw_df.shape)
 
-    df = add_engineered_features(df)
-    components = compute_cbes_components(df)
+    y = raw_df["loan_approved"].astype(int)
+    feature_base = raw_df.drop(columns=[c for c in ["loan_approved", "applicant_id"] if c in raw_df.columns]).copy()
+    feature_base = build_feature_frame(feature_base)
 
-    y = df["loan_approved"].astype(int)
+    defaults = {}
+    for col in feature_base.columns:
+        if feature_base[col].dtype.kind in "biufc":
+            defaults[col] = float(feature_base[col].median())
+        else:
+            mode = feature_base[col].mode(dropna=True)
+            defaults[col] = str(mode.iloc[0]) if not mode.empty else "unknown"
 
-    drop_cols = ["loan_approved", "applicant_id", "city"]
-    X_raw = df.drop(columns=[col for col in drop_cols if col in df.columns])
-    # Keep CBES as a separate explainable baseline and hybrid control signal.
-    if "CBES_PROB" in X_raw.columns:
-        X_raw = X_raw.drop(columns=["CBES_PROB"])
-    X = pd.get_dummies(X_raw, drop_first=True)
+    X_full = to_model_matrix(feature_base)
+    feature_columns = list(X_full.columns)
 
-    X_train_all, X_test, y_train_all, y_test, idx_train_all, idx_test, meta_train, meta_test = train_test_split(
-        X,
+    X_train, X_test, y_train, y_test, idx_train, idx_test = train_test_split(
+        X_full,
         y,
-        df.index,
-        df[["applicant_id"]],
+        raw_df.index,
         test_size=0.2,
         random_state=RANDOM_STATE,
         stratify=y,
     )
 
-    X_train, X_cal, y_train, y_cal, idx_train, idx_cal = train_test_split(
-        X_train_all,
-        y_train_all,
-        idx_train_all,
-        test_size=0.2,
-        random_state=RANDOM_STATE,
-        stratify=y_train_all,
-    )
-
-    tuned_cbes_weights = tune_cbes_weights(
-        y_cal,
-        {
-            key: series.loc[idx_cal]
-            for key, series in components.items()
-        },
-        DEFAULT_CBES_WEIGHTS,
-    )
-
-    cbes_test = combine_cbes_components(
-        {
-            key: series.loc[idx_test]
-            for key, series in components.items()
-        },
-        tuned_cbes_weights,
-    )
-
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_cal_scaled = scaler.transform(X_cal)
-    X_test_scaled = scaler.transform(X_test)
-
-    models = {
-        "Logistic": {
-            "estimator": LogisticRegression(max_iter=2000, class_weight="balanced", random_state=RANDOM_STATE),
-            "input_mode": "scaled",
-        },
-        "RandomForest": {
-            "estimator": RandomForestClassifier(
-                n_estimators=350,
-                max_depth=12,
-                min_samples_leaf=2,
-                class_weight="balanced_subsample",
-                random_state=RANDOM_STATE,
-                n_jobs=-1,
-            ),
-            "input_mode": "raw",
-        },
-        "LightGBM": {
-            "estimator": LGBMClassifier(
-                n_estimators=320,
-                learning_rate=0.04,
-                num_leaves=31,
-                subsample=0.9,
-                colsample_bytree=0.9,
-                random_state=RANDOM_STATE,
-                verbosity=-1,
-            ),
-            "input_mode": "raw",
-        },
-        "XGBoost": {
-            "estimator": XGBClassifier(
-                n_estimators=240,
-                max_depth=5,
-                learning_rate=0.05,
-                subsample=0.9,
-                colsample_bytree=0.9,
-                reg_lambda=1.2,
-                random_state=RANDOM_STATE,
-                eval_metric="logloss",
-            ),
-            "input_mode": "raw",
-        },
+    model_configs = {
+        "Logistic Regression": make_pipeline(
+            StandardScaler(with_mean=False),
+            LogisticRegression(max_iter=2500, class_weight="balanced", random_state=RANDOM_STATE),
+        ),
+        "Random Forest": RandomForestClassifier(
+            n_estimators=350,
+            max_depth=12,
+            min_samples_leaf=2,
+            class_weight="balanced_subsample",
+            random_state=RANDOM_STATE,
+            n_jobs=-1,
+        ),
+        "XGBoost": XGBClassifier(
+            n_estimators=260,
+            max_depth=5,
+            learning_rate=0.05,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            reg_lambda=1.2,
+            random_state=RANDOM_STATE,
+            eval_metric="logloss",
+        ),
+        "LightGBM": LGBMClassifier(
+            n_estimators=340,
+            learning_rate=0.04,
+            num_leaves=31,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            random_state=RANDOM_STATE,
+            verbosity=-1,
+        ),
+        "CatBoost": CatBoostClassifier(verbose=0, random_state=RANDOM_STATE),
     }
 
-    results = []
-    model_prob_store: dict[str, np.ndarray] = {}
+    fitted_models: dict[str, Any] = {}
+    fitted_calibrators: dict[str, Any] = {}
+    model_metrics: list[dict[str, float | str]] = []
 
-    for name, config in models.items():
-        estimator = config["estimator"]
-        input_mode = config["input_mode"]
+    calibration_method = "isotonic" if len(X_train) > 1000 else "sigmoid"
 
-        if input_mode == "scaled":
-            estimator.fit(X_train_scaled, y_train)
-            cal_probs = estimator.predict_proba(X_cal_scaled)[:, 1]
-            test_probs = estimator.predict_proba(X_test_scaled)[:, 1]
-        else:
-            estimator.fit(X_train, y_train)
-            cal_probs = estimator.predict_proba(X_cal)[:, 1]
-            test_probs = estimator.predict_proba(X_test)[:, 1]
+    for model_name, estimator in model_configs.items():
+        cv_std_auc = compute_cv_auc_std(estimator, X_train, y_train)
 
-        tuned_threshold = find_best_threshold(y_cal, cal_probs)
-        test_preds = (test_probs >= tuned_threshold).astype(int)
+        base_model = clone(estimator)
+        base_model.fit(X_train, y_train)
 
-        acc = accuracy_score(y_test, test_preds)
-        prec = precision_score(y_test, test_preds, zero_division=0)
-        rec = recall_score(y_test, test_preds, zero_division=0)
-        auc = roc_auc_score(y_test, test_probs)
+        calibrator = CalibratedClassifierCV(estimator=clone(estimator), method=calibration_method, cv=3)
+        calibrator.fit(X_train, y_train)
 
-        print(f"\n{name}")
-        print("Threshold:", round(tuned_threshold, 3))
-        print("Accuracy:", round(acc, 4))
-        print("Precision:", round(prec, 4))
-        print("Recall:", round(rec, 4))
-        print("AUC:", round(auc, 4))
+        probs = calibrator.predict_proba(X_test)[:, 1]
+        preds = (probs >= 0.5).astype(int)
 
-        results.append([name, acc, prec, rec, auc])
-        model_prob_store[name] = test_probs
+        accuracy = float(accuracy_score(y_test, preds))
+        precision = float(precision_score(y_test, preds, zero_division=0))
+        recall = float(recall_score(y_test, preds, zero_division=0))
+        f1 = float(f1_score(y_test, preds, zero_division=0))
+        auc_score = float(roc_auc_score(y_test, probs))
 
-    cbes_preds = (cbes_test.to_numpy() >= 0.5).astype(int)
-    cbes_acc = accuracy_score(y_test, cbes_preds)
-    cbes_prec = precision_score(y_test, cbes_preds, zero_division=0)
-    cbes_rec = recall_score(y_test, cbes_preds, zero_division=0)
-    cbes_auc = roc_auc_score(y_test, cbes_test.to_numpy())
-    results.append(["CBES Baseline", cbes_acc, cbes_prec, cbes_rec, cbes_auc])
-    model_prob_store["CBES"] = cbes_test.to_numpy()
+        score = auc_score + (0.20 * recall) - (0.10 * cv_std_auc)
 
-    results_df = pd.DataFrame(results, columns=["Model", "Accuracy", "Precision", "Recall", "AUC"])\
-        .sort_values(by="AUC", ascending=False).reset_index(drop=True)
-
-    ranked_models = results_df[results_df["Model"] != "CBES Baseline"].reset_index(drop=True)
-    best_model_name = ranked_models.loc[0, "Model"]
-    ml_prob = model_prob_store[best_model_name]
-
-    print("\n===== MODEL SELECTION =====")
-    print("Best Model (by ROC-AUC):", best_model_name)
-    print("Tuned CBES Weights:", tuned_cbes_weights)
-    print(results_df.to_string(index=False))
-
-    alpha_grid = np.arange(0.2, 0.401, 0.02)
-    alpha_candidates = []
-
-    y_test_np = y_test.to_numpy()
-    cbes_test_np = cbes_test.to_numpy()
-
-    for alpha_value in alpha_grid:
-        _, defer_rate_tmp, acc_nd_tmp = evaluate_alpha(ml_prob, cbes_test_np, y_test_np, alpha_value)
-        in_target_band = 0.15 <= defer_rate_tmp <= 0.35
-        alpha_candidates.append((alpha_value, defer_rate_tmp, acc_nd_tmp, in_target_band))
-
-    valid_candidates = [item for item in alpha_candidates if item[3]]
-    if valid_candidates:
-        selected_alpha, _, _, _ = max(valid_candidates, key=lambda x: x[2])
-    else:
-        selected_alpha, _, _, _ = min(alpha_candidates, key=lambda x: abs(x[1] - 0.25))
-
-    final_decisions = []
-    decision_confidences = []
-    approval_thresholds = []
-    rejection_thresholds = []
-
-    for ml, cbes in zip(ml_prob, cbes_test_np):
-        decision, confidence, approval_threshold, rejection_threshold = dynamic_hybrid_decision(
-            float(ml), float(cbes), alpha=float(selected_alpha)
+        model_metrics.append(
+            {
+                "Model": model_name,
+                "Accuracy": accuracy,
+                "Precision": precision,
+                "Recall": recall,
+                "F1": f1,
+                "AUC": auc_score,
+                "CVStdAUC": cv_std_auc,
+                "SelectionScore": score,
+            }
         )
-        final_decisions.append(decision)
-        decision_confidences.append(confidence)
-        approval_thresholds.append(approval_threshold)
-        rejection_thresholds.append(rejection_threshold)
 
-    final_decisions_np = np.array(final_decisions)
-    mask = final_decisions_np != "DEFER"
-    defer_count = int(np.sum(final_decisions_np == "DEFER"))
+        fitted_models[model_name] = base_model
+        fitted_calibrators[model_name] = calibrator
 
-    if np.any(mask):
-        hybrid_preds = (final_decisions_np[mask] == "APPROVE").astype(int)
-        acc_nd = float(accuracy_score(y_test_np[mask], hybrid_preds))
-    else:
-        acc_nd = np.nan
+        print(f"\n{model_name}")
+        print("Accuracy:", round(accuracy, 4))
+        print("Precision:", round(precision, 4))
+        print("Recall:", round(recall, 4))
+        print("F1:", round(f1, 4))
+        print("AUC:", round(auc_score, 4))
+        print("CV std AUC:", round(cv_std_auc, 4))
+        print("Selection score:", round(score, 4))
 
-    print("\n===== HYBRID SYSTEM =====")
-    print("Selected alpha:", round(float(selected_alpha), 2))
-    print("Decision Distribution:", dict(Counter(final_decisions)))
-    print("Deferral Rate:", round(defer_count / len(final_decisions), 4))
-    print("Accuracy (Non-Deferred):", "N/A" if np.isnan(acc_nd) else round(acc_nd, 4))
+    metrics_df = pd.DataFrame(model_metrics).sort_values("SelectionScore", ascending=False).reset_index(drop=True)
+    best_model_name = str(metrics_df.iloc[0]["Model"])
+    best_model = fitted_models[best_model_name]
+    best_calibrator = fitted_calibrators[best_model_name]
+
+    # Refit best model and calibrator on full data for deployment parity.
+    best_model_full = clone(model_configs[best_model_name])
+    best_model_full.fit(X_full, y)
+    best_calibrator_full = CalibratedClassifierCV(estimator=clone(model_configs[best_model_name]), method=calibration_method, cv=3)
+    best_calibrator_full.fit(X_full, y)
+
+    p_ml_test = best_calibrator.predict_proba(X_test)[:, 1]
+
+    cbes_probs_all: list[float] = []
+    cbes_breakdowns: list[dict[str, float]] = []
+    for _, row in feature_base.iterrows():
+        p_cbes, breakdown = compute_cbes_probability(row_to_cbes_input(row), custom_weights=COMPONENT_WEIGHTS)
+        cbes_probs_all.append(p_cbes)
+        cbes_breakdowns.append(breakdown)
+
+    p_cbes_all = np.asarray(cbes_probs_all, dtype=float)
+    p_cbes_test = p_cbes_all[idx_test.to_numpy()]
+
+    tau_result = calibrate_tau_d(p_ml_test, p_cbes_test, y_test.to_numpy())
+    tau_d = tau_result.tau_d
+
+    p_ml_all = best_calibrator_full.predict_proba(X_full)[:, 1]
+
+    decisions = []
+    confidences = []
+    t_approves = []
+    t_rejects = []
+    disagreements = []
+    decision_reasons = []
+
+    for p_ml, p_cbes in zip(p_ml_all, p_cbes_all):
+        d = hybrid_decision(float(p_ml), float(p_cbes), tau_d=tau_d)
+        decisions.append(d.decision)
+        confidences.append(d.confidence)
+        t_approves.append(d.t_approve)
+        t_rejects.append(d.t_reject)
+        disagreements.append(d.disagreement)
+        decision_reasons.append(d.decision_reason)
+
+    decision_array = np.asarray(decisions)
+    confidence_array = np.asarray(confidences, dtype=float)
+
+    model_probabilities_all: dict[str, np.ndarray] = {}
+    for model_name, calibrator in fitted_calibrators.items():
+        full_calibrator = CalibratedClassifierCV(estimator=clone(model_configs[model_name]), method=calibration_method, cv=3)
+        full_calibrator.fit(X_full, y)
+        model_probabilities_all[model_name] = full_calibrator.predict_proba(X_full)[:, 1]
+
+    model_metrics_export = metrics_df[["Model", "Accuracy", "Precision", "Recall", "F1", "AUC", "CVStdAUC", "SelectionScore"]]
 
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
+    pipeline_payload = {
+        "version": "v3-research-hybrid",
+        "model_name": best_model_name,
+        "threshold": 0.5,
+        "tau_d": tau_d,
+        "cbes_weights": COMPONENT_WEIGHTS,
+        "calibration_method": calibration_method,
+        "feature_columns": feature_columns,
+        "feature_defaults": defaults,
+        "base_feature_columns": list(feature_base.columns),
+        "best_model": best_model_full,
+        "calibrator": best_calibrator_full,
+    }
+
+    joblib.dump(pipeline_payload, PIPELINE_PATH)
+    pipeline_hash = hashlib.sha256(PIPELINE_PATH.read_bytes()).hexdigest()
+    PIPELINE_HASH_PATH.write_text(pipeline_hash, encoding="utf-8")
+
+    model_metrics_export.to_csv(ARTIFACT_DIR / "model_metrics.csv", index=False)
+
     prediction_df = pd.DataFrame(
         {
-            "applicant_id": meta_test["applicant_id"].to_numpy(),
-            "y_true": y_test_np,
-            "cbes_prob": cbes_test_np,
-            "best_model_prob": ml_prob,
-            "final_decision": final_decisions,
-            "confidence": decision_confidences,
-            "approval_threshold": approval_thresholds,
-            "rejection_threshold": rejection_thresholds,
+            "applicant_id": raw_df["applicant_id"].astype(str),
+            "y_true": y.to_numpy(),
+            "cbes_prob": p_cbes_all,
+            "best_model_prob": p_ml_all,
+            "final_decision": decisions,
+            "confidence": confidence_array,
+            "approval_threshold": t_approves,
+            "rejection_threshold": t_rejects,
+            "disagreement": disagreements,
+            "decision_reason": decision_reasons,
         }
     )
 
-    for model_name, model_probs in model_prob_store.items():
-        prediction_df[f"prob_{model_name}"] = model_probs
-
-    results_df.to_csv(ARTIFACT_DIR / "model_metrics.csv", index=False)
+    for model_name, probs in model_probabilities_all.items():
+        prediction_df[f"prob_{model_name}"] = probs
+    prediction_df["prob_CBES"] = p_cbes_all
     prediction_df.to_csv(ARTIFACT_DIR / "prediction_outputs.csv", index=False)
 
     summary_payload = {
         "best_model": best_model_name,
-        "selection_metric": "AUC",
-        "cbes_weights": tuned_cbes_weights,
-        "selected_alpha": float(selected_alpha),
-        "deferral_rate": float(defer_count / len(final_decisions)),
-        "accuracy_non_deferred": None if np.isnan(acc_nd) else float(acc_nd),
-        "decision_distribution": dict(Counter(final_decisions)),
+        "selection_metric": "auc + 0.2*recall - 0.1*std_auc",
+        "selected_alpha": 0.0,
+        "tau_d": tau_d,
+        "deferral_rate": float(np.mean(decision_array == "DEFER")),
+        "accuracy_non_deferred": float(
+            np.mean((decision_array[decision_array != "DEFER"] == "APPROVE").astype(int) == y.to_numpy()[decision_array != "DEFER"])
+        ) if np.any(decision_array != "DEFER") else 0.0,
+        "decision_distribution": {
+            "APPROVE": int(np.sum(decision_array == "APPROVE")),
+            "REJECT": int(np.sum(decision_array == "REJECT")),
+            "DEFER": int(np.sum(decision_array == "DEFER")),
+        },
+        "cbes_weights": COMPONENT_WEIGHTS,
+        "pipeline_sha256": pipeline_hash,
         "artifacts": {
+            "pipeline_joblib": str(PIPELINE_PATH),
+            "pipeline_hash": str(PIPELINE_HASH_PATH),
             "metrics_csv": str(ARTIFACT_DIR / "model_metrics.csv"),
             "predictions_csv": str(ARTIFACT_DIR / "prediction_outputs.csv"),
         },
     }
 
-    with open(ARTIFACT_DIR / "pipeline_summary.json", "w", encoding="utf-8") as summary_file:
-        json.dump(summary_payload, summary_file, indent=2)
+    with (ARTIFACT_DIR / "pipeline_summary.json").open("w", encoding="utf-8") as handle:
+        json.dump(summary_payload, handle, indent=2)
 
-    labels = ["APPROVE", "REJECT", "DEFER"]
-    counts = [
-        final_decisions.count("APPROVE"),
-        final_decisions.count("REJECT"),
-        final_decisions.count("DEFER"),
-    ]
+    cbes_breakdown_df = pd.DataFrame(cbes_breakdowns)
+    generate_analysis_plots(
+        output_dir=PLOTS_DIR,
+        y_true=y.to_numpy(),
+        model_probabilities=model_probabilities_all,
+        p_ml=p_ml_all,
+        p_cbes=p_cbes_all,
+        tau_d=tau_d,
+        decisions=decision_array,
+        confidence_scores=confidence_array,
+        cbes_breakdown_df=cbes_breakdown_df,
+    )
 
-    plt.figure(figsize=(7, 5))
-    plt.bar(labels, counts, color=["#2ca02c", "#d62728", "#7f7f7f"])
-    plt.title("Final Decision Distribution")
-    plt.ylabel("Count")
-    plt.tight_layout()
-    plt.savefig(PLOTS_DIR / "decision_distribution.png", dpi=150)
-    plt.close()
+    # Deferral tradeoff export for auditability.
+    pd.DataFrame(tau_result.curve).to_csv(ARTIFACT_DIR / "tau_calibration_curve.csv", index=False)
 
-    decision_colors = {"APPROVE": "#2ca02c", "REJECT": "#d62728", "DEFER": "#7f7f7f"}
-    plt.figure(figsize=(7, 6))
-    for decision in ["APPROVE", "REJECT", "DEFER"]:
-        idx = final_decisions_np == decision
-        plt.scatter(ml_prob[idx], cbes_test_np[idx], alpha=0.45, s=18, c=decision_colors[decision], label=decision)
-
-    plt.xlabel(f"ML Probability ({best_model_name})")
-    plt.ylabel("CBES Probability")
-    plt.title("CBES vs ML Prediction Comparison")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(PLOTS_DIR / "cbes_vs_ml_comparison.png", dpi=150)
-    plt.close()
-
-    print("\nSaved frontend artifacts:")
-    print("-", ARTIFACT_DIR / "model_metrics.csv")
-    print("-", ARTIFACT_DIR / "prediction_outputs.csv")
-    print("-", ARTIFACT_DIR / "pipeline_summary.json")
-    print("-", PLOTS_DIR / "decision_distribution.png")
-    print("-", PLOTS_DIR / "cbes_vs_ml_comparison.png")
+    print("\n===== PIPELINE SUMMARY =====")
+    print("Best model:", best_model_name)
+    print("Selected TAU_D:", round(tau_d, 4))
+    print("Pipeline hash:", pipeline_hash)
+    print("Artifacts saved in:", ARTIFACT_DIR)
 
 
 if __name__ == "__main__":

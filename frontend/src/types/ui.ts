@@ -102,7 +102,7 @@ export interface DecisionBannerProps {
 
 export interface ApplicationFormProps {
   initialData?: Partial<LoanApplicationFormData>
-  onSubmit: (data: LoanApplicationFormData) => Promise<void>
+  onSubmit: (data: LoanApplicationFormData, file?: File) => Promise<void>
   isLoading?: boolean
   isMultiStep?: boolean
 }

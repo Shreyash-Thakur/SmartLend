@@ -176,10 +176,11 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
   }, [watch])
 
   const submitForm = async (data: LoanApplicationFormData) => {
-    await onSubmit(data)
+    await onSubmit(data, selectedFile ?? undefined)
     localStorage.removeItem(storageKey)
     if (isMultiStep) {
       setCurrentStep(0)
+      setSelectedFile(null)
     }
   }
 

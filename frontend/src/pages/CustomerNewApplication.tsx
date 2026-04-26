@@ -11,13 +11,18 @@ import { trackEvent } from '@/services/analytics'
 export const CustomerNewApplication: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { addApplication, isLoading, error } = useApplicationData({ scope: 'customer', applicantId: user?.uid })
+  const { addApplication, uploadDocument, isLoading, error } = useApplicationData({ scope: 'customer', applicantId: user?.uid })
 
-  const handleSubmitApplication = async (data: Parameters<typeof addApplication>[0]) => {
+  const handleSubmitApplication = async (data: Parameters<typeof addApplication>[0], file?: File) => {
     const application = await addApplication({
       ...data,
       applicantId: user?.uid,
     })
+
+    if (file) {
+      await uploadDocument(application.id, file)
+    }
+
     trackEvent('application_submitted', { applicationId: application.id })
     navigate('/dashboard/customer?view=history')
   }

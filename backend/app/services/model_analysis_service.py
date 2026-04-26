@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 import csv
@@ -29,7 +28,11 @@ def _to_int(value: Any, default: int = 0) -> int:
         return default
 
 
-@lru_cache(maxsize=1)
+def _is_cbes_baseline(model_name: str) -> bool:
+    normalized = model_name.strip().lower()
+    return normalized in {"cbes", "cbes baseline"}
+
+
 def _load_model_metrics() -> list[dict[str, Any]]:
     if not MODEL_METRICS_PATH.exists():
         return []
@@ -61,7 +64,6 @@ def _load_model_metrics() -> list[dict[str, Any]]:
     return items
 
 
-@lru_cache(maxsize=1)
 def _load_pipeline_summary() -> dict[str, Any]:
     if not PIPELINE_SUMMARY_PATH.exists():
         return {}
@@ -74,7 +76,6 @@ def _load_pipeline_summary() -> dict[str, Any]:
         return {}
 
 
-@lru_cache(maxsize=1)
 def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
     if not PREDICTION_OUTPUTS_PATH.exists():
         return [], []
@@ -85,7 +86,11 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
     with PREDICTION_OUTPUTS_PATH.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         if reader.fieldnames:
-            model_names = [name.replace("prob_", "") for name in reader.fieldnames if name.startswith("prob_")]
+            model_names = [
+                name.replace("prob_", "")
+                for name in reader.fieldnames
+                if name.startswith("prob_") and name != "prob_CBES"
+            ]
 
         for row in reader:
             y_true = _to_int(row.get("y_true"))
@@ -96,6 +101,14 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
                 best_model_prob,
                 cbes_prob,
             )
+
+            stored_decision = str(row.get("final_decision", "")).strip().upper()
+            if stored_decision in {"APPROVE", "REJECT", "DEFER"}:
+                hybrid_decision = stored_decision
+
+            hybrid_confidence = _to_float(row.get("confidence"), hybrid_confidence)
+            approval_threshold = _to_float(row.get("approval_threshold"), approval_threshold)
+            rejection_threshold = _to_float(row.get("rejection_threshold"), rejection_threshold)
 
             model_probabilities = {
                 model: _to_float(row.get(f"prob_{model}"))
@@ -129,8 +142,9 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
     metrics = _load_model_metrics()
     cases, model_names = _load_prediction_outputs()
     pipeline_summary = _load_pipeline_summary()
+    display_metrics = [metric for metric in metrics if not _is_cbes_baseline(metric.get("model", ""))]
 
-    if not metrics or not cases:
+    if not display_metrics or not cases:
         return {
             "models": [],
             "modelsByProbabilityColumns": [],
@@ -238,7 +252,7 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
 
     safe_limit = max(1, min(limit, total_cases))
     return {
-        "models": metrics,
+        "models": display_metrics,
         "modelsByProbabilityColumns": model_names,
         "summary": {
             "totalCases": total_cases,
@@ -247,7 +261,7 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
             "automatedCoverage": round((automated_cases / total_cases) * 100, 2),
             "automatedAccuracy": round((automated_correct / automated_cases) * 100, 2) if automated_cases else 0.0,
             "overallHybridAccuracy": round((overall_correct / total_cases) * 100, 2),
-            "bestModel": str(pipeline_summary.get("best_model", metrics[0]["model"] if metrics else "")),
+            "bestModel": str(pipeline_summary.get("best_model", display_metrics[0]["model"] if display_metrics else "")),
             "selectedAlpha": round(_to_float(pipeline_summary.get("selected_alpha"), 0.25), 4),
         },
         "modelPredictionSummary": model_prediction_summary,

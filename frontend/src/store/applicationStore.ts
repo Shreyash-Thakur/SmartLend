@@ -64,10 +64,10 @@ export const useApplicationStore = create<ApplicationStore>((set) => ({
     try {
       await uploadApplicationDocument(applicationId, file)
       const applications = await getApplications()
+      const selectedApplication = await getApplicationById(applicationId)
       set({
         applications,
-        selectedApplication:
-          applications.find((application) => application.id === applicationId) ?? null,
+        selectedApplication,
         isLoading: false,
       })
     } catch (error) {

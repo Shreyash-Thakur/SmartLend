@@ -137,13 +137,13 @@ export const ModelAnalysisDashboard: React.FC = () => {
       )}
 
       <section className="mb-6">
-        <Card title="Hybrid Deferral Summary" description="Live totals plus model-evaluation artifact metrics.">
+        <Card title="Hybrid Deferral Summary" description="Live totals plus saved evaluation artifact metrics.">
           {isLoading || !analysis ? (
             <p className="text-neutral-600">Loading model analysis...</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <KPICard label="Live Total Cases" value={stats?.totalApplications ?? 0} />
-              <KPICard label="Evaluation Sample Cases" value={analysis.summary.totalCases} />
+              <KPICard label="Evaluation Artifact Cases" value={analysis.summary.totalCases} />
               <KPICard label="Deferred Cases" value={analysis.summary.deferredCases} />
               <KPICard label="Deferral Rate" value={analysis.summary.deferralRate} format="percentage" />
               <KPICard label="Automated Coverage" value={analysis.summary.automatedCoverage} format="percentage" />
