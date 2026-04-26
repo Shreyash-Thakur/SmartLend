@@ -20,7 +20,9 @@ export function useApplicationData(options?: string | UseApplicationDataOptions)
     loadApplication,
     addApplication,
     uploadDocument,
+    deleteDocument,
     overrideDecision,
+    bulkOverrideDecision,
   } = useApplicationStore()
 
   useEffect(() => {
@@ -43,6 +45,9 @@ export function useApplicationData(options?: string | UseApplicationDataOptions)
     error,
     addApplication,
     uploadDocument,
+    deleteDocument,
     overrideDecision,
+    bulkOverrideDecision,
   }
 }
+

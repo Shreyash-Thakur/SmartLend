@@ -264,3 +264,45 @@ export async function submitManualDecision(
     throw extractApiError(error)
   }
 }
+
+export async function deleteApplicationDocument(
+  applicationId: string,
+  documentId: string,
+): Promise<void> {
+  try {
+    await apiClient.delete(`/applications/${applicationId}/documents/${documentId}`)
+  } catch (error) {
+    throw extractApiError(error)
+  }
+}
+
+export async function bulkDecision(
+  applicationIds: string[],
+  status: 'approved' | 'rejected',
+  notes: string,
+): Promise<void> {
+  await Promise.all(
+    applicationIds.map((id) =>
+      submitManualDecision(id, { status, notes }),
+    ),
+  )
+}
+
+export async function getActiveModel(): Promise<string> {
+  try {
+    const response = await apiClient.get<{ active_model: string }>('/model-analysis/active')
+    return response.data.active_model
+  } catch (error) {
+    console.error('Failed to get active model:', error)
+    return 'LogisticRegression'
+  }
+}
+
+export async function setActiveModel(modelName: string): Promise<string> {
+  try {
+    const response = await apiClient.post<{ active_model: string }>('/model-analysis/active', { model_name: modelName })
+    return response.data.active_model
+  } catch (error) {
+    throw extractApiError(error)
+  }
+}

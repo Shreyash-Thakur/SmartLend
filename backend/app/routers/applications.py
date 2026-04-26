@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -482,6 +482,27 @@ def update_manual_decision(
     payload: ManualDecisionRequest,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    # Training-data applications are not persisted in the DB — handle them gracefully
+    if application_id.startswith("train-"):
+        training_item = get_training_application_by_id(application_id)
+        if training_item is None:
+            raise HTTPException(status_code=404, detail=_error_payload("Not found", "Training application not found"))
+        # Map analyst decision to a decision code
+        decision_map = {"approved": "APPROVE", "rejected": "REJECT", "deferred": "DEFER"}
+        decision_code = decision_map.get(str(payload.status).lower(), "DEFER")
+        status_out = str(payload.status).lower()
+        response = dict(training_item)
+        response["status"] = status_out
+        response["finalDecision"] = decision_code
+        response["decisionCode"] = decision_code
+        response["responseStatus"] = "success"
+        if isinstance(response.get("decision"), dict):
+            response["decision"] = dict(response["decision"])
+            response["decision"]["status"] = status_out
+            response["decision"]["decidedBy"] = "analyst"
+            response["decision"]["notes"] = payload.notes or ""
+        return response
+
     item = db.query(LoanApplication).filter(LoanApplication.id == application_id).first()
     if item is None:
         raise HTTPException(status_code=404, detail=_error_payload("Not found", "Application not found"))
@@ -512,73 +533,100 @@ async def upload_application_document(
     if item is None:
         raise HTTPException(status_code=404, detail=_error_payload("Not found", "Application not found"))
 
-    suffix = Path(file.filename or "uploaded-document").suffix or ".bin"
-    with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-        temp_file.write(await file.read())
-        temp_path = Path(temp_file.name)
+    file_bytes = await file.read()
+    file_name = file.filename or "uploaded-document"
+    suffix = Path(file_name).suffix.lower() or ".bin"
+    file_size = len(file_bytes)
+
+    import base64
+    content_type_map = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
+    mime = content_type_map.get(suffix, "application/octet-stream")
+    b64 = base64.b64encode(file_bytes).decode("ascii")
+    data_url = f"data:{mime};base64,{b64}"
+
+    document_record = {
+        "id": f"doc-{uuid.uuid4().hex[:12]}",
+        "fileName": file_name,
+        "documentType": suffix.lstrip("."),
+        "uploadedAt": datetime.now(timezone.utc).isoformat(),
+        "fileSize": file_size,
+        "mimeType": mime,
+        "dataUrl": data_url,
+        "extractedData": {},
+        "mappedData": {},
+        "confidence": {},
+        "lowConfidenceFields": [],
+        "defaultsApplied": [],
+    }
+
+    existing_documents = list(item.documents or [])
+    existing_documents.append(document_record)
+    item.documents = existing_documents
+
+    merged_input = dict(item.input_data or {})
+    merged_input["documents"] = existing_documents
+    item.input_data = merged_input
 
     try:
-        parsed_document = parse_document(temp_path, file.filename)
-        document_record = {
-            "id": f"doc-{uuid.uuid4().hex[:12]}",
-            "fileName": parsed_document["fileName"],
-            "documentType": parsed_document["documentType"],
-            "uploadedAt": datetime.now(timezone.utc).isoformat(),
-            "fileSize": temp_path.stat().st_size,
-            "extractedData": parsed_document["extractedData"],
-            "mappedData": parsed_document["mappedData"],
-            "confidence": parsed_document.get("confidence", {}),
-            "lowConfidenceFields": parsed_document.get("lowConfidenceFields", []),
-            "defaultsApplied": parsed_document.get("defaultsApplied", []),
-        }
+        db.add(item)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Document DB update failed")
+        raise HTTPException(status_code=400, detail=_error_payload("Database operation failed", str(exc))) from exc
 
-        existing_documents = list(item.documents or [])
-        existing_documents.append(document_record)
-        item.documents = existing_documents
+    logger.info("Document stored | application_id=%s file=%s size=%d", application_id, file_name, file_size)
 
-        merged_input = dict(item.input_data or {})
-        merged_input.setdefault("documents", [])
-        merged_input["documents"] = existing_documents
-        merged_input["documentExtraction"] = {
-            "fileName": parsed_document["fileName"],
-            "documentType": parsed_document["documentType"],
-            "extractedData": parsed_document["extractedData"],
-            "mappedData": parsed_document["mappedData"],
-            "confidence": parsed_document.get("confidence", {}),
-            "lowConfidenceFields": parsed_document.get("lowConfidenceFields", []),
-            "defaultsApplied": parsed_document.get("defaultsApplied", []),
-        }
-        item.input_data = merged_input
+    return {
+        "fileName": file_name,
+        "documentType": suffix.lstrip("."),
+        "uploadedAt": document_record["uploadedAt"],
+        "extractedData": {"confidence": {}, "lowConfidenceFields": []},
+        "mappedData": {},
+        "fileSize": file_size,
+    }
 
-        try:
-            db.add(item)
-            db.commit()
-        except SQLAlchemyError as exc:
-            db.rollback()
-            logger.exception("Document DB update failed")
-            raise HTTPException(status_code=400, detail=_error_payload("Database operation failed", str(exc))) from exc
 
-        logger.info("Document uploaded | application_id=%s file=%s", application_id, parsed_document["fileName"])
 
-        return {
-            "fileName": parsed_document["fileName"],
-            "documentType": parsed_document["documentType"],
-            "uploadedAt": document_record["uploadedAt"],
-            "extractedData": {
-                **parsed_document["extractedData"],
-                "confidence": parsed_document.get("confidence", {}),
-                "lowConfidenceFields": parsed_document.get("lowConfidenceFields", []),
-            },
-            "mappedData": parsed_document["mappedData"],
-            "fileSize": document_record["fileSize"],
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Document upload parsing failed")
-        raise HTTPException(status_code=400, detail=_error_payload("Invalid document format", f"Could not extract required fields: {exc}")) from exc
-    finally:
-        temp_path.unlink(missing_ok=True)
+
+@router.delete("/applications/{application_id}/documents/{document_id}")
+def delete_application_document(
+    application_id: str,
+    document_id: str,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    item = db.query(LoanApplication).filter(LoanApplication.id == application_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail=_error_payload("Not found", "Application not found"))
+
+    existing = list(item.documents or [])
+    updated = [d for d in existing if d.get("id") != document_id]
+    if len(updated) == len(existing):
+        raise HTTPException(status_code=404, detail=_error_payload("Not found", "Document not found"))
+
+    item.documents = updated
+    merged_input = dict(item.input_data or {})
+    merged_input["documents"] = updated
+    item.input_data = merged_input
+
+    try:
+        db.add(item)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=_error_payload("Database error", str(exc))) from exc
+
+    return {"responseStatus": "success", "deletedId": document_id}
 
 
 @router.get("/applications/{application_id}/explain", response_model=ApplicationExplainResponse)
@@ -837,3 +885,23 @@ def model_analysis(limit: int = Query(default=300, ge=1, le=50000)) -> dict[str,
     if not payload["models"] and not payload["cases"]:
         raise HTTPException(status_code=404, detail=_error_payload("Not found", "Model analysis artifacts are unavailable"))
     return payload
+
+
+class ActiveModelRequest(BaseModel):
+    model_name: str
+
+@router.post("/model-analysis/active")
+def set_active_model(request: ActiveModelRequest) -> dict[str, Any]:
+    from backend.app.services.ml_service import ARTIFACTS_DIR
+    active_model_file = ARTIFACTS_DIR / "active_model.txt"
+    active_model_file.write_text(request.model_name)
+    return {"status": "ok", "active_model": request.model_name}
+
+@router.get("/model-analysis/active")
+def get_active_model() -> dict[str, Any]:
+    from backend.app.services.ml_service import ARTIFACTS_DIR
+    active_model_file = ARTIFACTS_DIR / "active_model.txt"
+    if active_model_file.exists():
+        return {"active_model": active_model_file.read_text().strip()}
+    return {"active_model": "LogisticRegression"}
+

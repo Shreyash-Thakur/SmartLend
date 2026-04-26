@@ -1,7 +1,9 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 import { Button } from '@/components/common'
 import { PageTransition } from '@/components/layouts/PageTransition'
+import { useAuth } from '@/hooks/useAuth'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -15,6 +17,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   role = 'customer',
 }) => {
   const navigate = useNavigate()
+  const { logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50 bg-hero-grid">
@@ -44,7 +52,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <nav className="hidden items-center gap-2 md:flex">
                 {role === 'customer' ? (
                   <DashboardNavLink to="/dashboard/customer" label="Dashboard" />
@@ -56,9 +64,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   </>
                 )}
               </nav>
-              <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
-                Back to Home
-              </Button>
+              {role !== 'customer' && (
+                <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
+                  Back to Home
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                title="Log out"
+                className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Log Out</span>
+              </button>
             </div>
           </div>
         </div>
@@ -98,3 +117,4 @@ function DashboardNavLink({ to, label }: { to: string; label: string }) {
     </NavLink>
   )
 }
+

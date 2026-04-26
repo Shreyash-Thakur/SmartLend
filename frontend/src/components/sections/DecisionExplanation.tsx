@@ -16,16 +16,23 @@ export const DecisionExplanation: React.FC<DecisionExplanationProps> = ({ decisi
           <p className="text-neutral-700 leading-relaxed">{decision.explanation}</p>
         </div>
 
-        {/* Positive Factors */}
+        {/* Factors Supporting Decision */}
         {decision.positiveFactors.length > 0 && (
           <div>
-            <h4 className="font-semibold text-green-700 mb-3 flex items-center gap-2">
-              <span>✓</span> Positive Factors
+            <h4 className={`font-semibold mb-3 flex items-center gap-2 ${
+              decision.status === 'rejected' ? 'text-red-700' : 'text-green-700'
+            }`}>
+              <span>{decision.status === 'rejected' ? '⚠' : '✓'}</span> 
+              {decision.status === 'rejected' ? 'Key Reasons for Rejection' : decision.status === 'approved' ? 'Key Reasons for Approval' : 'Positive Factors'}
             </h4>
             <ul className="space-y-2">
               {decision.positiveFactors.map((factor, idx) => (
                 <li key={idx} className="text-sm text-neutral-700 flex items-start gap-3">
-                  <span className="text-green-600 mt-0.5 flex-shrink-0">✓</span>
+                  <span className={`mt-0.5 flex-shrink-0 ${
+                    decision.status === 'rejected' ? 'text-red-600' : 'text-green-600'
+                  }`}>
+                    {decision.status === 'rejected' ? '⚠' : '✓'}
+                  </span>
                   <span>{factor}</span>
                 </li>
               ))}
@@ -33,16 +40,23 @@ export const DecisionExplanation: React.FC<DecisionExplanationProps> = ({ decisi
           </div>
         )}
 
-        {/* Negative Factors */}
+        {/* Factors Opposing Decision */}
         {decision.negativeFactors.length > 0 && (
           <div>
-            <h4 className="font-semibold text-red-700 mb-3 flex items-center gap-2">
-              <span>⚠</span> Risk Factors
+            <h4 className={`font-semibold mb-3 flex items-center gap-2 ${
+              decision.status === 'rejected' ? 'text-green-700' : 'text-red-700'
+            }`}>
+              <span>{decision.status === 'rejected' ? '✓' : '⚠'}</span> 
+              {decision.status === 'rejected' ? 'Mitigating Factors' : 'Risk Factors'}
             </h4>
             <ul className="space-y-2">
               {decision.negativeFactors.map((factor, idx) => (
                 <li key={idx} className="text-sm text-neutral-700 flex items-start gap-3">
-                  <span className="text-red-600 mt-0.5 flex-shrink-0">⚠</span>
+                  <span className={`mt-0.5 flex-shrink-0 ${
+                    decision.status === 'rejected' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {decision.status === 'rejected' ? '✓' : '⚠'}
+                  </span>
                   <span>{factor}</span>
                 </li>
               ))}

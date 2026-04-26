@@ -48,6 +48,7 @@ export interface ApplicationDecision {
   analystId?: string
   analystNotes?: string
   modelVersion?: string
+  allModelPredictions?: Record<string, number>
 }
 
 export interface Document {
@@ -80,6 +81,7 @@ export interface LoanApplication {
   finalDecision?: 'APPROVE' | 'REJECT' | 'DEFER'
   modelRecommendation?: DecisionType | 'submitted'
   manualDecisionApplied?: boolean
+  analystNotes?: string
   applicationData: {
     firstName: string
     lastName: string

@@ -52,19 +52,29 @@ def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
     if shap_explanation:
         normalized: list[dict[str, Any]] = []
         for item in shap_explanation:
-            feature = str(item.get("feature", "feature")) if isinstance(item, dict) else "feature"
+            feature = str(item.get("feature", item.get("name", "feature"))) if isinstance(item, dict) else "feature"
             impact = float(item.get("impact", 0.0)) if isinstance(item, dict) else 0.0
+            value = float(item.get("value", 0.0)) if isinstance(item, dict) else 0.0
             direction_impact = _impact_sign_for_decision(app_item.final_decision, impact)
+            
+            label = _to_label(feature)
+            if app_item.final_decision == "APPROVE":
+                reason = f"Applicant's {label} ({value}) strongly supports the approval." if direction_impact >= 0 else f"Applicant's {label} ({value}) was a slight risk factor."
+            elif app_item.final_decision == "REJECT":
+                reason = f"Applicant's {label} ({value}) strongly contributed to the rejection." if direction_impact >= 0 else f"Applicant's {label} ({value}) was a positive factor, but insufficient."
+            else:
+                reason = f"Applicant's {label} ({value}) requires analyst review." if direction_impact >= 0 else f"Applicant's {label} ({value}) is generally favorable."
+
             normalized.append(
                 {
                     "feature": feature,
-                    "name": _to_label(feature),
+                    "name": label,
                     "impact": round(direction_impact, 4),
                     "direction": "supports_decision" if direction_impact >= 0 else "opposes_decision",
                     "severity": round(min(1.0, abs(direction_impact) * 2.0), 4),
-                    "value": 0.0,
-                    "targetValue": 0.0,
-                    "reason": f"{_to_label(feature)} contributes {'positively' if direction_impact >= 0 else 'negatively'} to the decision.",
+                    "value": round(value, 2),
+                    "targetValue": round(_counterfactual_target(feature, value), 2),
+                    "reason": reason,
                 }
             )
 

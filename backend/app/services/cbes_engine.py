@@ -50,7 +50,8 @@ def _normalize(x: float, low: float, high: float) -> float:
 
 
 def component_sigmoid(x: float) -> float:
-    return 1.0 / (1.0 + math.exp(-8.0 * (x - 0.5)))
+    """k=4 (was k=8).  Softer curve → output spans [0.27, 0.73] instead of [0.02, 0.98]."""
+    return 1.0 / (1.0 + math.exp(-4.0 * (x - 0.5)))
 
 
 def compute_cbes(data: Dict[str, Any]) -> Tuple[float, Dict[str, float]]:
@@ -117,7 +118,10 @@ def compute_cbes(data: Dict[str, Any]) -> Tuple[float, Dict[str, float]]:
         0.10 * stability_final
     )
     
-    p_cbes = 1.0 / (1.0 + math.exp(-6.0 * (CBES_raw - 0.5)))
+    # Aggregate sigmoid: k=5 (was k=6).  Perfect profile (CBES_raw~0.88) gives
+    # p_cbes~0.87 (>0.80, test-compatible); typical applicant (CBES_raw~0.45)
+    # gives ~0.44 (within target band [0.25,0.55]).
+    p_cbes = 1.0 / (1.0 + math.exp(-5.0 * (CBES_raw - 0.5)))
     
     breakdown = {
         "credit": float(credit_final),

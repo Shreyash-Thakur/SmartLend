@@ -128,4 +128,7 @@ export interface ApplicationTableProps {
   pageSize?: number
   onRowClick?: (application: LoanApplication) => void
   showApplicant?: boolean
+  selectedIds?: Set<string>
+  onToggleSelect?: (id: string) => void
+  hideMetrics?: boolean
 }

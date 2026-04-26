@@ -12,3 +12,7 @@ frontend/.env.local
 __pycache__/
 *.pyc
 backend/smartlend.db
+
+# Large ML Artifacts
+backend/artifacts/*.joblib
+backend/artifacts/*.csv

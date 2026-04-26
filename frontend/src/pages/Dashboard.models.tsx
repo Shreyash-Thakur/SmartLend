@@ -15,7 +15,7 @@ import {
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, KPICard } from '@/components/common'
-import { getModelAnalysis, getStats } from '@/services/applications'
+import { getModelAnalysis, getStats, getActiveModel, setActiveModel } from '@/services/applications'
 import type { ModelAnalysisResponse, ModelMetricItem, StatsResponse } from '@/types/api'
 
 const DECISION_COLORS: Record<string, string> = {
@@ -50,6 +50,8 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
 export const ModelAnalysisDashboard: React.FC = () => {
   const [analysis, setAnalysis] = useState<ModelAnalysisResponse | null>(null)
   const [stats, setStats] = useState<StatsResponse | null>(null)
+  const [activeModel, setActiveModelState] = useState<string>('LogisticRegression')
+  const [isChangingModel, setIsChangingModel] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -58,12 +60,14 @@ export const ModelAnalysisDashboard: React.FC = () => {
       setIsLoading(true)
       setError(null)
       try {
-        const [analysisResponse, statsResponse] = await Promise.all([
+        const [analysisResponse, statsResponse, currentActiveModel] = await Promise.all([
           getModelAnalysis(50000),
           getStats(),
+          getActiveModel(),
         ])
         setAnalysis(analysisResponse)
         setStats(statsResponse)
+        setActiveModelState(currentActiveModel)
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : 'Failed to load model analysis')
       } finally {
@@ -126,6 +130,21 @@ export const ModelAnalysisDashboard: React.FC = () => {
     [analysis],
   )
 
+  const handleModelChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModel = e.target.value
+    if (!newModel) return
+
+    setIsChangingModel(true)
+    try {
+      const result = await setActiveModel(newModel)
+      setActiveModelState(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to switch model')
+    } finally {
+      setIsChangingModel(false)
+    }
+  }
+
   return (
     <DashboardLayout title="Model Analysis Dashboard" role="organization">
       {(error || (!analysis && !isLoading)) && (
@@ -136,8 +155,47 @@ export const ModelAnalysisDashboard: React.FC = () => {
         </section>
       )}
 
-      <section className="mb-6">
-        <Card title="Hybrid Deferral Summary" description="Live totals plus saved evaluation artifact metrics.">
+      <section className="mb-6 grid gap-6 lg:grid-cols-3">
+        <Card title="Active Production Model" description="Select the core ML architecture for future loan decisions." className="col-span-1 border-primary-200 bg-primary-50/50">
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-neutral-600">
+              The model selected here will process all new applications. Changing this does not affect historical applications.
+            </p>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="model-select" className="text-sm font-semibold text-neutral-900">
+                Core ML Model
+              </label>
+              <select
+                id="model-select"
+                value={activeModel}
+                onChange={handleModelChange}
+                disabled={isChangingModel || isLoading || !analysis?.models?.length}
+                className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:opacity-50"
+              >
+                {(analysis?.models ?? []).map((m) => (
+                  <option key={m.model} value={m.model}>
+                    {m.model} (AUC: {asPct(m.auc)}%)
+                  </option>
+                ))}
+              </select>
+              {isChangingModel && <p className="text-xs text-primary-600 animate-pulse">Switching active model...</p>}
+            </div>
+            {analysis?.models && (
+              <div className="mt-2 rounded-lg bg-white p-3 text-sm shadow-sm">
+                <span className="font-semibold text-primary-900">Business Impact:</span>{' '}
+                {activeModel === analysis.models.sort((a, b) => b.auc - a.auc)[0]?.model
+                  ? "This model provides the best overall balance of approvals and rejections based on historical performance (Highest AUC)."
+                  : activeModel === analysis.models.sort((a, b) => b.recall - a.recall)[0]?.model
+                  ? "This model minimizes missing risky applicants (Highest Recall), making it the most conservative choice."
+                  : activeModel === analysis.models.sort((a, b) => b.precision - a.precision)[0]?.model
+                  ? "This model minimizes false approvals (Highest Precision), ensuring high confidence when approving."
+                  : "This model offers a balanced approach, though not maximizing any single metric."}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card title="Hybrid Deferral Summary" description="Live totals plus saved evaluation artifact metrics." className="col-span-2">
           {isLoading || !analysis ? (
             <p className="text-neutral-600">Loading model analysis...</p>
           ) : (
@@ -149,8 +207,7 @@ export const ModelAnalysisDashboard: React.FC = () => {
               <KPICard label="Automated Coverage" value={analysis.summary.automatedCoverage} format="percentage" />
               <KPICard label="Automated Accuracy" value={analysis.summary.automatedAccuracy} format="percentage" />
               <KPICard label="Hybrid Overall Accuracy" value={analysis.summary.overallHybridAccuracy} format="percentage" />
-              <KPICard label="Selected Best Model" value={analysis.summary.bestModel || 'N/A'} />
-              <KPICard label="Selected Alpha" value={analysis.summary.selectedAlpha} />
+              <KPICard label="Best Model (Offline)" value={analysis.summary.bestModel || 'N/A'} />
             </div>
           )}
         </Card>

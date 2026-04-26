@@ -176,3 +176,82 @@ export interface ModelAnalysisResponse {
   probabilityBands: ProbabilityBandItem[]
   cases: ModelCaseItem[]
 }
+
+export interface HealthResponse {
+  status: 'ok'
+  model: string
+  auc: number
+  t_base: number
+  tau_d: number
+}
+
+export interface PredictionFeatureImpact {
+  feature: string
+  impact: number
+}
+
+export interface PredictionResponse {
+  decision: 'APPROVE' | 'REJECT' | 'DEFER'
+  confidence: number
+  confidence_label: 'HIGH' | 'MEDIUM' | 'LOW'
+  risk_score: number
+  p_ml: number
+  p_cbes: number
+  disagreement: number
+  decision_reason: string
+  shap_explanation: PredictionFeatureImpact[]
+  cbes_breakdown: {
+    credit: number
+    capacity: number
+    behaviour: number
+    liquidity: number
+    stability: number
+  }
+}
+
+export interface DashboardModelComparisonItem {
+  model: string
+  auc: number
+  f1: number
+  accuracy: number
+  recall: number
+  std_auc: number
+}
+
+export interface DashboardMetricsResponseV2 {
+  baseline: {
+    model: string
+    auc: number
+    accuracy: number
+    f1: number
+    recall: number
+  }
+  hybrid: {
+    auc: number
+    deferral_rate: number
+    coverage: number
+    non_deferred_accuracy: number
+    non_deferred_f1: number
+    approve_precision: number
+    approve_recall: number
+    reject_precision: number
+    reject_recall: number
+    t_base: number
+    tau_d: number
+  }
+  improvement: {
+    auc_delta: number
+    accuracy_delta: number
+  }
+}
+
+export interface ApplicationHistoryItem {
+  id: string
+  timestamp: string
+  applicantId?: string
+  applicantName?: string
+  decision: 'APPROVE' | 'REJECT' | 'DEFER'
+  confidence: number
+  risk_score: number
+  reason: string
+}

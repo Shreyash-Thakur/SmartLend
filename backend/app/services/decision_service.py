@@ -43,6 +43,8 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     created_at = _created_at(app_item.created_at)
     model_recommendation = _decision_to_status(app_item.final_decision)
     manual_decision_applied = bool(input_data.get("_manual_decision_applied", False))
+    # Customer-facing status: stays "submitted" (Under Review) until an org member acts.
+    # finalDecision / modelRecommendation carry the ML signal for the org dashboard.
     status = model_recommendation if manual_decision_applied else "submitted"
 
     risk_score = clamp_float(float(meta.get("risk_score", 1 - app_item.ml_prob)))
@@ -50,6 +52,7 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     confidence_label = str(meta.get("confidence_label", _confidence_band(confidence))).lower()
     documents = list(app_item.documents or [])
     explain_payload = build_explainability_payload(app_item)
+    analyst_notes = str(input_data.get("_manual_notes", ""))
 
     feature_importance = [
         {
@@ -84,10 +87,11 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
         "finalDecision": app_item.final_decision,
         "modelRecommendation": model_recommendation,
         "manualDecisionApplied": manual_decision_applied,
+        "analystNotes": analyst_notes,
         "applicationData": input_data,
         "decision": {
             "id": f"dec-{uuid.uuid4().hex[:12]}",
-            "status": model_recommendation,
+            "status": status,
             "decidedAt": created_at,
             "decidedBy": "human" if manual_decision_applied else "model",
             "riskScore": risk_score,
@@ -97,14 +101,17 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
             "reason": str(meta.get("decision_reason", "model_ensemble")),
             "topFeatures": [str(f.get("name", "Unknown")) for f in meta.get("shap_explanation", [])],
             "cbesBreakdown": meta.get("cbes_components", {}),
-            "explanation": str(explain_payload.get("explanation", "Dynamic hybrid ML + CBES decision applied.")),
+            "explanation": analyst_notes if manual_decision_applied else str(explain_payload.get("explanation", "Dynamic hybrid ML + CBES decision applied.")),
             "positiveFactors": list(explain_payload.get("positiveFactors", [])),
             "negativeFactors": list(explain_payload.get("negativeFactors", [])),
             "featureImportance": feature_importance,
             "modelVersion": "cbes-v2",
+            "analystNotes": analyst_notes,
+            "allModelPredictions": meta.get("all_model_predictions", {}),
         },
         "documents": documents,
     }
+
 
 
 def apply_manual_decision(app_item: LoanApplication, status: str, notes: str) -> dict[str, Any]:

@@ -1,175 +1,208 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, BriefcaseBusiness, Clock3, MapPinned, Users } from 'lucide-react'
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+  Activity, BriefcaseBusiness, CheckCircle2, Clock3, MapPinned,
+  Users, XCircle, AlertTriangle,
+} from 'lucide-react'
+import {
+  Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
+  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Button, Card, KPICard } from '@/components/common'
 import { ApplicationTable } from '@/components/sections'
 import { useApplicationData } from '@/hooks/useApplicationData'
-import { useUiStore } from '@/store/uiStore'
 import { getStats } from '@/services/applications'
 import type { StatsResponse } from '@/types/api'
 import { formatCurrency } from '@/lib/utils'
+import type { LoanApplication } from '@/types/application'
+
+type OrgTab = 'all' | 'deferred' | 'approved' | 'rejected' | 'confirmed'
+
+const TAB_CONFIG: Array<{ id: OrgTab; label: string; color: string; activeColor: string }> = [
+  { id: 'all', label: 'All Applications', color: 'text-neutral-600', activeColor: 'border-primary-600 text-primary-700 bg-primary-50' },
+  { id: 'deferred', label: 'Needs Review', color: 'text-amber-600', activeColor: 'border-amber-500 text-amber-700 bg-amber-50' },
+  { id: 'approved', label: 'Auto-Approved', color: 'text-green-600', activeColor: 'border-green-500 text-green-700 bg-green-50' },
+  { id: 'rejected', label: 'Auto-Rejected', color: 'text-red-600', activeColor: 'border-red-500 text-red-700 bg-red-50' },
+  { id: 'confirmed', label: 'Org-Confirmed', color: 'text-violet-600', activeColor: 'border-violet-500 text-violet-700 bg-violet-50' },
+]
 
 export const OrganizationDashboard: React.FC = () => {
   const navigate = useNavigate()
-  const { applications, isLoading, error } = useApplicationData({ scope: 'org' })
-  const { activeTab, setActiveTab } = useUiStore()
-  const [stats, setStats] = React.useState<StatsResponse | null>(null)
-  const [dashboardError, setDashboardError] = React.useState<string | null>(null)
-  const [statsLoading, setStatsLoading] = React.useState(true)
+  const { applications, isLoading, error, bulkOverrideDecision } = useApplicationData({ scope: 'org' })
+  const [activeTab, setActiveTab] = useState<OrgTab>('all')
+  const [stats, setStats] = useState<StatsResponse | null>(null)
+  const [dashboardError, setDashboardError] = useState<string | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkNotes, setBulkNotes] = useState('')
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const [showBulkPanel, setShowBulkPanel] = useState(false)
 
   useEffect(() => {
-    const loadDashboardData = async () => {
-      setDashboardError(null)
+    const load = async () => {
       setStatsLoading(true)
       try {
-        const statsResponse = await getStats()
-        setStats(statsResponse)
-      } catch (fetchError) {
-        setDashboardError(fetchError instanceof Error ? fetchError.message : 'Failed to load dashboard data')
+        const s = await getStats()
+        setStats(s)
+      } catch (e) {
+        setDashboardError(e instanceof Error ? e.message : 'Failed to load stats')
       } finally {
         setStatsLoading(false)
       }
     }
-
-    void loadDashboardData()
+    void load()
   }, [])
+
+  // Filter logic for tabs
+  const tabFiltered = useMemo<LoanApplication[]>(() => {
+    if (activeTab === 'all') return applications
+    if (activeTab === 'deferred') return applications.filter((a) => a.modelRecommendation === 'deferred' && !a.manualDecisionApplied)
+    if (activeTab === 'approved') return applications.filter((a) => a.modelRecommendation === 'approved' && !a.manualDecisionApplied)
+    if (activeTab === 'rejected') return applications.filter((a) => a.modelRecommendation === 'rejected' && !a.manualDecisionApplied)
+    if (activeTab === 'confirmed') return applications.filter((a) => a.manualDecisionApplied)
+    return applications
+  }, [applications, activeTab])
+
+  const tabCounts = useMemo(() => ({
+    all: applications.length,
+    deferred: applications.filter((a) => a.modelRecommendation === 'deferred' && !a.manualDecisionApplied).length,
+    approved: applications.filter((a) => a.modelRecommendation === 'approved' && !a.manualDecisionApplied).length,
+    rejected: applications.filter((a) => a.modelRecommendation === 'rejected' && !a.manualDecisionApplied).length,
+    confirmed: applications.filter((a) => a.manualDecisionApplied).length,
+  }), [applications])
+
+  const uploadedCount = applications.filter((a) => a.source === 'seed').length
+  const submittedCount = applications.filter((a) => a.source === 'customer').length
+
+  const handleRowClick = (app: { id: string }) => navigate(`/review/${app.id}`)
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = () => {
+    if (selected.size === tabFiltered.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(tabFiltered.map((a) => a.id)))
+    }
+  }
+
+  const handleBulkAction = async (status: 'approved' | 'rejected') => {
+    if (!bulkNotes.trim()) {
+      setBulkError('Please provide notes for the bulk decision.')
+      return
+    }
+    if (selected.size === 0) {
+      setBulkError('No applications selected.')
+      return
+    }
+    setBulkError(null)
+    setBulkLoading(true)
+    try {
+      await bulkOverrideDecision(Array.from(selected), status, bulkNotes)
+      setSelected(new Set())
+      setBulkNotes('')
+      setShowBulkPanel(false)
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Bulk action failed')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
 
   const trends = useMemo(() => {
     const now = new Date()
-    const weekWindows = [
-      { label: 'Week 1', start: new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000) },
-      { label: 'Week 2', start: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) },
-      { label: 'Week 3', start: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
-      { label: 'Week 4', start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), end: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
+    const weeks = [
+      { label: 'Week 1', start: new Date(now.getTime() - 28 * 86400000), end: new Date(now.getTime() - 21 * 86400000) },
+      { label: 'Week 2', start: new Date(now.getTime() - 21 * 86400000), end: new Date(now.getTime() - 14 * 86400000) },
+      { label: 'Week 3', start: new Date(now.getTime() - 14 * 86400000), end: new Date(now.getTime() - 7 * 86400000) },
+      { label: 'Week 4', start: new Date(now.getTime() - 7 * 86400000), end: new Date(now.getTime() + 86400000) },
     ]
-
-    return weekWindows.map((window) => {
-      const bucket = applications.filter((application) => {
-        const created = new Date(application.createdAt)
-        return created >= window.start && created < window.end
+    return weeks.map((w) => {
+      const bucket = applications.filter((a) => {
+        const d = new Date(a.createdAt)
+        return d >= w.start && d < w.end
       })
-
       return {
-        date: window.label,
+        date: w.label,
         count: bucket.length,
-        approved: bucket.filter((application) => application.finalDecision === 'APPROVE').length,
-        rejected: bucket.filter((application) => application.finalDecision === 'REJECT').length,
-        deferred: bucket.filter((application) => application.finalDecision === 'DEFER').length,
+        approved: bucket.filter((a) => a.finalDecision === 'APPROVE').length,
+        rejected: bucket.filter((a) => a.finalDecision === 'REJECT').length,
+        deferred: bucket.filter((a) => a.finalDecision === 'DEFER').length,
       }
     })
   }, [applications])
 
-  const approvalDistribution = useMemo(
-    () => [
-      { label: 'Approved', value: stats?.approved ?? 0, fill: '#10b981' },
-      { label: 'Rejected', value: stats?.rejected ?? 0, fill: '#ef4444' },
-      { label: 'Deferred', value: stats?.deferred ?? 0, fill: '#ec4899' },
-      {
-        label: 'Processing',
-        value: applications.filter((application) => application.status === 'processing').length,
-        fill: '#f59e0b',
-      },
-    ],
-    [applications, stats],
-  )
+  const approvalDistribution = useMemo(() => [
+    { label: 'Approved', value: stats?.approved ?? 0, fill: '#10b981' },
+    { label: 'Rejected', value: stats?.rejected ?? 0, fill: '#ef4444' },
+    { label: 'Deferred', value: stats?.deferred ?? 0, fill: '#f59e0b' },
+  ], [stats])
 
   const categoryAnalysis = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const application of applications) {
-      counts.set(application.loanPurpose, (counts.get(application.loanPurpose) ?? 0) + 1)
-    }
+    for (const a of applications) counts.set(a.loanPurpose, (counts.get(a.loanPurpose) ?? 0) + 1)
     return Array.from(counts.entries()).map(([label, value]) => ({
-      label: `${label.charAt(0).toUpperCase()}${label.slice(1)} Loan`,
+      label: label.charAt(0).toUpperCase() + label.slice(1),
       value,
     }))
   }, [applications])
 
-  const riskScoreDistribution = useMemo(() => {
-    const buckets = { low: 0, medium: 0, high: 0 }
-    for (const application of applications) {
-      const risk = application.decision?.riskScore ?? 0
-      if (risk < 0.3) buckets.low += 1
-      else if (risk < 0.6) buckets.medium += 1
-      else buckets.high += 1
-    }
-    return [
-      { label: 'Low Risk', value: buckets.low, fill: '#10b981' },
-      { label: 'Medium Risk', value: buckets.medium, fill: '#f59e0b' },
-      { label: 'High Risk', value: buckets.high, fill: '#ef4444' },
-    ]
-  }, [applications])
-
-  const displayApplications =
-    activeTab === 'deferred'
-      ? applications.filter((a) => a.status === 'deferred' || a.status === 'submitted')
-      : applications
-  const uploadedCount = applications.filter((a) => a.source === 'seed').length
-  const submittedCount = applications.filter((a) => a.source === 'customer').length
-
-  const handleRowClick = (application: { id: string }) => navigate(`/review/${application.id}`)
-
   return (
     <DashboardLayout title="Organization Dashboard" role="organization">
+      {/* Hero */}
       <section className="mb-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="rounded-[36px] border border-[#d6e7e4] bg-gradient-to-br from-[#edf6f4] via-[#f6faf9] to-[#f9fcfd] p-8 shadow-[0_30px_100px_rgba(118,176,165,0.18)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
               <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Operations Dashboard</p>
-              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">
-                Unified application pipeline
-              </h2>
+              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">Unified application pipeline</h2>
               <p className="mt-4 text-base leading-7 text-neutral-600">
-                All records below come from the live backend and are shown in one operational queue.
-                Applications are grouped by source as Uploaded and Submitted for faster triage.
+                All records in one queue. Review, override, and confirm ML decisions. Deferred cases require human action before the customer is notified.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <OrgChip icon={<Users className="h-4 w-4" />} label={`${uploadedCount} uploaded applications`} />
-              <OrgChip icon={<BriefcaseBusiness className="h-4 w-4" />} label={`${submittedCount} submitted applications`} />
+              <OrgChip icon={<Users className="h-4 w-4" />} label={`${uploadedCount} training records`} />
+              <OrgChip icon={<BriefcaseBusiness className="h-4 w-4" />} label={`${submittedCount} live applications`} />
               <OrgChip icon={<Activity className="h-4 w-4" />} label="Analyst workflow active" />
               <OrgChip icon={<Clock3 className="h-4 w-4" />} label="Real-time backend sync" />
             </div>
           </div>
-          <div className="mt-6">
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={() => navigate('/dashboard/models')}>
-                Open Model Analysis Dashboard
-              </Button>
-              <Button variant="primary" leftIcon={<MapPinned className="h-4 w-4" />} onClick={() => navigate('/analytics/geo')}>
-                Open Geo Analytics
-              </Button>
-            </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button variant="secondary" onClick={() => navigate('/dashboard/models')}>Model Analysis Dashboard</Button>
+            <Button variant="primary" leftIcon={<MapPinned className="h-4 w-4" />} onClick={() => navigate('/analytics/geo')}>Geo Analytics</Button>
           </div>
         </div>
 
         <div className="grid gap-4">
           <Card className="rounded-[30px] border-white/80 bg-neutral-900 text-white">
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Application Sources</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Application Pipeline</p>
               <p className="text-4xl font-semibold">{applications.length}</p>
-              <div className="grid gap-3 text-sm text-white/75">
+              <div className="grid gap-2 text-sm text-white/75">
                 <div className="flex items-center justify-between">
-                  <span>Uploaded</span>
-                  <span>{uploadedCount}</span>
+                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-green-400" />Auto-Approved</span>
+                  <span>{tabCounts.approved}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Submitted</span>
-                  <span>{submittedCount}</span>
+                  <span className="flex items-center gap-1.5"><XCircle className="h-3.5 w-3.5 text-red-400" />Auto-Rejected</span>
+                  <span>{tabCounts.rejected}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-amber-400" />Needs Review</span>
+                  <span>{tabCounts.deferred}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-white/10 pt-2">
+                  <span className="flex items-center gap-1.5">✓ Org Confirmed</span>
+                  <span>{tabCounts.confirmed}</span>
                 </div>
               </div>
             </div>
@@ -180,17 +213,16 @@ export const OrganizationDashboard: React.FC = () => {
       {(error || dashboardError) && (
         <section className="mb-8">
           <Card className="border-red-200 bg-red-50">
-            <p className="text-red-700">
-              Connection issue: {error ?? dashboardError}
-            </p>
+            <p className="text-red-700">Connection issue: {error ?? dashboardError}</p>
           </Card>
         </section>
       )}
 
+      {/* Live Stats */}
       <section className="mb-8">
         <Card title="Live Stats">
           {statsLoading ? (
-            <p className="text-neutral-600">Loading stats...</p>
+            <p className="text-neutral-600">Loading stats…</p>
           ) : stats ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               <KPICard label="Total Applications" value={stats.totalApplications} format="number" />
@@ -200,130 +232,161 @@ export const OrganizationDashboard: React.FC = () => {
               <KPICard label="Average CBES" value={stats.averageCBES} format="number" />
               <KPICard label="Average ML Score" value={stats.averageMLProbability} format="number" />
             </div>
-          ) : (
-            <p className="text-neutral-600">Stats unavailable</p>
-          )}
+          ) : <p className="text-neutral-600">Stats unavailable</p>}
         </Card>
       </section>
 
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card title="Approval Distribution">
-          <div className="h-72">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={approvalDistribution} dataKey="value" nameKey="label" outerRadius={100}>
-                  {approvalDistribution.map((entry) => (
-                    <Cell key={entry.label} fill={entry.fill} />
-                  ))}
+                <Pie data={approvalDistribution} dataKey="value" nameKey="label" outerRadius={90}>
+                  {approvalDistribution.map((e) => <Cell key={e.label} fill={e.fill} />)}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </Card>
-
         <Card title="Applications Over Time">
-          <div className="h-72">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trends} margin={{ top: 16, right: 24, bottom: 8, left: 8 }}>
+              <LineChart data={trends} margin={{ top: 12, right: 24, bottom: 8, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} width={42} />
+                <YAxis allowDecimals={false} width={36} />
                 <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#16a34a" strokeWidth={3} />
+                <Line type="monotone" dataKey="approved" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="rejected" stroke="#ef4444" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="deferred" stroke="#f59e0b" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
-
-        <Card title="Category Analysis">
-          <div className="h-72">
+        <Card title="Loan Purpose Mix">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryAnalysis} margin={{ top: 16, right: 24, bottom: 36, left: 8 }}>
+              <BarChart data={categoryAnalysis} margin={{ top: 12, right: 24, bottom: 36, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" interval={0} angle={-18} textAnchor="end" height={60} />
-                <YAxis allowDecimals={false} width={42} />
+                <YAxis allowDecimals={false} width={36} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="value" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
-
-        <Card title="Risk Score Distribution">
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={riskScoreDistribution} margin={{ top: 16, right: 24, bottom: 8, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" />
-                <YAxis allowDecimals={false} width={42} />
-                <Tooltip />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {riskScoreDistribution.map((entry) => (
-                    <Cell key={entry.label} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        <Card title="Operations Snapshot">
+          <div className="grid gap-4 mt-2">
+            <Snapshot
+              label="Avg Loan Amount"
+              value={stats ? formatCurrency(Math.round(applications.reduce((s, a) => s + a.loanAmount, 0) / Math.max(applications.length, 1))) : '--'}
+            />
+            <Snapshot label="Deferred (needs human)" value={tabCounts.deferred.toString()} />
+            <Snapshot label="Org-confirmed decisions" value={tabCounts.confirmed.toString()} />
           </div>
         </Card>
       </div>
 
-      <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 shadow-md">
-        <div className="grid gap-4 md:grid-cols-3">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-6">Operations Snapshot</h3>
-          <div>
-            <p className="text-sm text-neutral-500">Average Loan Amount</p>
-            <p className="text-2xl font-semibold text-neutral-900">
-              {stats ? formatCurrency(Math.round(applications.reduce((sum, app) => sum + app.loanAmount, 0) / Math.max(applications.length, 1))) : '--'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-neutral-500">Source Mix</p>
-            <p className="text-2xl font-semibold text-neutral-900">
-              {applications.length ? `${Math.round((submittedCount / applications.length) * 100)}% submitted` : '--'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-neutral-500">Human Review Queue</p>
-            <p className="text-2xl font-semibold text-neutral-900">
-              {applications.filter((application) => application.status === 'deferred' || application.status === 'submitted').length}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-md overflow-hidden">
-        <div className="border-b border-neutral-200 flex">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
-              activeTab === 'all'
-                ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            All Applications ({applications.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('deferred')}
-            className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
-              activeTab === 'deferred'
-                ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            Pending Review ({applications.filter((a) => a.status === 'deferred' || a.status === 'submitted').length})
-          </button>
+      {/* Application Table with Tabs + Bulk Actions */}
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-md overflow-hidden">
+        {/* Tab Bar */}
+        <div className="border-b border-neutral-200 flex overflow-x-auto">
+          {TAB_CONFIG.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setSelected(new Set()) }}
+              className={`flex-shrink-0 px-5 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? `border-b-2 ${tab.activeColor}`
+                  : `border-transparent ${tab.color} hover:bg-neutral-50`
+              }`}
+            >
+              {tab.label} ({tabCounts[tab.id]})
+            </button>
+          ))}
         </div>
 
+        {/* Bulk Action Toolbar */}
+        {(activeTab === 'approved' || activeTab === 'rejected' || activeTab === 'deferred') && (
+          <div className="border-b border-neutral-100 bg-neutral-50 px-6 py-3 flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded accent-primary-600"
+                checked={selected.size > 0 && selected.size === tabFiltered.length}
+                onChange={toggleSelectAll}
+              />
+              {selected.size > 0 ? `${selected.size} selected` : 'Select all'}
+            </label>
+            {selected.size > 0 && (
+              <button
+                onClick={() => setShowBulkPanel(!showBulkPanel)}
+                className="text-sm font-medium text-primary-600 hover:underline"
+              >
+                {showBulkPanel ? 'Hide bulk panel' : 'Bulk action →'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Bulk Panel */}
+        {showBulkPanel && selected.size > 0 && (
+          <div className="bg-primary-50 border-b border-primary-100 px-6 py-4 flex flex-wrap gap-4 items-start">
+            <div className="flex-1 min-w-[240px]">
+              <label className="block text-xs font-semibold text-primary-900 mb-1">Decision Notes (required)</label>
+              <input
+                type="text"
+                value={bulkNotes}
+                onChange={(e) => setBulkNotes(e.target.value)}
+                placeholder="e.g. Batch confirmed after committee review"
+                className="w-full rounded-lg border border-primary-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+              />
+              {bulkError && <p className="mt-1 text-xs text-red-600">{bulkError}</p>}
+            </div>
+            <div className="flex gap-2 pt-5">
+              <button
+                onClick={() => void handleBulkAction('approved')}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {bulkLoading ? 'Processing…' : `Approve ${selected.size}`}
+              </button>
+              <button
+                onClick={() => void handleBulkAction('rejected')}
+                disabled={bulkLoading}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                <XCircle className="h-4 w-4" />
+                {bulkLoading ? 'Processing…' : `Reject ${selected.size}`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
         <div className="p-6">
+          {activeTab === 'deferred' && tabCounts.deferred > 0 && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              These {tabCounts.deferred} cases require an analyst decision. Customers are in a pending state until action is taken.
+            </div>
+          )}
           <ApplicationTable
-            data={displayApplications}
+            data={tabFiltered}
             onRowClick={handleRowClick}
             isLoading={isLoading}
             pageSize={25}
             showApplicant
+            selectedIds={selected}
+            onToggleSelect={
+              (activeTab === 'approved' || activeTab === 'rejected' || activeTab === 'deferred')
+                ? toggleSelect
+                : undefined
+            }
           />
         </div>
       </div>
@@ -334,8 +397,16 @@ export const OrganizationDashboard: React.FC = () => {
 function OrgChip({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm">
-      {icon}
-      {label}
+      {icon}{label}
+    </div>
+  )
+}
+
+function Snapshot({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+      <p className="text-sm text-neutral-500">{label}</p>
+      <p className="font-semibold text-neutral-900">{value}</p>
     </div>
   )
 }

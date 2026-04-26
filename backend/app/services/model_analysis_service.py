@@ -33,26 +33,85 @@ def _is_cbes_baseline(model_name: str) -> bool:
     return normalized in {"cbes", "cbes baseline"}
 
 
+def _compute_metrics_from_predictions() -> dict[str, dict[str, float]]:
+    """Compute per-model accuracy/precision/recall/auc/f1 from prediction_outputs.csv.
+    Called when model_metrics.csv is missing those columns (retrain_pipeline_v2 path).
+    """
+    if not PREDICTION_OUTPUTS_PATH.exists():
+        return {}
+    results: dict[str, dict[str, float]] = {}
+    rows: list[dict[str, Any]] = []
+    with PREDICTION_OUTPUTS_PATH.open("r", encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        fieldnames = list(reader.fieldnames or [])
+        prob_cols = [c for c in fieldnames if c.startswith("prob_") and c != "prob_CBES"]
+        for row in reader:
+            rows.append(row)
+    if not rows or not prob_cols:
+        return {}
+    y_true = [_to_int(r.get("y_true")) for r in rows]
+    for col in prob_cols:
+        model = col.replace("prob_", "")
+        probs = [_to_float(r.get(col)) for r in rows]
+        preds = [1 if p >= 0.5 else 0 for p in probs]
+        tp = sum(1 for yt, pd in zip(y_true, preds) if pd == 1 and yt == 1)
+        fp = sum(1 for yt, pd in zip(y_true, preds) if pd == 1 and yt == 0)
+        fn = sum(1 for yt, pd in zip(y_true, preds) if pd == 0 and yt == 1)
+        tn = sum(1 for yt, pd in zip(y_true, preds) if pd == 0 and yt == 0)
+        total = len(y_true)
+        acc = (tp + tn) / total if total else 0.0
+        prec = tp / (tp + fp) if (tp + fp) else 0.0
+        rec = tp / (tp + fn) if (tp + fn) else 0.0
+        f1 = (2 * prec * rec / (prec + rec)) if (prec + rec) else 0.0
+        # AUC approximation using existing roc_auc column or 0
+        # Use rank-based AUC: sorted probs against y_true
+        n_pos = sum(y_true)
+        n_neg = total - n_pos
+        if n_pos and n_neg:
+            paired = sorted(zip(probs, y_true), key=lambda x: x[0])
+            rank_sum = sum(i + 1 for i, (_, yt) in enumerate(paired) if yt == 1)
+            auc = (rank_sum - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
+        else:
+            auc = 0.0
+        entry = {"accuracy": acc, "precision": prec, "recall": rec, "f1": f1, "auc": auc}
+        results[model] = entry
+        # Also index by normalised name (no spaces, lowercase) to bridge CSV naming mismatches
+        results[model.replace(" ", "").lower()] = entry
+    return results
+
+
 def _load_model_metrics() -> list[dict[str, Any]]:
     if not MODEL_METRICS_PATH.exists():
         return []
+
+    # Pre-compute per-model metrics from predictions to fill gaps
+    computed = _compute_metrics_from_predictions()
 
     items: list[dict[str, Any]] = []
     with MODEL_METRICS_PATH.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            precision = _to_float(row.get("Precision"))
-            recall = _to_float(row.get("Recall"))
-            denom = precision + recall
-            f1 = (2 * precision * recall / denom) if denom else 0.0
+            # Support both Title-Case (training.py) and lowercase (retrain_pipeline_v2.py) schemas
+            model_name = str(row.get("Model") or row.get("model") or "")
+            # Try CSV columns first; fall back to computed values from prediction_outputs
+            # Try exact name, then normalised name (handles 'LogisticRegression' vs 'Logistic Regression')
+            calc = computed.get(model_name) or computed.get(model_name.replace(" ", "").lower(), {})
+            accuracy  = _to_float(row.get("Accuracy") or row.get("accuracy")) or calc.get("accuracy", 0.0)
+            precision = _to_float(row.get("Precision") or row.get("precision")) or calc.get("precision", 0.0)
+            recall    = _to_float(row.get("Recall") or row.get("recall")) or calc.get("recall", 0.0)
+            auc       = _to_float(row.get("AUC") or row.get("roc_auc")) or calc.get("auc", 0.0)
+            f1        = _to_float(row.get("F1") or row.get("f1")) or calc.get("f1", 0.0)
+            if not f1:
+                denom = precision + recall
+                f1 = (2 * precision * recall / denom) if denom else 0.0
             items.append(
                 {
-                    "model": str(row.get("Model", "")),
-                    "accuracy": _to_float(row.get("Accuracy")),
-                    "precision": precision,
-                    "recall": recall,
-                    "auc": _to_float(row.get("AUC")),
-                    "f1": f1,
+                    "model": model_name,
+                    "accuracy": round(accuracy, 4),
+                    "precision": round(precision, 4),
+                    "recall": round(recall, 4),
+                    "auc": round(auc, 4),
+                    "f1": round(f1, 4),
                     "tuned": True,
                 }
             )
@@ -173,7 +232,9 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
         for row in cases
         if row["hybridDecision"] != "DEFER" and row["hybridDecision"] == row["expectedDecision"]
     )
-    overall_correct = sum(1 for row in cases if row["hybridDecision"] == row["expectedDecision"])
+    # Overall accuracy = accuracy among automated (non-deferred) decisions only.
+    # Counting DEFER as wrong is misleading — those go to human review by design.
+    overall_hybrid_accuracy = round((automated_correct / automated_cases) * 100, 2) if automated_cases else 0.0
 
     model_prediction_summary: list[dict[str, Any]] = []
     confusion_by_model: list[dict[str, Any]] = []
@@ -250,6 +311,12 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
             }
         )
 
+    # Pull trusted accuracy from pipeline_summary if available (written during training)
+    ps_accuracy = _to_float(pipeline_summary.get("accuracy_non_deferred"))
+    automated_accuracy = round(ps_accuracy * 100, 2) if ps_accuracy else (
+        round((automated_correct / automated_cases) * 100, 2) if automated_cases else 0.0
+    )
+
     safe_limit = max(1, min(limit, total_cases))
     return {
         "models": display_metrics,
@@ -259,8 +326,8 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
             "deferredCases": deferred_cases,
             "deferralRate": round((deferred_cases / total_cases) * 100, 2),
             "automatedCoverage": round((automated_cases / total_cases) * 100, 2),
-            "automatedAccuracy": round((automated_correct / automated_cases) * 100, 2) if automated_cases else 0.0,
-            "overallHybridAccuracy": round((overall_correct / total_cases) * 100, 2),
+            "automatedAccuracy": automated_accuracy,
+            "overallHybridAccuracy": overall_hybrid_accuracy,
             "bestModel": str(pipeline_summary.get("best_model", display_metrics[0]["model"] if display_metrics else "")),
             "selectedAlpha": round(_to_float(pipeline_summary.get("selected_alpha"), 0.25), 4),
         },
@@ -269,3 +336,4 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
         "probabilityBands": probability_bands,
         "cases": cases[:safe_limit],
     }
+

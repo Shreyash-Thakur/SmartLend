@@ -1,3 +1,7 @@
-INFO:     Will watch for changes in these directories: ['C:\\Users\\shrey\\Desktop\\Dump\\Synthetic Dataset']
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [13956] using StatReload
+INFO:     Started server process [27500]
+INFO:     Waiting for application startup.
+2026-04-27 02:05:15,614 | INFO | backend.app.main | Startup complete | DB initialized and model loaded
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

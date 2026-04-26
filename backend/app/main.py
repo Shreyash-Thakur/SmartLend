@@ -9,7 +9,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.database import init_db
 from backend.app.routers.applications import router as applications_router
+from backend.app.routers.public import router as public_router
 from backend.app.services.ml_service import get_predictor
+from backend.app.services.public_api_service import seed_recent_applications
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,12 +22,20 @@ app = FastAPI(title="SmartLend Backend", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(public_router)
 app.include_router(applications_router, prefix="/api")
 
 
@@ -35,6 +45,7 @@ def startup_event() -> None:
     try:
         init_db()
         get_predictor()
+        seed_recent_applications()
         logging.getLogger(__name__).info("Startup complete | DB initialized and model loaded")
     except Exception:
         logging.getLogger(__name__).exception("Startup initialization failed")
@@ -58,8 +69,13 @@ async def unhandled_exception_handler(_request: Request, exc: Exception) -> JSON
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
+def api_health() -> dict[str, object]:
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+@app.get("/health")
+def health() -> dict[str, object]:
+    return {"status": "ok", "model": "LogisticRegression", "auc": 0.710, "t_base": 0.55, "tau_d": 0.43}
 
 
 @app.get("/", include_in_schema=False)

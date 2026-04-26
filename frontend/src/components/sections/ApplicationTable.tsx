@@ -9,6 +9,9 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
   isLoading = false,
   pageSize = 10,
   showApplicant = false,
+  selectedIds,
+  onToggleSelect,
+  hideMetrics = false,
 }) => {
   const [page, setPage] = useState(1)
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date')
@@ -32,6 +35,7 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
 
   const totalPages = Math.max(1, Math.ceil(sortedApps.length / pageSize))
   const paginatedApps = sortedApps.slice((page - 1) * pageSize, page * pageSize)
+  const showCheckboxes = Boolean(onToggleSelect)
 
   return (
     <Card title="Application History">
@@ -81,15 +85,20 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50">
+                  {showCheckboxes && <th className="px-3 py-3 w-8" />}
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Application ID</th>
                   {showApplicant && (
                     <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Applicant</th>
                   )}
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Loan Amount</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Decision</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">ML Prob</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">CBES</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Confidence</th>
+                  {!hideMetrics && (
+                    <>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">ML Prob</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">CBES</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Confidence</th>
+                    </>
+                  )}
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Submitted</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-neutral-900">Purpose</th>
                 </tr>
@@ -99,9 +108,24 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
                   <tr
                     key={app.id}
                     onClick={() => onRowClick?.(app)}
-                    className="border-b border-neutral-200 hover:bg-neutral-50 transition-colors cursor-pointer"
+                    className={`border-b border-neutral-200 hover:bg-neutral-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''} ${
+                      selectedIds?.has(app.id) ? 'bg-primary-50' : ''
+                    }`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-primary-600">{app.id.slice(0, 8)}...</td>
+                    {showCheckboxes && (
+                      <td
+                        className="px-3 py-3"
+                        onClick={(e) => { e.stopPropagation(); onToggleSelect?.(app.id) }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds?.has(app.id) ?? false}
+                          onChange={() => onToggleSelect?.(app.id)}
+                          className="w-4 h-4 rounded accent-primary-600"
+                        />
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-sm font-medium text-primary-600">{app.id.slice(0, 8)}…</td>
                     {showApplicant && (
                       <td className="px-4 py-3 text-sm text-neutral-900">{app.applicantName}</td>
                     )}
@@ -109,9 +133,13 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
                     <td className="px-4 py-3 text-sm">
                       <Badge status={app.status === 'processing' ? 'pending' : app.status} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-neutral-600">{(app.ml_prob ?? 0).toFixed(4)}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-600">{(app.cbes_score ?? app.cbes_prob ?? 0).toFixed(4)}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-600">{(app.confidence ?? 0).toFixed(4)}</td>
+                    {!hideMetrics && (
+                      <>
+                        <td className="px-4 py-3 text-sm text-neutral-600">{(app.ml_prob ?? 0).toFixed(4)}</td>
+                        <td className="px-4 py-3 text-sm text-neutral-600">{(app.cbes_score ?? app.cbes_prob ?? 0).toFixed(4)}</td>
+                        <td className="px-4 py-3 text-sm text-neutral-600">{(app.confidence ?? 0).toFixed(4)}</td>
+                      </>
+                    )}
                     <td className="px-4 py-3 text-sm text-neutral-600">{formatDate(app.createdAt)}</td>
                     <td className="px-4 py-3 text-sm capitalize text-neutral-600">{app.loanPurpose}</td>
                   </tr>
@@ -123,9 +151,7 @@ export const ApplicationTable: React.FC<ApplicationTableProps> = ({
 
         {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-neutral-200 pt-4 text-sm text-neutral-600">
-            <span>
-              Page {page} of {totalPages}
-            </span>
+            <span>Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               <button
                 type="button"

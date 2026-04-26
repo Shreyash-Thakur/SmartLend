@@ -140,7 +140,7 @@ export default function App() {
         <Route
           path="/review/:applicationId"
           element={
-            <ProtectedRoute requiredRole="org">
+            <ProtectedRoute>
               <ApplicationReview />
             </ProtectedRoute>
           }

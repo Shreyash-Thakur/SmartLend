@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import type { LoanApplication, LoanApplicationFormData } from '@/types/application'
 import {
+  bulkDecision,
   createApplication,
+  deleteApplicationDocument,
   getApplicationById,
   getApplications,
   submitManualDecision,
@@ -17,7 +19,9 @@ interface ApplicationStore {
   loadApplication: (applicationId: string) => Promise<void>
   addApplication: (payload: LoanApplicationFormData) => Promise<LoanApplication>
   uploadDocument: (applicationId: string, file: File) => Promise<void>
+  deleteDocument: (applicationId: string, documentId: string) => Promise<void>
   overrideDecision: (applicationId: string, status: 'approved' | 'rejected' | 'deferred', notes: string) => Promise<void>
+  bulkOverrideDecision: (applicationIds: string[], status: 'approved' | 'rejected', notes: string) => Promise<void>
 }
 
 export const useApplicationStore = create<ApplicationStore>((set) => ({
@@ -65,13 +69,26 @@ export const useApplicationStore = create<ApplicationStore>((set) => ({
       await uploadApplicationDocument(applicationId, file)
       const applications = await getApplications()
       const selectedApplication = await getApplicationById(applicationId)
-      set({
-        applications,
-        selectedApplication,
-        isLoading: false,
-      })
+      set({ applications, selectedApplication, isLoading: false })
     } catch (error) {
       set({ isLoading: false, error: error instanceof Error ? error.message : 'Failed to upload document' })
+      throw error
+    }
+  },
+  deleteDocument: async (applicationId, documentId) => {
+    set({ isLoading: true, error: null })
+    try {
+      await deleteApplicationDocument(applicationId, documentId)
+      const selectedApplication = await getApplicationById(applicationId)
+      set((state) => ({
+        selectedApplication,
+        applications: state.applications.map((a) =>
+          a.id === applicationId ? { ...a, documents: selectedApplication?.documents ?? [] } : a,
+        ),
+        isLoading: false,
+      }))
+    } catch (error) {
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'Failed to delete document' })
       throw error
     }
   },
@@ -91,4 +108,16 @@ export const useApplicationStore = create<ApplicationStore>((set) => ({
       throw error
     }
   },
+  bulkOverrideDecision: async (applicationIds, status, notes) => {
+    set({ isLoading: true, error: null })
+    try {
+      await bulkDecision(applicationIds, status, notes)
+      const applications = await getApplications()
+      set({ applications, isLoading: false })
+    } catch (error) {
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'Failed to bulk update decisions' })
+      throw error
+    }
+  },
 }))
+
