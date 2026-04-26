@@ -2,10 +2,10 @@ import React from 'react'
 import { ButtonProps } from '@/types/ui'
 
 const variantClasses = {
-  primary: 'bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 disabled:bg-neutral-300',
-  secondary: 'bg-neutral-100 text-neutral-900 hover:bg-neutral-200 border border-neutral-300 disabled:bg-neutral-100',
-  ghost: 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 disabled:text-neutral-400',
-  danger: 'bg-red-500 text-white hover:bg-red-600 active:bg-red-700 disabled:bg-neutral-300',
+  primary: 'bg-[#6E61FF] text-white border-2 border-black shadow-[4px_4px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000000] disabled:opacity-50 disabled:translate-x-[2px] disabled:translate-y-[2px] disabled:shadow-[2px_2px_0px_#000000]',
+  secondary: 'bg-[#B0F0DA] text-black border-2 border-black shadow-[4px_4px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000000] disabled:opacity-50',
+  ghost: 'bg-white text-black border-2 border-black shadow-[4px_4px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000000] disabled:opacity-50',
+  danger: 'bg-[#FF6B6B] text-black border-2 border-black shadow-[4px_4px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000000] disabled:opacity-50',
 }
 
 const sizeClasses = {

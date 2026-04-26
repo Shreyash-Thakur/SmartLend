@@ -25,7 +25,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 bg-hero-grid">
+    <div className="min-h-screen bg-slate-50 bg-hero-grid">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2"
@@ -33,7 +33,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         Skip to main content
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-white/40 bg-white/80 shadow-sm backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b-4 border-black bg-[#F1F6F1]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
@@ -42,12 +42,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 onClick={() => navigate('/')}
                 className="flex items-center gap-3 text-left"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center shadow-md">
-                <span className="text-white font-bold">S</span>
+                <div className="w-10 h-10 bg-[#6E61FF] border-2 border-black shadow-[2px_2px_0px_#000000] rounded flex items-center justify-center transition-transform hover:-translate-y-1">
+                <span className="text-white font-black text-xl">S</span>
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-neutral-900">SmartLend</h1>
-                  {title && <p className="text-xs text-neutral-500">{title}</p>}
+                  <h1 className="text-lg font-black text-black">SmartLend</h1>
+                  {title && <p className="text-xs font-bold text-black opacity-80">{title}</p>}
                 </div>
               </button>
             </div>
@@ -73,7 +73,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 type="button"
                 onClick={() => void handleLogout()}
                 title="Log out"
-                className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                className="flex items-center gap-2 rounded px-3 py-2 text-sm font-bold text-black bg-[#FD9745] border-2 border-black shadow-[2px_2px_0px_#000000] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#000000] transition-all"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Log Out</span>
@@ -106,10 +106,10 @@ function DashboardNavLink({ to, label }: { to: string; label: string }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+        `px-4 py-2 text-sm font-bold transition-all border-2 rounded ${
           isActive
-            ? 'bg-primary-100 text-primary-900'
-            : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
+            ? 'bg-[#B0F0DA] text-black border-black shadow-[2px_2px_0px_#000000]'
+            : 'bg-transparent text-black border-transparent hover:border-black hover:bg-white hover:shadow-[2px_2px_0px_#000000] hover:-translate-y-0.5'
         }`
       }
     >

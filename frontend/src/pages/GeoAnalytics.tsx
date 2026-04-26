@@ -16,12 +16,11 @@ import {
 } from '@/services/applications'
 
 const REGION_VISUALS: Record<string, { fill: string; x: number; y: number }> = {
-  North: { fill: '#2563eb', x: 152, y: 82 },
-  West: { fill: '#0891b2', x: 96, y: 190 },
-  Central: { fill: '#16a34a', x: 170, y: 205 },
-  East: { fill: '#f59e0b', x: 245, y: 178 },
-  South: { fill: '#dc2626', x: 170, y: 318 },
-  Unknown: { fill: '#64748b', x: 278, y: 392 },
+  North: { fill: '#6E61FF', x: 152, y: 82 },
+  West: { fill: '#B0F0DA', x: 96, y: 190 },
+  Central: { fill: '#FDE047', x: 170, y: 205 },
+  East: { fill: '#FD9745', x: 245, y: 178 },
+  South: { fill: '#FF6B6B', x: 170, y: 318 },
 }
 
 const STATE_TO_REGION: Record<string, string> = {
@@ -83,12 +82,12 @@ function normalizeStateName(name: string): string {
 }
 
 function getChoroplethColor(approvalRate: number, applications: number): string {
-  if (applications === 0) return '#e5e7eb'
-  if (approvalRate >= 75) return '#14532d'
-  if (approvalRate >= 60) return '#16a34a'
-  if (approvalRate >= 45) return '#65a30d'
-  if (approvalRate >= 30) return '#ea580c'
-  return '#b91c1c'
+  if (applications === 0) return '#ffffff'
+  if (approvalRate >= 75) return '#B0F0DA'
+  if (approvalRate >= 60) return '#6E61FF'
+  if (approvalRate >= 45) return '#FDE047'
+  if (approvalRate >= 30) return '#FD9745'
+  return '#FF6B6B'
 }
 
 export const GeoAnalytics: React.FC = () => {
@@ -165,8 +164,9 @@ export const GeoAnalytics: React.FC = () => {
     const names = new Set([...Object.keys(REGION_VISUALS), ...Object.keys(regionMap)])
 
     return Array.from(names)
+      .filter((region) => region !== 'Unknown')
       .map((region) => {
-        const visual = REGION_VISUALS[region] ?? REGION_VISUALS.Unknown
+        const visual = REGION_VISUALS[region] || { fill: '#000', x: 0, y: 0 }
         const values = regionMap[region]
         return {
           region,
@@ -179,7 +179,7 @@ export const GeoAnalytics: React.FC = () => {
           y: visual.y,
         }
       })
-      .filter((item) => item.applications > 0 || item.region in REGION_VISUALS)
+      .filter((item) => item.applications > 0 && item.region in REGION_VISUALS)
       .sort((a, b) => b.applications - a.applications)
   }, [metrics])
 
@@ -196,9 +196,9 @@ export const GeoAnalytics: React.FC = () => {
 
     const deferred = Math.max(totals.applications - totals.approved - totals.rejected, 0)
     return [
-      { name: 'Approved', value: totals.approved, fill: '#16a34a' },
-      { name: 'Rejected', value: totals.rejected, fill: '#dc2626' },
-      { name: 'Deferred', value: deferred, fill: '#f59e0b' },
+      { name: 'Approved', value: totals.approved, fill: '#B0F0DA' },
+      { name: 'Rejected', value: totals.rejected, fill: '#FF6B6B' },
+      { name: 'Deferred', value: deferred, fill: '#FD9745' },
     ]
   }, [densityData])
 
@@ -217,10 +217,10 @@ export const GeoAnalytics: React.FC = () => {
 
     return {
       fillColor: getChoroplethColor(stateMetrics?.approvalRate ?? 0, stateMetrics?.applications ?? 0),
-      weight: 1,
+      weight: 2,
       opacity: 1,
-      color: '#334155',
-      fillOpacity: 0.85,
+      color: '#000000',
+      fillOpacity: 1,
     }
   }
 
@@ -244,23 +244,23 @@ export const GeoAnalytics: React.FC = () => {
     layer.on({
       mouseover: (event: LeafletMouseEvent) => {
         const target = event.target as Path
-        target.setStyle({ weight: 2.5, color: '#0f172a' })
+        target.setStyle({ weight: 4, color: '#000000' })
       },
       mouseout: (event: LeafletMouseEvent) => {
         const target = event.target as Path
-        target.setStyle({ weight: 1, color: '#334155' })
+        target.setStyle({ weight: 2, color: '#000000' })
       },
     })
   }
 
   return (
     <DashboardLayout title="Geo Analytics" role="organization">
-      <section className="mb-8 rounded-[32px] border border-[#d6e7e4] bg-white p-8 shadow-sm">
+      <section className="mb-8 rounded border-4 border-black bg-white p-8 shadow-[8px_8px_0px_#000000]">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Geographic Intelligence</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">India application density</h2>
-            <p className="mt-3 max-w-2xl text-neutral-600">
+            <p className="text-xs font-black uppercase tracking-wider text-black opacity-60">Geographic Intelligence</p>
+            <h2 className="mt-3 text-4xl font-black tracking-tight text-black">India application density</h2>
+            <p className="mt-3 max-w-2xl font-bold text-black opacity-80">
               Live regional application density and outcomes from submitted applications.
             </p>
           </div>
@@ -276,15 +276,16 @@ export const GeoAnalytics: React.FC = () => {
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="mx-auto w-full max-w-[560px] overflow-hidden rounded-2xl border border-neutral-200">
+            <div className="mx-auto w-full overflow-hidden rounded border-2 border-black shadow-[4px_4px_0px_#000000] z-10 flex flex-col">
               {indiaGeoJson ? (
                 <MapContainer
-                  center={[22.9, 79.0]}
-                  zoom={4.5}
+                  center={[22.5, 82.0]}
+                  zoom={4.2}
                   minZoom={4}
                   maxZoom={7}
                   scrollWheelZoom={false}
-                  className="h-[460px] w-full"
+                  className="w-full"
+                  style={{ height: '550px' }}
                 >
                   <TileLayer
                     attribution='&copy; OpenStreetMap contributors'
@@ -298,7 +299,7 @@ export const GeoAnalytics: React.FC = () => {
                   />
                 </MapContainer>
               ) : (
-                <div className="flex h-[460px] items-center justify-center bg-neutral-50 text-sm text-neutral-500">
+                <div className="flex h-[550px] items-center justify-center bg-neutral-50 text-sm font-bold text-black">
                   Loading map boundary...
                 </div>
               )}
@@ -306,18 +307,18 @@ export const GeoAnalytics: React.FC = () => {
 
             <div className="space-y-3">
               {densityData.map((item) => (
-                <div key={item.region} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div key={item.region} className="rounded border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000000]">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.fill }} />
-                      <p className="font-semibold text-neutral-900">{item.region}</p>
+                      <span className="h-4 w-4 rounded border-2 border-black" style={{ backgroundColor: item.fill }} />
+                      <p className="font-black text-black">{item.region}</p>
                     </div>
-                    <p className="text-lg font-semibold text-neutral-900">{item.applications}</p>
+                    <p className="text-lg font-black text-black">{item.applications}</p>
                   </div>
-                  <p className="mt-2 text-sm text-neutral-600">Approval rate: {item.approvalRate.toFixed(1)}%</p>
-                  <div className="mt-3 h-2 rounded-full bg-white">
+                  <p className="mt-2 text-sm font-bold text-black opacity-80">Approval rate: {item.approvalRate.toFixed(1)}%</p>
+                  <div className="mt-3 h-3 border-2 border-black bg-white w-full overflow-hidden">
                     <div
-                      className="h-2 rounded-full"
+                      className="h-full border-r-2 border-black"
                       style={{ width: `${(item.applications / maxApplications) * 100}%`, backgroundColor: item.fill }}
                     />
                   </div>

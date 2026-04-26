@@ -160,12 +160,12 @@ export const OrganizationDashboard: React.FC = () => {
     <DashboardLayout title="Organization Dashboard" role="organization">
       {/* Hero */}
       <section className="mb-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[36px] border border-[#d6e7e4] bg-gradient-to-br from-[#edf6f4] via-[#f6faf9] to-[#f9fcfd] p-8 shadow-[0_30px_100px_rgba(118,176,165,0.18)]">
+        <div className="rounded border-4 border-black bg-white p-8 shadow-[8px_8px_0px_#000000]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Operations Dashboard</p>
-              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">Unified application pipeline</h2>
-              <p className="mt-4 text-base leading-7 text-neutral-600">
+              <p className="text-xs font-black uppercase tracking-wider text-black opacity-60">Operations Dashboard</p>
+              <h2 className="mt-3 text-4xl font-black tracking-tight text-black">Unified application pipeline</h2>
+              <p className="mt-4 text-base font-bold leading-7 text-black opacity-80">
                 All records in one queue. Review, override, and confirm ML decisions. Deferred cases require human action before the customer is notified.
               </p>
             </div>
@@ -183,30 +183,30 @@ export const OrganizationDashboard: React.FC = () => {
         </div>
 
         <div className="grid gap-4">
-          <Card className="rounded-[30px] border-white/80 bg-neutral-900 text-white">
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Application Pipeline</p>
-              <p className="text-4xl font-semibold">{applications.length}</p>
-              <div className="grid gap-2 text-sm text-white/75">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-green-400" />Auto-Approved</span>
-                  <span>{tabCounts.approved}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><XCircle className="h-3.5 w-3.5 text-red-400" />Auto-Rejected</span>
-                  <span>{tabCounts.rejected}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-amber-400" />Needs Review</span>
-                  <span>{tabCounts.deferred}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-white/10 pt-2">
-                  <span className="flex items-center gap-1.5">✓ Org Confirmed</span>
-                  <span>{tabCounts.confirmed}</span>
-                </div>
+          <div className="rounded border-4 border-black bg-[#6E61FF] text-white p-6 shadow-[8px_8px_0px_#000000] flex flex-col justify-between">
+            <div className="space-y-2">
+              <p className="text-xs font-black uppercase tracking-wider text-white opacity-80">Application Pipeline</p>
+              <p className="text-6xl font-black">{applications.length}</p>
+            </div>
+            <div className="grid gap-3 text-sm font-bold mt-6">
+              <div className="flex items-center justify-between bg-white/10 p-2 rounded border border-black shadow-[2px_2px_0px_#000000]">
+                <span className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-[#B0F0DA]" />Auto-Approved</span>
+                <span className="bg-white text-black px-2 py-0.5 rounded border-2 border-black">{tabCounts.approved}</span>
+              </div>
+              <div className="flex items-center justify-between bg-white/10 p-2 rounded border border-black shadow-[2px_2px_0px_#000000]">
+                <span className="flex items-center gap-2"><XCircle className="h-5 w-5 text-[#FF6B6B]" />Auto-Rejected</span>
+                <span className="bg-white text-black px-2 py-0.5 rounded border-2 border-black">{tabCounts.rejected}</span>
+              </div>
+              <div className="flex items-center justify-between bg-white/10 p-2 rounded border border-black shadow-[2px_2px_0px_#000000]">
+                <span className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-[#FD9745]" />Needs Review</span>
+                <span className="bg-white text-black px-2 py-0.5 rounded border-2 border-black">{tabCounts.deferred}</span>
+              </div>
+              <div className="flex items-center justify-between bg-white/10 p-2 rounded border border-black shadow-[2px_2px_0px_#000000] mt-2">
+                <span className="flex items-center gap-2">✓ Org Confirmed</span>
+                <span className="bg-[#B0F0DA] text-black px-2 py-0.5 rounded border-2 border-black">{tabCounts.confirmed}</span>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       </section>
 

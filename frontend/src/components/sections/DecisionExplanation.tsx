@@ -19,17 +19,17 @@ export const DecisionExplanation: React.FC<DecisionExplanationProps> = ({ decisi
         {/* Factors Supporting Decision */}
         {decision.positiveFactors.length > 0 && (
           <div>
-            <h4 className={`font-semibold mb-3 flex items-center gap-2 ${
-              decision.status === 'rejected' ? 'text-red-700' : 'text-green-700'
+            <h4 className={`font-semibold mb-3 w-fit inline-flex items-center gap-2 ${
+              decision.status === 'rejected' ? 'bg-[#FF6B6B] text-black px-2 py-0.5 rounded border-2 border-black' : 'bg-[#B0F0DA] text-black px-2 py-0.5 rounded border-2 border-black'
             }`}>
               <span>{decision.status === 'rejected' ? '⚠' : '✓'}</span> 
               {decision.status === 'rejected' ? 'Key Reasons for Rejection' : decision.status === 'approved' ? 'Key Reasons for Approval' : 'Positive Factors'}
             </h4>
             <ul className="space-y-2">
               {decision.positiveFactors.map((factor, idx) => (
-                <li key={idx} className="text-sm text-neutral-700 flex items-start gap-3">
+                <li key={idx} className="text-sm text-black flex items-start gap-3">
                   <span className={`mt-0.5 flex-shrink-0 ${
-                    decision.status === 'rejected' ? 'text-red-600' : 'text-green-600'
+                    decision.status === 'rejected' ? 'bg-[#FF6B6B] text-black px-2 py-0.5 rounded border-2 border-black' : 'bg-[#B0F0DA] text-black px-2 py-0.5 rounded border-2 border-black'
                   }`}>
                     {decision.status === 'rejected' ? '⚠' : '✓'}
                   </span>
@@ -43,17 +43,17 @@ export const DecisionExplanation: React.FC<DecisionExplanationProps> = ({ decisi
         {/* Factors Opposing Decision */}
         {decision.negativeFactors.length > 0 && (
           <div>
-            <h4 className={`font-semibold mb-3 flex items-center gap-2 ${
-              decision.status === 'rejected' ? 'text-green-700' : 'text-red-700'
+            <h4 className={`font-semibold mb-3 w-fit inline-flex items-center gap-2 ${
+              decision.status === 'rejected' ? 'bg-[#B0F0DA] text-black px-2 py-0.5 rounded border-2 border-black' : 'bg-[#FF6B6B] text-black px-2 py-0.5 rounded border-2 border-black'
             }`}>
               <span>{decision.status === 'rejected' ? '✓' : '⚠'}</span> 
               {decision.status === 'rejected' ? 'Mitigating Factors' : 'Risk Factors'}
             </h4>
             <ul className="space-y-2">
               {decision.negativeFactors.map((factor, idx) => (
-                <li key={idx} className="text-sm text-neutral-700 flex items-start gap-3">
+                <li key={idx} className="text-sm text-black flex items-start gap-3">
                   <span className={`mt-0.5 flex-shrink-0 ${
-                    decision.status === 'rejected' ? 'text-green-600' : 'text-red-600'
+                    decision.status === 'rejected' ? 'bg-[#B0F0DA] text-black px-2 py-0.5 rounded border-2 border-black' : 'bg-[#FF6B6B] text-black px-2 py-0.5 rounded border-2 border-black'
                   }`}>
                     {decision.status === 'rejected' ? '✓' : '⚠'}
                   </span>

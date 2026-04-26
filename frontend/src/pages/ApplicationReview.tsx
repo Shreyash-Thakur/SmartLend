@@ -133,7 +133,7 @@ export const ApplicationReview: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Panel */}
         <aside className="lg:col-span-1 space-y-6">
-          <Card title="Applicant Information">
+          <Card title="Applicant Information" level="light">
             <div className="space-y-3">
               <DetailRow label="Name" value={application.applicantName} />
               <DetailRow label="Email" value={application.email} />
@@ -165,7 +165,7 @@ export const ApplicationReview: React.FC = () => {
           </Card>
 
           {/* Documents Panel */}
-          <Card title={`Supporting Documents (${documents.length})`}>
+          <Card title={`Supporting Documents (${documents.length})`} level="light">
             {documents.length === 0 ? (
               <p className="text-sm text-neutral-500 py-4 text-center">No documents attached</p>
             ) : (
@@ -205,28 +205,54 @@ export const ApplicationReview: React.FC = () => {
 
         {/* Right Panel */}
         <section className="lg:col-span-2 space-y-6">
-          {/* Current Status Banner */}
-          <div className={`rounded-2xl p-5 flex items-center gap-4 ${
-            statusIsApproved ? 'bg-green-50 border border-green-200' :
-            statusIsRejected ? 'bg-red-50 border border-red-200' :
-            'bg-amber-50 border border-amber-200'
+          {/* DOMINANT DECISION CARD (HEAVY NEOBRUTALISM) */}
+          <div className={`rounded p-6 border-4 border-[#000000] shadow-[8px_8px_0px_#000000] ${
+            statusIsApproved ? 'bg-[#B0F0DA]' :
+            statusIsRejected ? 'bg-[#FF6B6B]' :
+            'bg-[#FD9745]'
           }`}>
-            {statusIsApproved ? <CheckCircle2 className="h-7 w-7 text-green-600 shrink-0" /> :
-             statusIsRejected ? <XCircle className="h-7 w-7 text-red-600 shrink-0" /> :
-             <Clock className="h-7 w-7 text-amber-600 shrink-0" />}
-            <div>
-              <p className={`font-semibold text-lg ${
-                statusIsApproved ? 'text-green-900' : statusIsRejected ? 'text-red-900' : 'text-amber-900'
-              }`}>
-                {statusIsApproved ? 'Model Recommendation: Approve' :
-                 statusIsRejected ? 'Model Recommendation: Reject' :
-                 'Model Recommendation: Defer to Human Review'}
-              </p>
-              <p className={`text-sm mt-0.5 ${
-                statusIsApproved ? 'text-green-700' : statusIsRejected ? 'text-red-700' : 'text-amber-700'
-              }`}>
-                {orgConfirmed ? '✓ Org decision confirmed' : 'Awaiting analyst confirmation'}
-              </p>
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                {statusIsApproved ? <CheckCircle2 className="h-10 w-10 text-[#000000] shrink-0 mt-1" /> :
+                 statusIsRejected ? <XCircle className="h-10 w-10 text-[#000000] shrink-0 mt-1" /> :
+                 <Clock className="h-10 w-10 text-[#000000] shrink-0 mt-1" />}
+                <div>
+                  <h2 className="text-4xl font-black uppercase tracking-tight text-[#000000]">
+                    {statusIsApproved ? 'Approve' :
+                     statusIsRejected ? 'Reject' :
+                     'Defer'}
+                  </h2>
+                  <p className="text-[#000000] font-bold text-lg mt-1">
+                    CONFIDENCE: <span className="uppercase font-black bg-white px-2 py-0.5 rounded border-2 border-[#000000] shadow-[2px_2px_0px_#000000] ml-2">{application.decision?.confidence ?? 'N/A'}</span>
+                  </p>
+                  <p className="text-[#000000] font-medium mt-4 max-w-xl leading-relaxed">
+                    {application.decision?.explanation ?? (statusIsApproved ? 'Application meets all criteria for automated approval.' : statusIsRejected ? 'Application falls below acceptable risk thresholds.' : 'Application requires human review due to borderline signals.')}
+                  </p>
+                  
+                  {/* Top 3 Features */}
+                  {application.decision?.featureImportance && application.decision.featureImportance.length > 0 && (
+                    <div className="mt-5 flex flex-wrap gap-2 items-center">
+                      <span className="text-sm font-black text-[#000000] mr-2">TOP FACTORS:</span>
+                      {application.decision.featureImportance.slice(0, 3).map((f) => (
+                        <span key={f.name} className="px-3 py-1 rounded border-2 border-[#000000] text-xs font-black bg-white text-[#000000] shadow-[2px_2px_0px_#000000]">
+                          {f.name.replace(/_/g, ' ')} ({f.impact > 0 ? '+' : ''}{f.impact.toFixed(2)})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="text-right shrink-0 mt-4 md:mt-0 flex flex-col items-end gap-3">
+                <div className="inline-block px-3 py-1.5 bg-white border-2 border-[#000000] rounded font-black text-sm text-[#000000] shadow-[4px_4px_0px_#000000]">
+                  {orgConfirmed ? '✓ CONFIRMED' : 'AWAITING ANALYST'}
+                </div>
+                {application.ml_prob !== undefined && application.cbes_prob !== undefined && Math.abs(application.ml_prob - application.cbes_prob) > 0.15 && (
+                  <div className="px-2 py-1 bg-[#FD9745] border-2 border-[#000000] shadow-[2px_2px_0px_#000000] rounded text-xs font-black text-[#000000]">
+                    ⚠️ MODEL DISAGREEMENT
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -246,11 +272,11 @@ export const ApplicationReview: React.FC = () => {
                 <Card title="Ensemble Predictions Deep Dive" description="Approval probabilities from all underlying models (for research purposes).">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                     {Object.entries(application.decision.allModelPredictions).map(([model, prob]) => (
-                      <div key={model} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 flex flex-col justify-between">
-                        <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">{model}</p>
-                        <p className={`mt-2 text-xl font-bold ${prob >= 0.5 ? 'text-green-600' : 'text-red-600'}`}>
+                      <div key={model} className={`rounded border-2 border-[#000000] p-4 flex flex-col justify-between shadow-[2px_2px_0px_#000000] ${prob >= 0.5 ? 'bg-[#B0F0DA]' : 'bg-[#FF6B6B]'} text-[#000000]`}>
+                        <p className="text-xs font-black uppercase tracking-wider">{model}</p>
+                        <div className="mt-2 text-xl font-black bg-white rounded px-2 py-0.5 border-2 border-[#000000] inline-block self-start">
                           {(prob * 100).toFixed(1)}%
-                        </p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -380,14 +406,14 @@ function DetailRow({ label, value }: { label: string; value: string | number }) 
 
 function ScoreTile({ label, value, color, isText = false }: { label: string; value: string; color: string; isText?: boolean }) {
   const colorMap: Record<string, string> = {
-    red: 'bg-red-50 text-red-700',
-    blue: 'bg-blue-50 text-blue-700',
-    green: 'bg-green-50 text-green-700',
+    red: 'bg-[#FF6B6B] text-[#000000]',
+    blue: 'bg-[#6E61FF] text-[#000000]',
+    green: 'bg-[#B0F0DA] text-[#000000]',
   }
   return (
-    <div className={`rounded-xl p-4 ${colorMap[color] ?? 'bg-neutral-50 text-neutral-700'}`}>
-      <p className="text-xs font-medium uppercase tracking-wider mb-1 opacity-70">{label}</p>
-      <p className={`font-bold ${isText ? 'text-xl capitalize' : 'text-2xl'}`}>{value}</p>
+    <div className={`rounded border-2 border-[#000000] p-4 shadow-[2px_2px_0px_#000000] ${colorMap[color] ?? 'bg-white text-[#000000]'}`}>
+      <p className="text-xs font-black uppercase tracking-wider mb-1 opacity-80">{label}</p>
+      <p className={`font-black ${isText ? 'text-xl uppercase' : 'text-3xl'}`}>{value}</p>
     </div>
   )
 }

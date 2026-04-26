@@ -5,25 +5,22 @@ export const Card: React.FC<CardProps> = ({
   title,
   description,
   children,
-  withGlass = true,
+  withGlass = false,
   className = '',
   footer,
+  level = 'medium',
 }) => {
+  const baseStyles = 'rounded-xl overflow-hidden bg-white transition-all duration-200'
+  const levelStyles = level === 'medium'
+    ? 'border-2 border-[#000000] shadow-[2px_2px_0px_#000000]'
+    : 'border border-slate-200 shadow-none'
+
   return (
-    <div
-      className={`
-        rounded-[28px] overflow-hidden
-        border border-white/70
-        bg-white/88
-        ${withGlass ? 'backdrop-blur-xl' : ''}
-        shadow-[0_20px_60px_rgba(15,23,42,0.08)] hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)] transition-shadow duration-300
-        ${className}
-      `}
-    >
+    <div className={`${baseStyles} ${levelStyles} ${className}`}>
       {(title || description) && (
-        <div className="border-b border-neutral-200/80 bg-gradient-to-r from-white to-neutral-50 px-6 py-5">
-          {title && <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>}
-          {description && <p className="mt-1 text-sm text-neutral-600">{description}</p>}
+        <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+          {title && <h3 className="text-lg font-bold text-[#0F172A]">{title}</h3>}
+          {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
         </div>
       )}
 

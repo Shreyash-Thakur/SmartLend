@@ -31,18 +31,21 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topFeatures} layout="vertical" margin={{ left: 12, right: 16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis type="number" domain={[-1, 1]} />
-              <YAxis dataKey="name" type="category" width={110} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+              <XAxis type="number" domain={[-1, 1]} hide />
+              <YAxis dataKey="name" type="category" width={110} tick={{ fill: '#64748B', fontSize: 12 }} axisLine={false} tickLine={false} />
               <Tooltip
                 formatter={(value: number) => [value, 'Impact']}
                 labelFormatter={(label) => `Feature: ${label}`}
+                contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: 'none' }}
               />
-              <Bar dataKey="displayImpact" radius={[6, 6, 6, 6]}>
+              <Bar dataKey="displayImpact" radius={[0, 4, 4, 0]}>
                 {topFeatures.map((feature: FeatureContribution) => (
                   <Cell
                     key={feature.name}
-                    fill={feature.impact >= 0 ? '#16a34a' : '#ef4444'}
+                    fill={feature.impact >= 0 ? '#B0F0DA' : '#FF6B6B'}
+                    stroke="#000000"
+                    strokeWidth={2}
                   />
                 ))}
               </Bar>
@@ -52,16 +55,16 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
 
         <div className="grid gap-3 sm:grid-cols-2">
           {topFeatures.map((feature) => (
-            <div key={feature.name} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+            <div key={feature.name} className={`rounded border-2 border-[#000000] p-3 shadow-[2px_2px_0px_#000000] ${feature.impact >= 0 ? 'bg-[#B0F0DA]' : 'bg-[#FF6B6B]'} text-[#000000]`}>
               <div className="flex items-center justify-between">
-                <p className="font-medium text-neutral-900">{feature.name}</p>
-                <span className={feature.impact >= 0 ? 'text-green-600' : 'text-red-600'}>
+                <p className="font-black uppercase text-sm truncate mr-2">{feature.name.replace(/_/g, ' ')}</p>
+                <span className="font-bold bg-white px-2 py-0.5 rounded border-2 border-[#000000] whitespace-nowrap">
                   {feature.impact >= 0 ? '+' : ''}
                   {feature.impact.toFixed(2)}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-neutral-600">
-                Value: {typeof feature.value === 'number' ? feature.value.toLocaleString('en-IN') : feature.value}
+              <p className="mt-2 text-xs font-bold opacity-80">
+                VALUE: {typeof feature.value === 'number' ? feature.value.toLocaleString('en-IN') : feature.value}
               </p>
             </div>
           ))}
