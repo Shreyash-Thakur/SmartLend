@@ -3,6 +3,7 @@ uvicorn==0.34.0
 pandas==2.2.3
 SQLAlchemy==2.0.40
 pydantic==2.13.3
+python-dotenv==1.0.1
 pytesseract
 pdf2image
 python-docx
