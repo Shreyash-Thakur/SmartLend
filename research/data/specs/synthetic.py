@@ -4,14 +4,14 @@ This dataset's role has changed. It is no longer the primary evaluation set — 
 is the *controlled testbed*, and the only dataset where the selection mechanism
 is known by construction. That makes it the sole place the weighted-conformal
 correction can be verified rather than merely applied.
-
-Column names verified against `backend/synthetic_indian_loan_dataset.csv`.
 """
-# NOTE (2026-08-30): this spec's data source (synthetic_indian_loan_dataset.csv)
-# has been deleted — see docs/superpowers/specs/2026-08-29-home-credit-swap-design.md
-# section 3.4. It will not run until the deferred training work (same spec,
-# section 2a) rebuilds a Home Credit-based training pipeline. Left in place,
-# not fixed, so this history isn't silently lost.
+# NOTE (2026-08-30): the synthetic dataset generator (backend/synthetic_indian_loan_dataset.csv)
+# has been deleted. Per docs/superpowers/specs/2026-08-18-conformal-credit-deferral-design.md
+# (line ~199, "The synthetic generator is repurposed, not discarded") and
+# docs/superpowers/specs/2026-08-29-home-credit-swap-design.md (§1 decision 5, §4),
+# this spec will need its generator rebuilt when the C4 work package starts
+# (conformal-correction validation with known ground-truth propensity).
+# Left in place now, not fixed, so this history isn't silently lost.
 
 from __future__ import annotations
 
