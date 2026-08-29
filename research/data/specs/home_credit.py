@@ -11,11 +11,13 @@ Two facts that shape the whole project:
    Approved / Refused / Canceled / Unused offer. That table is therefore the
    entry point for the propensity model, not `application_train`.
 
-2. Four canonical fields (credit_utilization, delinquencies, active_loans) are
-   NOT in `application_train` — they require aggregating `bureau.csv` and
-   `credit_card_balance.csv`. They are marked ABSENT deliberately so
-   `missing_required()` reports the gap rather than hiding it. Building those
-   aggregations is a Phase 0 task.
+2. One canonical field (credit_utilization) is NOT in application_train and
+   requires aggregating credit_card_balance.csv, which has not been fetched.
+   It is marked ABSENT deliberately so `missing_required()` reports the gap
+   rather than hiding it. delinquencies/active_loans ARE available, via
+   bureau.csv aggregation (research/data/bureau_aggregates.py) — the caller
+   must merge those columns onto application_train before calling
+   build_bundle(); the spec only declares where the values live once merged.
 
 Column names are from the competition data dictionary; verify against the actual
 download before trusting the mapping (see `adapters.validate_spec`).
@@ -106,19 +108,23 @@ SPEC = DatasetSpec(
         ),
         FieldSpec(
             "delinquencies",
-            A.ABSENT,
-            None,
+            A.NATIVE,
+            "BUREAU_DELINQUENCY_COUNT",
             Unit.COUNT,
-            "Requires bureau.csv aggregation (CREDIT_DAY_OVERDUE > 0 counts). "
-            "DEF_*_CNT_SOCIAL_CIRCLE is the applicant's social circle, NOT the "
-            "applicant — do not substitute it. Phase 0 task.",
+            "Count of bureau.csv credit lines with CREDIT_DAY_OVERDUE > 0 for "
+            "this applicant; 0 if the applicant has no bureau.csv rows. See "
+            "research/data/bureau_aggregates.py. Requires the caller to merge "
+            "bureau aggregates onto application_train before calling "
+            "build_bundle — this spec cannot do the merge itself.",
         ),
         FieldSpec(
             "active_loans",
-            A.ABSENT,
-            None,
+            A.NATIVE,
+            "BUREAU_ACTIVE_LOAN_COUNT",
             Unit.COUNT,
-            "Requires bureau.csv aggregation (CREDIT_ACTIVE == 'Active'). Phase 0 task.",
+            "Count of bureau.csv credit lines with CREDIT_ACTIVE == 'Active'; "
+            "0 if the applicant has no bureau.csv rows. See "
+            "research/data/bureau_aggregates.py.",
         ),
         FieldSpec("gender", A.NATIVE, _gender, Unit.CATEGORY, "CODE_GENDER; XNA -> NA"),
         FieldSpec(

@@ -83,18 +83,13 @@ class TestCoverageReport:
         assert list(report["canonical"]) == list(CORE_NAMES)
 
     def test_home_credit_gaps_are_surfaced_not_hidden(self):
-        """The three bureau-derived fields must show as ABSENT.
-
-        Marking them available would let a silently-empty column reach CBES.
-        """
+        """credit_utilization must show as ABSENT; delinquencies/active_loans
+        are now NATIVE via bureau aggregation (see bureau_aggregates.py)."""
         report = coverage_report(home_credit.SPEC).set_index("canonical")
-        for field in ("credit_utilization", "delinquencies", "active_loans"):
-            assert report.loc[field, "availability"] == Availability.ABSENT.value
-        assert set(home_credit.SPEC.missing_required()) == {
-            "credit_utilization",
-            "delinquencies",
-            "active_loans",
-        }
+        assert report.loc["credit_utilization", "availability"] == Availability.ABSENT.value
+        assert report.loc["delinquencies", "availability"] == Availability.NATIVE.value
+        assert report.loc["active_loans", "availability"] == Availability.NATIVE.value
+        assert set(home_credit.SPEC.missing_required()) == {"credit_utilization"}
 
     def test_proxy_fields_are_labelled_as_proxies(self):
         report = coverage_report(home_credit.SPEC).set_index("canonical")
@@ -146,10 +141,18 @@ class TestHomeCreditDerivations:
         assert bundle.core["gender"].iloc[0] == "M"
         assert pd.isna(bundle.core["gender"].iloc[1])
 
-    def test_absent_fields_are_all_nan_not_fabricated(self, raw):
+    def test_credit_utilization_still_absent(self, raw):
         bundle = build_bundle(home_credit.SPEC, raw)
         assert bundle.core["credit_utilization"].isna().all()
-        assert bundle.core["active_loans"].isna().all()
+
+    def test_bureau_derived_fields_populate_when_columns_present(self, raw):
+        raw = raw.assign(
+            BUREAU_ACTIVE_LOAN_COUNT=[1, 0],
+            BUREAU_DELINQUENCY_COUNT=[0, 2],
+        )
+        bundle = build_bundle(home_credit.SPEC, raw)
+        assert list(bundle.core["active_loans"]) == [1, 0]
+        assert list(bundle.core["delinquencies"]) == [0, 2]
 
 
 class TestLendingClubDerivations:
