@@ -11,6 +11,15 @@ class ManualDecisionRequest(BaseModel):
     notes: str = ""
 
 
+# NOTE (2026-08-30): schemas.py's input vocabulary changed from the old
+# 15-key India-specific schema to a 7-key Home Credit schema (see
+# docs/superpowers/specs/2026-08-29-home-credit-swap-design.md). This file
+# still builds/expects the OLD vocabulary, so live CBES scores are now
+# silently near-constant (~0.13-0.22) rather than erroring — only a couple of
+# keys happen to overlap between the two schemas. Not fixed here: rebuilding
+# this schema is deferred until a production model is chosen (same spec,
+# section 2a / "Descoped from this plan"). This note exists so the silent
+# degradation isn't mistaken for correct behavior.
 class LoanApplicationInput(BaseModel):
     model_config = ConfigDict(extra="allow")
 

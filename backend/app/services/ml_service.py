@@ -37,7 +37,15 @@ DATASET_PATH = Path(__file__).resolve().parents[2] / "synthetic_indian_loan_data
 # has been deleted — see docs/superpowers/specs/2026-08-29-home-credit-swap-design.md
 # section 3.4. It will not run until the deferred training work (same spec,
 # section 2a) rebuilds a Home Credit-based training pipeline. Left in place,
-# not fixed, so this history isn't silently lost.
+# not fixed, so this history isn't silently lost. Additionally, cbes_engine.DEFAULTS
+# changed from the old 15-key dict (conservative worst-case values like
+# cibil_score: 300) to the new 7-key dict, but this file's `feature_names` still
+# come from the old synthetic-trained model, so any code path in this file that
+# does `DEFAULTS.get(col, 0.0)` (see MLPredictor.predict_application below,
+# around line 200) and the NaN-fill in this function just below now silently
+# imputes 0.0 for keys that no longer exist in DEFAULTS instead of the old
+# conservative defaults — not fixed here, same deferred-schema-work reason as
+# above.
 def train_pipeline(df: pd.DataFrame) -> None:
     """Train the unified pipeline using cross-validation over the top 5 model architectures.
     Performs score targeting, calibration, and joblib caching safely.

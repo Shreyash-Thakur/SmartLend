@@ -1,7 +1,12 @@
 """Tests for the canonical mapping layer.
 
-The synthetic tests run against the real CSV in the repo, so a pass means the
-spec matches actual columns rather than documentation. The Home Credit and
+Historically, the synthetic tests ran against the real CSV in the repo, so a
+pass meant the spec matched actual columns rather than documentation. As of
+the Home Credit CBES swap (see
+docs/superpowers/specs/2026-08-29-home-credit-swap-design.md), the synthetic
+CSV has been deleted from the repo, so `TestSyntheticSpec`'s tests now
+`pytest.skip(...)` instead of actually running — a pass on those specific
+tests currently means "skipped", not "verified". The Home Credit and
 Lending Club specs are written from data dictionaries and cannot be verified
 until those files are downloaded — `validate_spec` is the tool for that, and
 `test_validate_spec_catches_missing_columns` proves it works.

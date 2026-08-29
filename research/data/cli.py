@@ -59,8 +59,14 @@ def main(argv: list[str] | None = None) -> int:
         if bureau_path.exists():
             print(f"Merging bureau aggregates from {bureau_path} ...")
             bureau_df = pd.read_csv(bureau_path, low_memory=False)
+            no_bureau_pct = (~df["SK_ID_CURR"].isin(bureau_df["SK_ID_CURR"].unique())).mean()
             df = attach_bureau_aggregates(df, bureau_df)
-            print(f"  merged; now {len(df.columns)} columns\n")
+            print(f"  merged; now {len(df.columns)} columns")
+            print(
+                f"  {no_bureau_pct:.1%} of applicants have no bureau.csv record "
+                "(filled with 0 for active_loans/delinquencies — see "
+                "research/data/bureau_aggregates.py)\n"
+            )
         else:
             print(f"  ! {bureau_path} not found — delinquencies/active_loans will be NaN\n")
 

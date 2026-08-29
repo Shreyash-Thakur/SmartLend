@@ -5,8 +5,14 @@ convention (EXT_SOURCE_2 has no bank-standard prime/subprime cutoff the way a
 CIBIL score does). Rather than invent one, this script derives 5-point
 percentile breakpoints (p10/p30/p50/p70/p90) from the training distribution
 itself, and documents them as dataset-derived — not a claimed banking
-standard. Run this whenever the underlying data changes; cbes_engine.py loads
-the result at import time.
+standard. Run this whenever the underlying data changes; cbes_engine.py loads the
+result lazily on first use, not at import time (see cbes_engine._get_thresholds).
+
+Known limitation: on real Home Credit data, `delinquencies` is degenerate —
+most applicants have 0 delinquencies, so all 5 percentile breakpoints
+(p10-p90) collapse to 0.0. When that happens, compute_thresholds() prints a
+warning rather than raising, since a column collapsing to a single edge value
+is a property of the data, not an error in this script.
 """
 
 from __future__ import annotations
@@ -44,6 +50,14 @@ def compute_thresholds(core_df: pd.DataFrame) -> dict[str, list[float]]:
         for i in range(1, len(edges)):
             if edges[i] < edges[i - 1]:
                 edges[i] = edges[i - 1]
+        if edges and edges[0] == edges[-1]:
+            print(
+                f"  ! WARNING: column '{column}' has degenerate percentile "
+                f"breakpoints (all edges == {edges[0]!r}) — _percentile_score "
+                "will act as a binary step function for this field instead of "
+                "a graded score. Known for 'delinquencies' on Home Credit data "
+                "(most applicants have 0)."
+            )
         thresholds[column] = edges
     return thresholds
 

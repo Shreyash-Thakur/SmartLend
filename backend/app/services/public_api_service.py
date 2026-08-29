@@ -18,6 +18,16 @@ from backend.app.services.decision_service import build_application_response
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.model_analysis_service import get_model_analysis_payload
 
+# NOTE (2026-08-30): public_api_service.py's input vocabulary changed from
+# the old 15-key India-specific schema to a 7-key Home Credit schema (see
+# docs/superpowers/specs/2026-08-29-home-credit-swap-design.md). This file
+# still builds/expects the OLD vocabulary, so live CBES scores are now
+# silently near-constant (~0.13-0.22) rather than erroring — only a couple of
+# keys happen to overlap between the two schemas. Not fixed here: rebuilding
+# this schema is deferred until a production model is chosen (same spec,
+# section 2a / "Descoped from this plan"). This note exists so the silent
+# degradation isn't mistaken for correct behavior.
+
 ARTIFACTS_DIR = Path(__file__).resolve().parents[2] / "artifacts"
 MODEL_METRICS_PATH = ARTIFACTS_DIR / "model_metrics.csv"
 
