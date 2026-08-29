@@ -14,9 +14,27 @@ import numpy as np
 import pandas as pd
 import math
 
+from backend.app.services import cbes_engine
 from backend.app.services.cbes_engine import compute_cbes, DEFAULTS
 from backend.app.services.decision_engine import hybrid_decision
 from backend.app.services.calibrate import calibrate_tau_d, find_t_base
+
+
+# Fake thresholds for testing (same as in test_cbes_engine.py)
+FAKE_THRESHOLDS = {
+    "credit_score": [0.10, 0.30, 0.50, 0.70, 0.90],
+    "delinquencies": [0, 0, 1, 2, 5],
+    "active_loans": [0, 1, 2, 4, 8],
+    "dti": [0.05, 0.15, 0.25, 0.40, 0.80],
+    "employment_tenure_years": [0.0, 1.0, 3.0, 7.0, 15.0],
+    "loan_to_income": [0.5, 1.5, 3.0, 5.0, 10.0],
+}
+
+
+@pytest.fixture(autouse=True)
+def stub_thresholds_for_loan_system(monkeypatch):
+    """Stub thresholds for all test_loan_system tests."""
+    monkeypatch.setattr(cbes_engine, "_THRESHOLDS", FAKE_THRESHOLDS)
 
 # ==============================================================================
 # CBES Engine Boundary Tests
@@ -35,21 +53,14 @@ def test_cbes_boundary_missing_values():
 def test_cbes_perfect_profile_bounds():
     """Evaluate absolute upper bounds tracking."""
     perfect = {
-        "cibil_score": 900.0,
-        "missed_payment_ratio": 0.0,
-        "credit_utilization": 0.0,
-        "gross_monthly_income": 100000.0,
-        "net_monthly_income": 95000.0,
-        "total_monthly_debt": 0.0,
-        "monthly_emi": 0.0,
-        "repayments_on_time_last_12": 12.0,
-        "active_loans": 0.0,
-        "total_loans": 5.0,
-        "bank_balance": 5000000.0,
-        "loan_amount": 10000.0,
-        "total_assets": 10000000.0,
-        "years_employed": 20.0,
-        "age": 45.0
+        "credit_score": 0.95,  # Very high credit score
+        "delinquencies": 0.0,
+        "active_loans": 1.0,  # Few active loans
+        "dti": 0.05,  # Very low debt-to-income
+        "employment_tenure_years": 20.0,
+        "annual_income": 900000.0,
+        "loan_amount": 50000.0,
+        "region": 1,
     }
     p_cbes, breakdown = compute_cbes(perfect)
     assert p_cbes > 0.8, "Perfect profile must yield highly optimal probability mappings."
@@ -57,7 +68,16 @@ def test_cbes_perfect_profile_bounds():
 
 def test_cbes_zero_vectors():
     """Division-by-zero integrity tests using flat inputs."""
-    flat = {k: 0.0 for k in DEFAULTS.keys()}
+    flat = {
+        "credit_score": 0.0,
+        "delinquencies": 0.0,
+        "active_loans": 0.0,
+        "dti": 0.0,
+        "employment_tenure_years": 0.0,
+        "annual_income": 0.0,
+        "loan_amount": 0.0,
+        "region": 0.0,
+    }
     # Safe float should absorb zeros securely without NaNs triggering exceptions
     p_cbes, breakdown = compute_cbes(flat)
     assert not math.isnan(p_cbes)
