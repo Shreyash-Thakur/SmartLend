@@ -1,0 +1,13 @@
+canonical,availability,source,notes
+age_years,derived,<derived>,from -DAYS_BIRTH
+annual_income,native,AMT_INCOME_TOTAL,
+loan_amount,native,AMT_CREDIT,
+installment,native,AMT_ANNUITY,
+credit_score,proxy,EXT_SOURCE_2,"Normalised external score in [0,1], NOT a bureau score. Best-covered of EXT_SOURCE_1/2/3. Direction and scale differ from CIBIL/FICO — never compare its raw value across datasets."
+dti,derived,<derived>,AMT_ANNUITY / AMT_INCOME_TOTAL
+employment_tenure_years,derived,<derived>,from -DAYS_EMPLOYED; sentinel 365243 -> NaN
+credit_utilization,absent,,Requires credit_card_balance.csv aggregation (AMT_BALANCE / AMT_CREDIT_LIMIT_ACTUAL). Phase 0 task.
+delinquencies,absent,,"Requires bureau.csv aggregation (CREDIT_DAY_OVERDUE > 0 counts). DEF_*_CNT_SOCIAL_CIRCLE is the applicant's social circle, NOT the applicant — do not substitute it. Phase 0 task."
+active_loans,absent,,Requires bureau.csv aggregation (CREDIT_ACTIVE == 'Active'). Phase 0 task.
+gender,native,<derived>,CODE_GENDER; XNA -> NA
+region,proxy,REGION_RATING_CLIENT,"Ordinal 1-3 region rating; urbanicity proxy, not a geography."

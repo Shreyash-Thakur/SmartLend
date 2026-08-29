@@ -16,3 +16,8 @@ backend/smartlend.db
 # Large ML Artifacts
 backend/artifacts/*.joblib
 backend/artifacts/*.csv
+
+# Raw datasets (large; fetched via kaggle CLI, not committed)
+data/raw/**/*.csv
+data/raw/**/*.zip
+!data/raw/**/*columns_description*.csv

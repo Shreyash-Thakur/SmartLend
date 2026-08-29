@@ -1,0 +1,122 @@
+column,dtype,missing_rate,sentinel_rate,effective_missing_rate,sentinels,structural_predictor,block_id,target_auc,rate_when_missing,rate_when_present,classification,recommendation
+DAYS_EMPLOYED,int64,0.0,0.1801,0.1801,365243.0,,,,,,sentinel_coded,Replace sentinel with NaN and add an indicator. Never leave the literal value in place; never impute over it.
+COMMONAREA_AVG,float64,0.6987,0.0,0.6987,,,6,0.5236,0.0857,0.0691,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+COMMONAREA_MODE,float64,0.6987,0.0,0.6987,,,6,0.5236,0.0857,0.0691,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+COMMONAREA_MEDI,float64,0.6987,0.0,0.6987,,,6,0.5236,0.0857,0.0691,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+NONLIVINGAPARTMENTS_AVG,float64,0.6943,0.0,0.6943,,,14,0.5239,0.0858,0.0691,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+NONLIVINGAPARTMENTS_MODE,float64,0.6943,0.0,0.6943,,,14,0.5239,0.0858,0.0691,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+NONLIVINGAPARTMENTS_MEDI,float64,0.6943,0.0,0.6943,,,14,0.5239,0.0858,0.0691,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FONDKAPREMONT_MODE,object,0.6839,0.0,0.6839,,,,0.5252,0.0862,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LIVINGAPARTMENTS_AVG,float64,0.6835,0.0,0.6835,,,12,0.5253,0.0862,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LIVINGAPARTMENTS_MODE,float64,0.6835,0.0,0.6835,,,12,0.5253,0.0862,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LIVINGAPARTMENTS_MEDI,float64,0.6835,0.0,0.6835,,,12,0.5253,0.0862,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FLOORSMIN_AVG,float64,0.6785,0.0,0.6785,,,10,0.5255,0.0863,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FLOORSMIN_MODE,float64,0.6785,0.0,0.6785,,,10,0.5255,0.0863,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FLOORSMIN_MEDI,float64,0.6785,0.0,0.6785,,,10,0.5255,0.0863,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+YEARS_BUILD_AVG,float64,0.665,0.0,0.665,,,5,0.5272,0.0868,0.0687,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+YEARS_BUILD_MODE,float64,0.665,0.0,0.665,,,5,0.5272,0.0868,0.0687,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+YEARS_BUILD_MEDI,float64,0.665,0.0,0.665,,,5,0.5272,0.0868,0.0687,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LANDAREA_AVG,float64,0.5938,0.0,0.5938,,,11,0.5299,0.0882,0.0698,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LANDAREA_MODE,float64,0.5938,0.0,0.5938,,,11,0.5299,0.0882,0.0698,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LANDAREA_MEDI,float64,0.5938,0.0,0.5938,,,11,0.5299,0.0882,0.0698,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+BASEMENTAREA_AVG,float64,0.5852,0.0,0.5852,,,3,0.5331,0.0891,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+BASEMENTAREA_MODE,float64,0.5852,0.0,0.5852,,,3,0.5331,0.0891,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+BASEMENTAREA_MEDI,float64,0.5852,0.0,0.5852,,,3,0.5331,0.0891,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+NONLIVINGAREA_AVG,float64,0.5518,0.0,0.5518,,,15,0.5358,0.0903,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+NONLIVINGAREA_MODE,float64,0.5518,0.0,0.5518,,,15,0.5358,0.0903,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+NONLIVINGAREA_MEDI,float64,0.5518,0.0,0.5518,,,15,0.5358,0.0903,0.0689,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+ELEVATORS_AVG,float64,0.533,0.0,0.533,,,7,0.5369,0.091,0.069,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+ELEVATORS_MODE,float64,0.533,0.0,0.533,,,7,0.5369,0.091,0.069,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+ELEVATORS_MEDI,float64,0.533,0.0,0.533,,,7,0.5369,0.091,0.069,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+WALLSMATERIAL_MODE,object,0.5084,0.0,0.5084,,,,0.5361,0.0913,0.0698,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+APARTMENTS_AVG,float64,0.5075,0.0,0.5075,,,2,0.5369,0.0915,0.0696,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+APARTMENTS_MODE,float64,0.5075,0.0,0.5075,,,2,0.5369,0.0915,0.0696,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+APARTMENTS_MEDI,float64,0.5075,0.0,0.5075,,,2,0.5369,0.0915,0.0696,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+ENTRANCES_AVG,float64,0.5035,0.0,0.5035,,,8,0.5375,0.0918,0.0695,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+ENTRANCES_MODE,float64,0.5035,0.0,0.5035,,,8,0.5375,0.0918,0.0695,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+ENTRANCES_MEDI,float64,0.5035,0.0,0.5035,,,8,0.5375,0.0918,0.0695,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LIVINGAREA_AVG,float64,0.5019,0.0,0.5019,,,13,0.5362,0.0914,0.07,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LIVINGAREA_MODE,float64,0.5019,0.0,0.5019,,,13,0.5362,0.0914,0.07,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+LIVINGAREA_MEDI,float64,0.5019,0.0,0.5019,,,13,0.5362,0.0914,0.07,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+HOUSETYPE_MODE,object,0.5018,0.0,0.5018,,,,0.5365,0.0915,0.0699,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FLOORSMAX_AVG,float64,0.4976,0.0,0.4976,,,9,0.5375,0.0919,0.0697,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FLOORSMAX_MODE,float64,0.4976,0.0,0.4976,,,9,0.5375,0.0919,0.0697,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+FLOORSMAX_MEDI,float64,0.4976,0.0,0.4976,,,9,0.5375,0.0919,0.0697,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+YEARS_BEGINEXPLUATATION_AVG,float64,0.4878,0.0,0.4878,,,4,0.5372,0.092,0.0699,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+YEARS_BEGINEXPLUATATION_MODE,float64,0.4878,0.0,0.4878,,,4,0.5372,0.092,0.0699,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+YEARS_BEGINEXPLUATATION_MEDI,float64,0.4878,0.0,0.4878,,,4,0.5372,0.092,0.0699,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+TOTALAREA_MODE,float64,0.4827,0.0,0.4827,,,,0.5378,0.0923,0.0699,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+EMERGENCYSTATE_MODE,object,0.474,0.0,0.474,,,,0.5379,0.0926,0.07,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+OCCUPATION_TYPE,object,0.3135,0.0,0.3135,,,,0.4671,0.0651,0.0879,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+AMT_REQ_CREDIT_BUREAU_HOUR,float64,0.135,0.0,0.135,,,0,0.5206,0.1034,0.0772,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+AMT_REQ_CREDIT_BUREAU_DAY,float64,0.135,0.0,0.135,,,0,0.5206,0.1034,0.0772,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+AMT_REQ_CREDIT_BUREAU_WEEK,float64,0.135,0.0,0.135,,,0,0.5206,0.1034,0.0772,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+AMT_REQ_CREDIT_BUREAU_MON,float64,0.135,0.0,0.135,,,0,0.5206,0.1034,0.0772,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+AMT_REQ_CREDIT_BUREAU_QRT,float64,0.135,0.0,0.135,,,0,0.5206,0.1034,0.0772,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+AMT_REQ_CREDIT_BUREAU_YEAR,float64,0.135,0.0,0.135,,,0,0.5206,0.1034,0.0772,informative,"Missingness predicts the target. Add an indicator, let tree models handle NaN natively, and include this column in the fairness analysis."
+CNT_FAM_MEMBERS,float64,0.0,0.0,0.0,,NAME_FAMILY_STATUS,,0.5,0.0,0.0807,structural,Missingness IS the information. Add an indicator and do not impute — the predictor column already encodes the value.
+OWN_CAR_AGE,float64,0.6599,0.0,0.6599,,,,0.519,0.085,0.0724,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+EXT_SOURCE_1,float64,0.5638,0.0,0.5638,,,,0.517,0.0852,0.075,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+EXT_SOURCE_3,float64,0.1983,0.0,0.1983,,,,0.5165,0.0931,0.0777,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+NAME_TYPE_SUITE,object,0.0042,0.0,0.0042,,,,0.4992,0.0542,0.0808,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+OBS_30_CNT_SOCIAL_CIRCLE,float64,0.0033,0.0,0.0033,,,1,0.499,0.0353,0.0809,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+DEF_30_CNT_SOCIAL_CIRCLE,float64,0.0033,0.0,0.0033,,,1,0.499,0.0353,0.0809,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+OBS_60_CNT_SOCIAL_CIRCLE,float64,0.0033,0.0,0.0033,,,1,0.499,0.0353,0.0809,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+DEF_60_CNT_SOCIAL_CIRCLE,float64,0.0033,0.0,0.0033,,,1,0.499,0.0353,0.0809,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+EXT_SOURCE_2,float64,0.0021,0.0,0.0021,,,,0.5,0.0788,0.0807,mar_candidate,"No signal detected in the missingness. Add an indicator anyway (cheap), then impute or use native NaN handling."
+AMT_GOODS_PRICE,float64,0.0009,0.0,0.0009,,,,0.5,0.0755,0.0807,mar_trace,Negligible missingness. Safe to impute (median/mode); log the decision.
+AMT_ANNUITY,float64,0.0,0.0,0.0,,,,0.5,0.0,0.0807,mar_trace,Negligible missingness. Safe to impute (median/mode); log the decision.
+DAYS_LAST_PHONE_CHANGE,float64,0.0,0.0,0.0,,,,0.5,0.0,0.0807,mar_trace,Negligible missingness. Safe to impute (median/mode); log the decision.
+SK_ID_CURR,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+NAME_CONTRACT_TYPE,object,0.0,0.0,0.0,,,,,,,complete,No action.
+CODE_GENDER,object,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_OWN_CAR,object,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_OWN_REALTY,object,0.0,0.0,0.0,,,,,,,complete,No action.
+CNT_CHILDREN,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+AMT_INCOME_TOTAL,float64,0.0,0.0,0.0,,,,,,,complete,No action.
+AMT_CREDIT,float64,0.0,0.0,0.0,,,,,,,complete,No action.
+NAME_INCOME_TYPE,object,0.0,0.0,0.0,,,,,,,complete,No action.
+NAME_EDUCATION_TYPE,object,0.0,0.0,0.0,,,,,,,complete,No action.
+NAME_FAMILY_STATUS,object,0.0,0.0,0.0,,,,,,,complete,No action.
+NAME_HOUSING_TYPE,object,0.0,0.0,0.0,,,,,,,complete,No action.
+REGION_POPULATION_RELATIVE,float64,0.0,0.0,0.0,,,,,,,complete,No action.
+DAYS_BIRTH,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+DAYS_REGISTRATION,float64,0.0,0.0,0.0,,,,,,,complete,No action.
+DAYS_ID_PUBLISH,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_MOBIL,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_EMP_PHONE,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_WORK_PHONE,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_CONT_MOBILE,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_PHONE,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_EMAIL,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+REGION_RATING_CLIENT,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+REGION_RATING_CLIENT_W_CITY,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+WEEKDAY_APPR_PROCESS_START,object,0.0,0.0,0.0,,,,,,,complete,No action.
+HOUR_APPR_PROCESS_START,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+REG_REGION_NOT_LIVE_REGION,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+REG_REGION_NOT_WORK_REGION,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+LIVE_REGION_NOT_WORK_REGION,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+REG_CITY_NOT_LIVE_CITY,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+REG_CITY_NOT_WORK_CITY,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+LIVE_CITY_NOT_WORK_CITY,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+ORGANIZATION_TYPE,object,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_2,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_3,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_4,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_5,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_6,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_7,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_8,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_9,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_10,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_11,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_12,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_13,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_14,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_15,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_16,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_17,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_18,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_19,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_20,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+FLAG_DOCUMENT_21,int64,0.0,0.0,0.0,,,,,,,complete,No action.
