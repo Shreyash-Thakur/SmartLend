@@ -18,6 +18,7 @@ from pathlib import Path
 import pandas as pd
 
 from research.data.adapters import coverage_report, validate_spec
+from research.data.bureau_aggregates import attach_bureau_aggregates
 from research.data.canonical import DatasetSpec
 from research.data.profile import profile_frame, to_frame
 from research.data.specs import home_credit, lending_club, synthetic
@@ -52,6 +53,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Reading {path} ...")
     df = pd.read_csv(path, nrows=args.nrows, low_memory=False)
     print(f"  {len(df):,} rows x {len(df.columns)} columns\n")
+
+    if args.dataset == "home_credit":
+        bureau_path = path.parent / "bureau.csv"
+        if bureau_path.exists():
+            print(f"Merging bureau aggregates from {bureau_path} ...")
+            bureau_df = pd.read_csv(bureau_path, low_memory=False)
+            df = attach_bureau_aggregates(df, bureau_df)
+            print(f"  merged; now {len(df.columns)} columns\n")
+        else:
+            print(f"  ! {bureau_path} not found — delinquencies/active_loans will be NaN\n")
 
     print("=== SPEC VALIDATION ===")
     problems = validate_spec(spec, df)

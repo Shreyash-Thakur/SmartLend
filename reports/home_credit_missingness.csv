@@ -120,3 +120,5 @@ FLAG_DOCUMENT_18,int64,0.0,0.0,0.0,,,,,,,complete,No action.
 FLAG_DOCUMENT_19,int64,0.0,0.0,0.0,,,,,,,complete,No action.
 FLAG_DOCUMENT_20,int64,0.0,0.0,0.0,,,,,,,complete,No action.
 FLAG_DOCUMENT_21,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+BUREAU_ACTIVE_LOAN_COUNT,int64,0.0,0.0,0.0,,,,,,,complete,No action.
+BUREAU_DELINQUENCY_COUNT,int64,0.0,0.0,0.0,,,,,,,complete,No action.
