@@ -33,6 +33,11 @@ TARGET_COL = "default_risk"
 # Dataset path (used by training_data_service)
 DATASET_PATH = Path(__file__).resolve().parents[2] / "synthetic_indian_loan_dataset.csv"
 
+# NOTE (2026-08-30): train_pipeline's data source (synthetic_indian_loan_dataset.csv)
+# has been deleted — see docs/superpowers/specs/2026-08-29-home-credit-swap-design.md
+# section 3.4. It will not run until the deferred training work (same spec,
+# section 2a) rebuilds a Home Credit-based training pipeline. Left in place,
+# not fixed, so this history isn't silently lost.
 def train_pipeline(df: pd.DataFrame) -> None:
     """Train the unified pipeline using cross-validation over the top 5 model architectures.
     Performs score targeting, calibration, and joblib caching safely.

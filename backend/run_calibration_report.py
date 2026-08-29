@@ -21,6 +21,11 @@ Validation assertions (all 7 printed; exit 0 even on soft failures):
     6. non_deferred_accuracy >= 0.60
     7. non_deferred_f1 >= 0.45
 """
+# NOTE (2026-08-30): this script's data source (synthetic_indian_loan_dataset.csv)
+# has been deleted — see docs/superpowers/specs/2026-08-29-home-credit-swap-design.md
+# section 3.4. It will not run until the deferred training work (same spec,
+# section 2a) rebuilds a Home Credit-based training pipeline. Left in place,
+# not fixed, so this history isn't silently lost.
 from __future__ import annotations
 
 import sys
