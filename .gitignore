@@ -21,3 +21,18 @@ backend/artifacts/*.csv
 data/raw/**/*.csv
 data/raw/**/*.zip
 !data/raw/**/*columns_description*.csv
+
+# Agent worktrees / session cache (hundreds of MB)
+.claude/
+
+# Model weights - fetched, not committed. See models/README.md
+models/**/*.ckpt
+models/**/*.safetensors
+models/**/*.bin
+
+# CatBoost training logs (regenerated on every run)
+catboost_info/
+
+# SQLite runtime sidecar files
+data/*.db-shm
+data/*.db-wal
