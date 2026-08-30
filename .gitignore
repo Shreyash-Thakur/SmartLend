@@ -36,3 +36,7 @@ catboost_info/
 # SQLite runtime sidecar files
 data/*.db-shm
 data/*.db-wal
+
+# Scratch intermediates and retired artifacts
+reports/_*.npy
+backend/artifacts/*.bak

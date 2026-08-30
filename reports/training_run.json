@@ -1,0 +1,30 @@
+{
+  "dataset_rows": 307511,
+  "train_rows": 246008,
+  "holdout_rows": 61503,
+  "default_rate": 0.0807,
+  "seed": 42,
+  "timings": {
+    "Logistic Regression": 5.2,
+    "LightGBM": 5.0,
+    "XGBoost": 8.9,
+    "CatBoost": 13.6,
+    "Random Forest": 16.2
+  },
+  "tabpfn": {
+    "train_rows": 5000,
+    "batch": 500,
+    "scored_rows": 61503,
+    "full_holdout": true,
+    "seconds": 4599.6
+  },
+  "scorers": [
+    "XGBoost",
+    "LightGBM",
+    "CatBoost",
+    "TabPFN-2.5",
+    "Logistic Regression",
+    "Random Forest",
+    "CBES"
+  ]
+}
