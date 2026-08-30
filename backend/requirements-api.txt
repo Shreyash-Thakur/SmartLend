@@ -1,11 +1,37 @@
+# Backend API dependencies.
+# This file must stay complete: `pip install -r requirements-api.txt` has to
+# produce an environment where `from backend.app.main import app` succeeds.
+# backend/app/ imports scikit-learn, joblib, numpy, matplotlib, seaborn, shap,
+# lightgbm, xgboost and catboost at module import time, so they belong here too.
+# Versions are kept in sync with requirements.txt (the full training environment).
+
+# --- Web / API ---
 fastapi==0.115.12
 uvicorn==0.34.0
-pandas==2.2.3
-SQLAlchemy==2.0.40
 pydantic==2.13.3
+python-multipart
 python-dotenv==1.0.1
+
+# --- Data / persistence ---
+pandas==2.2.3
+numpy==2.2.6
+scipy==1.15.2
+SQLAlchemy==2.0.40
+
+# --- ML runtime (imported by backend/app/services) ---
+scikit-learn==1.6.1
+joblib==1.5.2
+lightgbm==4.6.0
+xgboost==3.0.0
+catboost==1.2.8
+shap==0.49.1
+
+# --- Plotting (imported by backend/app/services/analysis.py) ---
+matplotlib==3.10.0
+seaborn==0.13.2
+
+# --- Document parsing ---
 pytesseract
 pdf2image
 python-docx
 pillow
-python-multipart
