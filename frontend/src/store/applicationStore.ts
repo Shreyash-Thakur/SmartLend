@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import type { LoanApplication, LoanApplicationFormData } from '@/types/application'
+import type {
+  LoanApplication,
+  LoanApplicationFormData,
+  ShortLoanApplicationFormData,
+} from '@/types/application'
 import {
   bulkDecision,
   createApplication,
@@ -17,7 +21,9 @@ interface ApplicationStore {
   error: string | null
   loadApplications: (scope?: 'all' | 'customer' | 'org', applicantId?: string) => Promise<void>
   loadApplication: (applicationId: string) => Promise<void>
-  addApplication: (payload: LoanApplicationFormData) => Promise<LoanApplication>
+  // Accepts either vocabulary: the redesigned short form, or the legacy
+  // full form still used by document-parsed and seeded submissions.
+  addApplication: (payload: LoanApplicationFormData | ShortLoanApplicationFormData) => Promise<LoanApplication>
   uploadDocument: (applicationId: string, file: File) => Promise<void>
   deleteDocument: (applicationId: string, documentId: string) => Promise<void>
   overrideDecision: (applicationId: string, status: 'approved' | 'rejected' | 'deferred', notes: string) => Promise<void>

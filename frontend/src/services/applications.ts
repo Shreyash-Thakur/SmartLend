@@ -6,7 +6,12 @@ import type {
   StatsResponse,
   TrendDataPoint,
 } from '@/types/api'
-import type { LoanApplication, LoanApplicationFormData } from '@/types/application'
+import type {
+  CustomerProfile,
+  LoanApplication,
+  LoanApplicationFormData,
+  ShortLoanApplicationFormData,
+} from '@/types/application'
 import { apiClient } from '@/services/api.client'
 
 export interface RegionMetric {
@@ -226,7 +231,27 @@ export async function getTrendData(): Promise<TrendDataPoint[]> {
   }
 }
 
-export async function createApplication(formData: LoanApplicationFormData): Promise<LoanApplication> {
+/** Fetch the demographic + bureau block the bank already holds for a customer.
+ *  Returns null for an unknown id (HTTP 404) so the caller can say so plainly
+ *  instead of rendering a half-empty panel. */
+export async function getCustomerProfile(customerId: string): Promise<CustomerProfile | null> {
+  try {
+    const response = await apiClient.get<CustomerProfile>(`/customers/${encodeURIComponent(customerId)}/profile`)
+    return response.data
+  } catch (error) {
+    if (
+      typeof error === 'object' && error !== null && 'response' in error
+      && (error as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return null
+    }
+    throw extractApiError(error)
+  }
+}
+
+export async function createApplication(
+  formData: LoanApplicationFormData | ShortLoanApplicationFormData,
+): Promise<LoanApplication> {
   try {
     const response = await apiClient.post<LoanApplication>('/applications', formData)
     return normalizeApplication(response.data)

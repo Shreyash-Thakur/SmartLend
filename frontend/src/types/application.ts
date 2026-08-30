@@ -168,3 +168,79 @@ export interface ValidationResult {
   isValid: boolean
   errors: Record<string, string>
 }
+
+// ---------------------------------------------------------------------------
+// Redesigned short application form (docs/FORM-REDESIGN.md)
+// ---------------------------------------------------------------------------
+// The applicant is an existing bank customer, so the form asks only for what
+// the bank cannot answer itself. Everything else — age, gender, region,
+// income, employment, and the whole bureau block including the credit score —
+// is resolved server-side from `customer_id`.
+
+export type LoanPurposeShort =
+  | 'home_improvement'
+  | 'education'
+  | 'medical'
+  | 'debt_consolidation'
+  | 'business'
+  | 'vehicle'
+  | 'wedding'
+  | 'other'
+
+export type RepaymentSource = 'salary' | 'business_income' | 'rental' | 'other'
+
+export type CollateralType = 'none' | 'property' | 'gold' | 'fixed_deposit' | 'vehicle'
+
+export type GuarantorRelationship = 'spouse' | 'parent' | 'sibling' | 'employer' | 'other'
+
+/** The read-only "we already have this" block returned by
+ *  GET /api/customers/{customer_id}/profile. */
+export interface CustomerProfile {
+  customer_id: string
+  found: boolean
+  age: number | null
+  gender: string | null
+  dependents: number | null
+  marital_status: string | null
+  region: string | null
+  region_rating: number | null
+  employment_type: string | null
+  employment_tenure_years: number | null
+  annual_income: number | null
+  monthly_income: number | null
+  existing_emis: number | null
+  dti: number | null
+  credit_score: number | null
+  credit_score_display: number | null
+  credit_score_basis: string | null
+  delinquencies: number | null
+  active_loans: number | null
+  closed_loans: number | null
+  total_loans: number | null
+  credit_utilisation: number | null
+}
+
+export interface ShortLoanApplicationFormData {
+  applicantId?: string
+  customer_id: string
+
+  // Section A · Loan request
+  loan_amount: number
+  loan_purpose: LoanPurposeShort
+  loan_tenure_months: number
+  repayment_source: RepaymentSource
+  preferred_emi_date: number
+  end_use_declaration: boolean
+
+  // Section B · What the bank cannot see
+  obligations_other_banks: number
+  employment_changed_recently: boolean
+  additional_income: number
+  collateral_type: CollateralType
+  collateral_value: number
+  is_related_party: boolean
+
+  // Section C · Guarantor (conditional; `guarantor_required` is server-derived)
+  guarantor_relationship?: GuarantorRelationship
+  guarantor_customer_id?: string
+}
