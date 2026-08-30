@@ -1,0 +1,37 @@
+{
+  "dataset": "Home Credit merged, 307511 rows",
+  "test_size": 0.2,
+  "seed": 42,
+  "results": {
+    "LogisticRegression": {
+      "roc_auc": 0.7405,
+      "pr_auc": 0.2226,
+      "seconds": 5.0
+    },
+    "LightGBM": {
+      "roc_auc": 0.7667,
+      "pr_auc": 0.2632,
+      "seconds": 6.9
+    },
+    "XGBoost": {
+      "roc_auc": 0.767,
+      "pr_auc": 0.2624,
+      "seconds": 11.7
+    },
+    "CatBoost": {
+      "roc_auc": 0.7666,
+      "pr_auc": 0.2638,
+      "seconds": 15.1
+    },
+    "RandomForest": {
+      "roc_auc": 0.7388,
+      "pr_auc": 0.2204,
+      "seconds": 17.5
+    },
+    "CBES_standalone": {
+      "roc_auc": 0.5636,
+      "n": 20000,
+      "note": "rule-based, 8 fields only, no training"
+    }
+  }
+}
