@@ -1,0 +1,161 @@
+{
+  "spec": "docs/superpowers/specs/2026-08-30-cbes-research-and-explanation-design.md section 3",
+  "label_semantics": {
+    "y_true==1": "GOOD customer (approve-worthy, did not default)",
+    "best_model_prob": "approval probability, P(good)"
+  },
+  "n_rows": 25000,
+  "conditions": [
+    {
+      "condition": 1,
+      "name": "Deferral rule beats random at isolating hard cases",
+      "status": "FAIL",
+      "reason": "deferred pile is +10.5 sd MORE lopsided than random (93.71% good vs 90.11% good in the auto-decided pile) - the router defers EASIER cases; the model is +12.2 sd MORE accurate on the deferred pile than random selection would give",
+      "metrics": {
+        "auto_decided": {
+          "n": 11906,
+          "good_share": 0.901142281202755,
+          "balance_distance": 0.40114228120275497,
+          "accuracy": 0.8919872333277339,
+          "auc": 0.7731800352438103
+        },
+        "deferred": {
+          "n": 13094,
+          "good_share": 0.9370704139300443,
+          "balance_distance": 0.4370704139300443,
+          "accuracy": 0.9367649305025202,
+          "auc": 0.7470011809528331
+        },
+        "overall_no_deferral_baseline": {
+          "n": 25000,
+          "good_share": 0.91996,
+          "balance_distance": 0.41996,
+          "accuracy": 0.91544,
+          "auc": 0.7683860795807583
+        },
+        "defer_rate": 0.52376,
+        "random_router_baseline": {
+          "trials": 200,
+          "seed": 20260830,
+          "good_share": {
+            "mean": 0.9199644875515502,
+            "std": 0.0016277857504974388,
+            "p05": 0.9171338017412556,
+            "p95": 0.9223384756376967
+          },
+          "balance_distance": {
+            "mean": 0.4199644875515503,
+            "std": 0.0016277857504974388,
+            "p05": 0.4171338017412556,
+            "p95": 0.42233847563769666
+          },
+          "accuracy": {
+            "mean": 0.9154987016954331,
+            "std": 0.0017461427958379973,
+            "p05": 0.9127004734993127,
+            "p95": 0.9179815182526347
+          },
+          "auc": {
+            "mean": 0.7685757261537851,
+            "std": 0.005012347000385312,
+            "p05": 0.7605274622788906,
+            "p95": 0.776636398054048
+          }
+        },
+        "balance_distance_z": 10.508708761743717,
+        "accuracy_z": 12.178974627834554,
+        "z_threshold": -2.0,
+        "deferred_minus_auto_good_share": 0.03592813272728934,
+        "deferred_minus_auto_accuracy": 0.0447776971747863,
+        "harder_mix_than_random": false,
+        "harder_for_model_than_random": false
+      },
+      "notes": [
+        "y_true == 1 means GOOD (approve-worthy, did not default).",
+        "Accuracy is measured against the no-deferral baseline: every case forced to approve/reject at the engine's own approval_threshold (CoDoC pattern).",
+        "balance_distance = |good_share - 0.5|; lower means a harder, more boundary-adjacent pile.",
+        "Random-router null: 200 uniform samples of the same deferral volume.",
+        "Caveat: balance_distance is a folded statistic, so its z-score is only interpretable when the population good-share is away from 50%. Here it is ~92% good, so the folding is immaterial."
+      ]
+    },
+    {
+      "condition": 2,
+      "name": "Observed defer/override rate within the AUC-implied natural-rate bound",
+      "status": "FAIL",
+      "reason": "observed defer rate 52.38% is 3.3x the upper bound 15.85% implied by AUC 0.768 - the router is referring far more cases than the model actually gets wrong, so most referrals are cases the model already handles",
+      "metrics": {
+        "observed_defer_rate": 0.52376,
+        "n_deferred": 13094,
+        "n_total": 25000,
+        "model_auc": 0.7683860795807583,
+        "empirical_error_rate_no_deferral": 0.08456,
+        "bound": {
+          "auc": 0.7683860795807583,
+          "good_rate": 0.91996,
+          "binormal_separation_delta": 1.0373852313720393,
+          "bayes_error_rate": 0.07925233649690043,
+          "lower_bound": 0.07925233649690043,
+          "upper_bound": 0.15850467299380086,
+          "assumptions": [
+            "binormal equal-variance scores; delta = sqrt(2) * Phi^-1(AUC)",
+            "natural ambiguous-case rate == Bayes error rate at the observed prior",
+            "upper bound = 2 x Bayes error (allows 50% referral precision)",
+            "lower bound = Bayes error (referrals must at least cover the errors)"
+          ]
+        }
+      },
+      "notes": [
+        "Approximation of Tasche, 'Bounds for rating override rates' (arXiv:1203.2287); not his exact construction.",
+        "Assumptions are listed in metrics.bound.assumptions and in the docstring of auc_implied_natural_rate_bound().",
+        "empirical_error_rate_no_deferral is reported so the binormal assumption can be sanity-checked against the data."
+      ]
+    },
+    {
+      "condition": 3,
+      "name": "Exploration arm has enough un-selected labels",
+      "status": "FAIL",
+      "reason": "no exploration arm data collected yet",
+      "metrics": {
+        "exploration_labels": 0,
+        "required_labels": 1000
+      },
+      "notes": [
+        "What is needed: the deferred_review capture table live in production with exploration_flag set on a random 2-5% of would-be-auto-decided applications;",
+        "at least 1000 of those exploration rows carrying a non-censored realized_outcome;",
+        "spanning enough time for outcomes to season, and recorded against a single engine_version / threshold_artifact_hash so a fixed router's labels can be separated from a broken router's."
+      ]
+    },
+    {
+      "condition": 4,
+      "name": "Retraining design models selection mechanism and reviewer bias",
+      "status": "FAIL",
+      "reason": "no retraining design document exists - nothing models the selection mechanism or reviewer bias, and the spec forbids writing one that treats human decisions as ground truth",
+      "metrics": {
+        "searched_paths": [
+          "docs\\retraining-design.md",
+          "docs\\superpowers\\specs\\retraining-design.md",
+          "research\\relearning\\retraining_design.md"
+        ],
+        "found_paths": [],
+        "required_topics": [
+          "selection mechanism / missingness model (RMT-Net)",
+          "reviewer bias and consistency model (Madras et al.)",
+          "explicit rejection of human_decision-as-ground-truth"
+        ]
+      },
+      "notes": [
+        "Not computable from prediction_outputs.csv: this is a design artifact, not a statistic. Reported FAIL rather than UNKNOWN because absence of the document is itself conclusive.",
+        "To satisfy it, a written design must cover: selection mechanism / missingness model (RMT-Net); reviewer bias and consistency model (Madras et al.); explicit rejection of human_decision-as-ground-truth.",
+        "Per spec section 3 this design should not be built until conditions 1-3 hold."
+      ]
+    }
+  ],
+  "failing_conditions": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "all_conditions_pass": false,
+  "verdict": "DO NOT OPEN THE LOOP"
+}
