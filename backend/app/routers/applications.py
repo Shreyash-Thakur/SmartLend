@@ -14,8 +14,9 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from backend.app.config import exploration_rate
 from backend.app.database import get_db
-from backend.app.models import LoanApplication
+from backend.app.models import DeferredReview, LoanApplication
 from backend.app.schemas import (
     ApplicationExplainResponse,
     DashboardMetricsResponse,
@@ -27,7 +28,13 @@ from backend.app.schemas import (
     PublicMetricsResponse,
     StatsResponse,
 )
+from backend.app.services.customer_profile_service import resolve_application_payload
 from backend.app.services.decision_service import apply_manual_decision, build_application_response, build_dashboard_metrics
+from backend.app.services.deferred_review_service import (
+    maybe_route_to_exploration,
+    record_deferral,
+    record_human_decision,
+)
 from backend.app.services.explainability_service import build_explainability_payload
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.model_analysis_service import get_model_analysis_payload
@@ -206,11 +213,196 @@ def _validate_payload(form_data: dict[str, Any]) -> dict[str, Any]:
     if "cibilScore" not in payload and "cibil_score" in payload:
         payload["cibilScore"] = payload["cibil_score"]
 
+    # Short-form submissions carry only a customer_id plus the ~14 questions the
+    # bank cannot answer itself. Merge the on-file demographic + bureau block in
+    # BEFORE validation, so the scoring engine still receives every input it
+    # expects and the legacy camelCase fields are populated for stored rows.
+    # A payload without a customer_id (legacy full-form callers, seeded rows,
+    # parsed documents) passes through untouched.
+    if payload.get("customer_id") or payload.get("customerId"):
+        payload = resolve_application_payload(payload)
+        if not payload.get("profile_resolved"):
+            raise HTTPException(
+                status_code=404,
+                detail=_error_payload(
+                    "Unknown customer",
+                    f"No customer profile found for id {payload.get('customer_id') or payload.get('customerId')!r}. "
+                    "The application cannot be scored without the bank's own demographic and bureau data.",
+                ),
+            )
+
     try:
         validated = LoanApplicationInput.model_validate(payload)
         return validated.model_dump()
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=_error_payload("Validation failed", str(exc))) from exc
+
+
+# ===========================================================================
+# Relearning-loop capture wiring
+# ===========================================================================
+# Three call sites, all of them WRITE-ONLY with respect to model behaviour:
+#   1. `_capture_deferral`      - on DEFER, and on exploration-arm samples
+#   2. `_capture_human_decision`- when an analyst approves/rejects
+#   3. `_should_explore`        - the 3% control arm
+#
+# FAILURE ISOLATION IS THE LOAD-BEARING PROPERTY HERE. Capture is a research
+# instrument bolted onto a lending decision. Every one of these helpers catches
+# BaseException-minus-the-unrecoverables (i.e. `Exception`), rolls back its own
+# transaction, logs a warning, and returns. A capture failure must degrade to a
+# missing row in a research table, never to a customer who did not get their
+# decision. That is why none of them re-raise, and why each is called AFTER the
+# decision itself has been committed.
+#
+# Design rationale, gate conditions, and what a future developer must do before
+# any of this may feed a trainer: docs/RELEARNING-LOOP.md.
+# ===========================================================================
+
+_SEGMENT_KEYS = ("region", "city", "gender", "maritalStatus", "employmentType")
+
+
+def _applicant_segment(input_data: dict[str, Any]) -> dict[str, Any]:
+    """Coarse segment attributes stored alongside a deferral.
+
+    Spec section 2: uncertainty-based deferral is not automatically neutral and
+    can disproportionately affect under-represented groups ("Unequal
+    Uncertainty"), so segment is logged at defer time to make the
+    disparate-deferral check possible later. Coarse only — an age band, not an
+    age — because this table exists to be analysed, not to re-identify anyone.
+    """
+    segment: dict[str, Any] = {
+        key: str(input_data.get(key)) for key in _SEGMENT_KEYS if input_data.get(key) is not None
+    }
+    age = input_data.get("age")
+    if isinstance(age, (int, float)):
+        segment["age_band"] = f"{int(age) // 10 * 10}-{int(age) // 10 * 10 + 9}"
+    return segment
+
+
+def _should_explore() -> bool:
+    """Control arm: does this would-be-AUTO decision get a human look anyway?
+
+    Only ever *adds* a review. `maybe_route_to_exploration` is a pure coin
+    flip with no side effects, and this helper is called exclusively on the
+    non-DEFER branch below, so by construction it cannot turn a DEFER into an
+    auto-decision. A failure here means "no exploration this time", never a
+    changed decision.
+    """
+    try:
+        return maybe_route_to_exploration(rate=exploration_rate())
+    except Exception:  # pragma: no cover - defensive; rate is clamped in config
+        logger.warning("Exploration-arm sampling failed; treating as not sampled", exc_info=True)
+        return False
+
+
+def _capture_deferral(
+    db: Session,
+    prediction: Any,
+    app_item: LoanApplication,
+    *,
+    exploration_flag: bool,
+) -> None:
+    """Write one `deferred_reviews` row for an application routed to a human.
+
+    Called after the LoanApplication row is committed, so the decision is
+    already durable before capture is attempted. Any failure — DB down, schema
+    drift, a validation error in the capture layer — is swallowed with a
+    warning: the application keeps its decision and the research table simply
+    misses a row.
+    """
+    try:
+        record_deferral(
+            session=db,
+            decision_result=prediction,
+            application_id=app_item.id,
+            engine_version=str(getattr(prediction, "engine_version", "unknown")),
+            threshold_artifact_hash=str(getattr(prediction, "threshold_artifact_hash", "unknown")),
+            t_base=float(getattr(prediction, "t_base", 0.50)),
+            applicant_segment=_applicant_segment(app_item.input_data or {}),
+            exploration_flag=exploration_flag,
+        )
+        db.commit()
+        logger.info(
+            "Relearning capture | application_id=%s decision=%s exploration=%s",
+            app_item.id,
+            getattr(prediction, "decision", "?"),
+            exploration_flag,
+        )
+    except Exception:
+        # NEVER re-raise. See the failure-isolation note at the top of this block.
+        try:
+            db.rollback()
+        except Exception:
+            logger.warning("Rollback after failed relearning capture also failed", exc_info=True)
+        logger.warning(
+            "Relearning capture failed for application_id=%s; decision is unaffected",
+            app_item.id,
+            exc_info=True,
+        )
+
+
+_HUMAN_DECISION_MAP = {"approved": "APPROVE", "rejected": "REJECT"}
+
+
+def _capture_human_decision(db: Session, application_id: str, payload: ManualDecisionRequest) -> None:
+    """Attach the analyst's verdict to the open capture row for this application.
+
+    "deferred" is not a terminal reviewer verdict — the case is still under
+    review — so it is skipped rather than recorded as a decision. Likewise an
+    application with no open capture row (auto-decided, not sampled into the
+    exploration arm) is a normal, expected miss and is logged at debug level.
+
+    As with `_capture_deferral`, this runs after the manual decision has been
+    committed and never re-raises.
+    """
+    try:
+        human_decision = _HUMAN_DECISION_MAP.get(str(payload.status).lower())
+        if human_decision is None:
+            return
+
+        review = (
+            db.query(DeferredReview)
+            .filter(
+                DeferredReview.application_id == application_id,
+                DeferredReview.human_decision.is_(None),
+            )
+            .order_by(DeferredReview.created_at.desc())
+            .first()
+        )
+        if review is None:
+            logger.debug(
+                "No open deferred_reviews row for application_id=%s; nothing to capture",
+                application_id,
+            )
+            return
+
+        record_human_decision(
+            session=db,
+            review=review,
+            human_decision=human_decision,
+            reviewer_id=payload.reviewerId or "analyst-unattributed",
+            time_spent_seconds=payload.timeSpentSeconds,
+            human_reason_codes=payload.reasonCodes,
+            human_free_text=payload.notes or None,
+            reviewer_confidence=payload.reviewerConfidence,
+        )
+        db.commit()
+        logger.info(
+            "Relearning capture | reviewer decision recorded | application_id=%s decision=%s",
+            application_id,
+            human_decision,
+        )
+    except Exception:
+        # NEVER re-raise: the analyst's decision is already committed.
+        try:
+            db.rollback()
+        except Exception:
+            logger.warning("Rollback after failed reviewer capture also failed", exc_info=True)
+        logger.warning(
+            "Reviewer capture failed for application_id=%s; the manual decision stands",
+            application_id,
+            exc_info=True,
+        )
 
 
 def _create_application_record(form_data: dict[str, Any], db: Session, documents: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -239,6 +431,22 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
         "engineered_features": prediction.engineered_features,
         "shap_explanation": prediction.shap_explanation,
     }
+
+    # --- relearning loop: decide routing BEFORE persisting -----------------
+    # A DEFER is already a human review. For everything else the exploration
+    # arm gets a 3% coin flip; when it lands, the application is additionally
+    # routed to a human even though the engine reached an AUTO decision. Note
+    # the asymmetry that makes this safe: `_should_explore()` is only consulted
+    # on the non-DEFER branch, so exploration can only ever ADD a review. It
+    # can never convert a DEFER into an auto-decision, and it does not touch
+    # `prediction.decision` — the engine's APPROVE/REJECT is preserved on the
+    # row, which is precisely what makes these labels *un-selected* by the
+    # router (spec section 3, the escape hatch from the selective-labels trap).
+    is_defer = str(getattr(prediction, "decision", "")).upper() == "DEFER"
+    exploration_flag = False if is_defer else _should_explore()
+    routed_to_human_review = is_defer or exploration_flag
+    decision_meta["exploration_flag"] = exploration_flag
+    decision_meta["routed_to_human_review"] = routed_to_human_review
 
     app_item = LoanApplication(
         applicant_id=applicant_id,
@@ -270,6 +478,12 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
         prediction.rejection_threshold,
     )
 
+    # Capture happens only after the decision is durably committed above, and
+    # cannot fail the request — see the failure-isolation block near the top of
+    # this module.
+    if routed_to_human_review:
+        _capture_deferral(db, prediction, app_item, exploration_flag=exploration_flag)
+
     payload = build_application_response(app_item)
     payload["status"] = payload.get("status", "submitted")
     payload["responseStatus"] = "success"
@@ -280,6 +494,8 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
     payload["finalDecision"] = app_item.final_decision
     payload["confidence"] = round(app_item.confidence, 4)
     payload["decisionMeta"] = decision_meta
+    payload["explorationFlag"] = exploration_flag
+    payload["routedToHumanReview"] = routed_to_human_review
     return payload
 
 
@@ -517,6 +733,13 @@ def update_manual_decision(
         db.rollback()
         logger.exception("Manual decision DB update failed")
         raise HTTPException(status_code=400, detail=_error_payload("Database operation failed", str(exc))) from exc
+
+    # Relearning loop: the reviewer's APPROVE/REJECT, reason codes, confidence
+    # and time-spent are attached to the original deferral row here — after the
+    # decision is committed, and isolated from it. `human_decision` is captured
+    # for override-rate monitoring (SR 11-7) and reviewer-consistency modelling
+    # ONLY; no code path reads it as a training label. See docs/RELEARNING-LOOP.md.
+    _capture_human_decision(db, application_id, payload)
 
     updated_payload["responseStatus"] = "success"
     updated_payload["decisionCode"] = item.final_decision

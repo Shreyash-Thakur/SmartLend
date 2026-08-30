@@ -1,3 +1,5 @@
+import functools
+import hashlib
 import os
 import math
 import numpy as np
@@ -21,7 +23,7 @@ from catboost import CatBoostClassifier
 
 # We import the exact conservative risk-aware defaults defined directly in CBES Engine
 from backend.app.services.cbes_engine import DEFAULTS
-from backend.app.services.decision_engine import hybrid_decision
+from backend.app.services.decision_engine import ENGINE_VERSION, hybrid_decision
 
 # Artifact Paths
 ARTIFACTS_DIR = Path(__file__).resolve().parent.parent.parent / "artifacts"
@@ -168,6 +170,29 @@ def train_pipeline(df: pd.DataFrame) -> None:
     joblib.dump(payload, PIPELINE_PATH)
 
 
+@functools.lru_cache(maxsize=8)
+def _threshold_artifact_hash(artifact_name: str, t_base: float, tau_d: float) -> str:
+    """Short fingerprint of the thresholds a decision was made under.
+
+    Written onto every relearning-loop capture row (spec section 3,
+    `threshold_artifact_hash`). It covers the pipeline artifact identity, the
+    two engine thresholds, and the CBES percentile breakpoints file — i.e.
+    everything that can move a decision boundary without the code changing. The
+    100MB pipeline itself is deliberately NOT hashed byte-for-byte: that would
+    put a multi-second read on the request path for a provenance field.
+
+    Never raises. A missing thresholds file degrades to a distinguishable
+    "missing" marker rather than failing a lending decision.
+    """
+    key = f"{artifact_name}|t_base={t_base:.6f}|tau_d={tau_d:.6f}"
+    try:
+        cbes_bytes = (ARTIFACTS_DIR / "cbes_thresholds.json").read_bytes()
+        key += "|cbes=" + hashlib.sha256(cbes_bytes).hexdigest()[:16]
+    except OSError:
+        key += "|cbes=missing"
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+
 class MLPredictor:
     def __init__(self):
         """Loads and caches artifact purely read-only state. Prevents runtime retraining constraint."""
@@ -287,7 +312,23 @@ class MLPredictor:
         decision_result.cbes_weights = {} # Weight is fixed inside cbes natively now
         decision_result.cbes_components = cbes_breakdown
         decision_result.selected_model = used_model_name
-        
+
+        # --- relearning-loop provenance -----------------------------------
+        # `hybrid_decision` returns t_approve/t_reject but not the t_base they
+        # were derived from, and knows nothing about which artifact produced
+        # p_ml. The capture layer needs all three to tell a fixed router's rows
+        # apart from a broken router's, so they are attached here at the one
+        # place that actually holds them. These are inert annotations: nothing
+        # in the decision path reads them back.
+        decision_result.t_base = float(t_base)
+        decision_result.tau_d = float(tau_d)
+        decision_result.engine_version = f"{ENGINE_VERSION}+model={used_model_name}"
+        decision_result.threshold_artifact_hash = _threshold_artifact_hash(
+            (PIPELINE_V2_PATH if PIPELINE_V2_PATH.exists() else PIPELINE_PATH).name,
+            float(t_base),
+            float(tau_d),
+        )
+
         return decision_result
 
 # Global lazy initializer cache

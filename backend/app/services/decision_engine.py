@@ -79,6 +79,13 @@ class DecisionResult:
 # Blend weight: CBES contributes 25%, ML contributes 75%.
 _BLEND_ALPHA = 0.25
 
+# Provenance stamp written onto every relearning-loop capture row. Bump this
+# whenever the gate logic, blend weight, or confidence formula above changes:
+# it is what lets a future analysis separate a fixed router's labels from a
+# broken router's (spec section 3, `engine_version`). Without it, capture rows
+# from two different routers are indistinguishable and all of them are useless.
+ENGINE_VERSION = "hybrid-2stage-5gate/2026-04-27+cbes-v2"
+
 
 def hybrid_decision(
     p_ml: float,
