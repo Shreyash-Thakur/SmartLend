@@ -1,6 +1,6 @@
 # SmartLend — Project Status
 
-**Updated:** 31 August 2026 · **Defense:** November 2026 · **Weeks remaining:** ~10
+**Updated:** 31 August 2026 (overnight run) · **Defense:** November 2026 · **Weeks remaining:** ~10
 
 ---
 
@@ -12,7 +12,7 @@
 
 **3. We found why the hybrid fails — and it is measurable.** The deferral rule defers the cases the model is *most* confident about. Details below; this is the project's actual contribution.
 
-**4. The dashboard runs on real data.** Live, end-to-end, five models compared side by side.
+**4. The dashboard runs on the full holdout.** Live, end-to-end, 61,503 real applicants and 7 scorers including TabPFN-2.5.
 
 ---
 
@@ -22,44 +22,49 @@
 |---|---|---|
 | Real dataset | ✅ Verified | 307,511 rows, 8.07% default rate |
 | CBES ↔ dataset compatibility | ✅ Confirmed | All 8 CBES inputs present |
-| Five models trained | ✅ Done | On real data, holdout-scored |
+| Six models + CBES trained | ✅ Done | Full 61,503-row holdout |
 | Model dashboard | ✅ **Live** | Leaderboard, AUC chart, confusion matrix, drill-down |
 | Root-cause diagnosis | ✅ **Done** | See §"The finding" |
-| TabPFN-2.5 evaluated | ⚠️ Hardware-limited | See §TabPFN |
-| Code pushed to GitHub | ⏳ 16 commits ready | Awaiting push |
+| TabPFN-2.5 | ✅ **Scored full holdout** | 0.7446 AUC from 5,000 training rows |
+| Relearning loop | ✅ **Wired live** | Capture + 3% exploration; retraining gated |
+| Short application form | ✅ Done | 30 fields → 14 |
+| Voice module | ✅ Scaffolded | Needs API keys |
 | Report | ⏳ Not started | Begins September |
 
 ---
 
-## Model results — real data
+## Model results — full 61,503-row holdout
 
-Holdout of 61,503 rows, stratified, seed 42.
+Trained on 246,008 rows, evaluated on the **entire** held-out 61,503. Stratified, seed 42.
 
-| Model | ROC-AUC | Accuracy | PR-AUC |
+| Model | ROC-AUC | PR-AUC | Training rows |
 |---|---|---|---|
-| **XGBoost** | **0.7670** | 0.9199 | 0.2624 |
-| LightGBM | 0.7667 | 0.9202 | 0.2632 |
-| CatBoost | 0.7666 | 0.9202 | 0.2638 |
-| Logistic Regression | 0.7405 | 0.9194 | 0.2226 |
-| Random Forest | 0.7388 | 0.9193 | 0.2204 |
-| **CBES** (rule-based) | **0.5638** | 0.7645 | 0.0997 |
+| **XGBoost** | **0.7670** | 0.2624 | 246,008 |
+| LightGBM | 0.7667 | 0.2632 | 246,008 |
+| CatBoost | 0.7666 | 0.2638 | 246,008 |
+| **TabPFN-2.5** | **0.7446** | 0.2291 | **5,000** |
+| Logistic Regression | 0.7405 | 0.2226 | 246,008 |
+| Random Forest | 0.7388 | 0.2204 | 246,008 |
+| **CBES** (rule-based) | **0.5638** | 0.0997 | — |
 
-**Read accuracy with care.** Only 8.07% of applicants default, so approving everyone scores 92%. Accuracy is not evidence here — **AUC and PR-AUC are.**
+**Read AUC, not accuracy.** At an 8.07% default rate, approving everyone scores 92%.
 
-### A choice worth making deliberately
+### TabPFN-2.5 — the standout result
 
-On a shared holdout with calibration measured:
+A training-free tabular foundation model given **5,000 rows (2% of the data)** outranks Logistic Regression and Random Forest, both trained on all 246,008. It scored the full 61,503-row holdout in 77 minutes of GPU time.
 
-| Model | AUC | ECE (lower = more honest) |
-|---|---|---|
-| XGBoost | **0.7725** ← best ranking | 0.0038 |
-| LightGBM | 0.7689 | **0.0023** ← best calibrated |
-| CatBoost | 0.7704 | 0.0067 |
-| Random Forest | 0.7369 | 0.0203 |
+The 5,000-row limit is hardware, not the model: TabPFN holds its full training context in VRAM per forward pass at cost quadratic in rows, and 8 GB caps it there. Prior Labs recommend A100/H100-class GPUs.
 
-XGBoost ranks applicants best; **LightGBM's probabilities are the most truthful.** Our deferral logic consumes `p_ml` as a *probability*, not a ranking — so the calibration gap arguably matters more than the 0.0036 of AUC. There is a defensible case for deploying LightGBM.
+Three things to state correctly:
+1. The *Nature* paper describes **TabPFN v2**, not v2.5. Cite **arXiv:2511.08667** for v2.5 — a preprint.
+2. Prior Labs publish **no calibration figures** and explicitly report uncalibrated scores.
+3. The licence is **non-commercial and covers outputs** — a research baseline, not deployable.
 
----
+### Hyperparameter tuning found nothing
+
+14-trial randomised search with early stopping on a validation split carved from train only. Best result 0.76802 against a 0.76700 baseline — a **+0.001 gain against ±0.002–0.004 bootstrap noise**, i.e. not significant. All 14 configurations landed within 0.01 of each other.
+
+The model is at its hyperparameter plateau. Remaining headroom (~0.03 to the ~0.80 Kaggle ceiling) is **feature engineering** on the unused Home Credit tables, not tuning.
 
 ## The finding
 
@@ -67,8 +72,9 @@ The hybrid defers 1 in 2 applications to a human and is **worse** on what it kee
 
 | | Synthetic | **Real data** |
 |---|---|---|
-| Deferral rate | 25.5% | **52.38%** |
-| Accuracy on auto-decided cases | 62.7% | **60.61%** |
+| Deferral rate | 25.5% | **51.96%** |
+| Accuracy on auto-decided cases | 62.7% | **89.09%** |
+| Same cases, "approve everyone" | — | **90.11%** ← still beats the hybrid |
 | Plain LogisticRegression, deciding everything | — | **70.5%** |
 
 ### Why — the direct evidence
@@ -105,19 +111,21 @@ The second is a research contribution. The first is an apology.
 
 ---
 
-## TabPFN-2.5 — evaluated, not adopted
+## TabPFN-2.5 — evaluated and scored
 
-Assessed on a teammate's recommendation: a tabular foundation model from Prior Labs whose predecessor was published in *Nature*.
+Assessed on a teammate's recommendation. **It ran, and it did well.**
 
-**Outcome: blocked by hardware.** It exhausted 8 GB of VRAM at every configuration, including a 500-row prediction batch. The constraint is the *training context*, which TabPFN holds in memory per forward pass at cost quadratic in rows. Prior Labs recommend A100/H100-class GPUs. Fitting our data would mean subsampling to ~5% of it — not a comparison worth reporting.
+Trained on 5,000 rows and scored the entire 61,503-row holdout in 77 minutes of GPU time, reaching **0.7446 AUC** — ahead of Logistic Regression (0.7405) and Random Forest (0.7388), both of which trained on all 246,008 rows.
 
-Three things worth knowing, all verified against primary sources:
+**The 5,000-row cap is hardware, not the model.** TabPFN holds its full training context in VRAM on every forward pass at cost quadratic in rows; 8 GB caps it there. Prior Labs recommend A100/H100-class GPUs, where 50,000 rows is the supported ceiling. On better hardware this number would likely rise.
 
-1. **The *Nature* paper describes TabPFN v2, not v2.5.** Different models (10k×500 vs 50k×2000). Citing *Nature* for a v2.5 claim is a factual error. Cite arXiv:2511.08667 for v2.5 — and note it is a preprint.
-2. **Prior Labs make no calibration claim.** Their own report states results are *"computed using uncalibrated, default scores."* There are no published ECE/Brier figures. Any calibration claim must be our own measurement.
-3. **The licence is non-commercial and covers outputs**, not just weights. Fine for academic work; blocks commercial deployment. Belongs in limitations.
+Three corrections to claims commonly repeated about it, all verified against primary sources:
 
-Recorded as a hardware finding, not a judgement on the model.
+1. **The *Nature* paper describes TabPFN v2, not v2.5** (10k×500 vs 50k×2000). Citing *Nature* for a v2.5 capability is a factual error. Cite **arXiv:2511.08667** — and note it is a preprint, not peer-reviewed.
+2. **Prior Labs make no calibration claim.** Their own report states results are *"computed using uncalibrated, default scores."* No ECE/Brier figures are published. Any calibration claim must be our own measurement.
+3. **The licence is non-commercial and covers outputs**, not just weights. Academic use is explicitly permitted; commercial deployment is not. Belongs in the limitations section.
+
+Also note `pip install tabpfn` installs **TabPFN-3** by default — v2.5 must be pinned explicitly or you benchmark a different model than you report.
 
 ---
 
@@ -143,13 +151,16 @@ Recorded as a hardware finding, not a judgement on the model.
 
 | # | Task | Owner |
 |---|---|---|
-| 1 | `git push origin main` — 16 commits ready | Shreyash |
-| 2 | Fix the deferral signal (rank-normalise before differencing) | — |
-| 3 | Merge `previous_application.csv` for approve/reject data | *needs owner* |
-| 4 | Shorten the application form (see `FORM-REDESIGN.md`) | — |
+| 1 | **Retrain the serving artifact** — live scoring still uses the April synthetic model (25 old feature names) | — |
+| 2 | Fix the deferral signal — rank-normalise both scores before differencing, then re-tune `TAU_D` | — |
+| 3 | Merge `previous_application.csv` for observed approve/reject decisions | *needs owner* |
+| 4 | Reissue the ElevenLabs key — the current one lacks `text_to_speech` permission (401) | — |
 | 5 | WOE scorecard baseline — expected at review | — |
+| 6 | Feature engineering on unused Home Credit tables — the only remaining path to ~0.80 | — |
 
-**Task 3 remains the highest-value open item.** `previous_application.csv` holds real Approved/Refused decisions, which would let us *observe* the lending policy instead of modelling it.
+**Task 1 is the demo risk.** The Model Analysis dashboard is real data end to end, but submitting a *new* application scores it through the April synthetic artifact.
+
+**Task 3 remains the highest research value.** `previous_application.csv` carries real Approved/Refused decisions, which would let us *observe* the lending policy instead of modelling it.
 
 ---
 
