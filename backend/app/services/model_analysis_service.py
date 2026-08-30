@@ -3,17 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import csv
-import json
 import logging
 import math
 
+from backend.app.services.decision_engine import _BLEND_ALPHA
 from backend.app.services.ml_service import dynamic_hybrid_decision
 
 
 ARTIFACTS_DIR = Path(__file__).resolve().parents[2] / "artifacts"
 MODEL_METRICS_PATH = ARTIFACTS_DIR / "model_metrics.csv"
 PREDICTION_OUTPUTS_PATH = ARTIFACTS_DIR / "prediction_outputs.csv"
-PIPELINE_SUMMARY_PATH = ARTIFACTS_DIR / "pipeline_summary.json"
 
 logger = logging.getLogger(__name__)
 
@@ -155,18 +154,19 @@ def _load_model_metrics() -> list[dict[str, Any]]:
     return items
 
 
-def _load_pipeline_summary() -> dict[str, Any]:
-    if not PIPELINE_SUMMARY_PATH.exists():
-        return {}
+def _stored_float(value: Any) -> float | None:
+    """Parse a CSV cell that is expected to hold a finite number.
 
+    Returns None when the column is absent, blank, or unparseable, so callers
+    can tell "the artifact recorded this" from "we have to derive it".
+    """
+    if value is None or str(value).strip() == "":
+        return None
     try:
-        with PIPELINE_SUMMARY_PATH.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-            return payload if isinstance(payload, dict) else {}
-    except (OSError, ValueError):
-        # ValueError covers JSONDecodeError and UnicodeDecodeError.
-        logger.warning("Could not read %s; ignoring pipeline summary", PIPELINE_SUMMARY_PATH, exc_info=True)
-        return {}
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if math.isfinite(result) else None
 
 
 def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
@@ -181,28 +181,59 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
     ]
 
     rows: list[dict[str, Any]] = []
+    warned_recompute = False
     for row in raw_rows:
         y_true = _to_int(row.get("y_true"))
         expected = "APPROVE" if y_true == 1 else "REJECT"
         best_model_prob = _to_float(row.get("best_model_prob"))
         cbes_prob = _to_float(row.get("cbes_prob"))
-        try:
-            hybrid_decision, hybrid_confidence, approval_threshold, rejection_threshold = dynamic_hybrid_decision(
-                best_model_prob,
-                cbes_prob,
-            )
-        except Exception:
-            # Never let a single unscorable row take down the whole endpoint.
-            logger.warning("dynamic_hybrid_decision failed for a prediction row", exc_info=True)
-            hybrid_decision, hybrid_confidence, approval_threshold, rejection_threshold = "DEFER", 0.0, 0.5, 0.5
 
+        # Prefer what the evaluation artifact actually recorded. Recomputing
+        # instead would re-derive the thresholds from tau_d/t_base baked into
+        # pipeline(_v2).joblib, which is a training-time artifact that is NOT
+        # regenerated alongside prediction_outputs.csv - the same failure mode
+        # that let the stale synthetic pipeline_summary.json numbers reach the
+        # dashboard. Recompute only when the artifact is silent, and say so.
         stored_decision = str(row.get("final_decision") or "").strip().upper()
-        if stored_decision in {"APPROVE", "REJECT", "DEFER"}:
-            hybrid_decision = stored_decision
+        if stored_decision not in {"APPROVE", "REJECT", "DEFER"}:
+            stored_decision = ""
+        stored_confidence = _stored_float(row.get("confidence"))
+        stored_approval = _stored_float(row.get("approval_threshold"))
+        stored_rejection = _stored_float(row.get("rejection_threshold"))
 
-        hybrid_confidence = _to_float(row.get("confidence"), hybrid_confidence)
-        approval_threshold = _to_float(row.get("approval_threshold"), approval_threshold)
-        rejection_threshold = _to_float(row.get("rejection_threshold"), rejection_threshold)
+        if stored_decision and None not in (stored_confidence, stored_approval, stored_rejection):
+            hybrid_decision = stored_decision
+            hybrid_confidence = stored_confidence
+            approval_threshold = stored_approval
+            rejection_threshold = stored_rejection
+        else:
+            if not warned_recompute:
+                logger.warning(
+                    "%s is missing recorded decision/confidence/threshold values; "
+                    "falling back to thresholds from the pipeline joblib, which may "
+                    "predate the current evaluation artifacts",
+                    PREDICTION_OUTPUTS_PATH,
+                )
+                warned_recompute = True
+            try:
+                hybrid_decision, hybrid_confidence, approval_threshold, rejection_threshold = dynamic_hybrid_decision(
+                    best_model_prob,
+                    cbes_prob,
+                )
+            except Exception:
+                # Never let a single unscorable row take down the whole endpoint.
+                logger.warning("dynamic_hybrid_decision failed for a prediction row", exc_info=True)
+                hybrid_decision, hybrid_confidence, approval_threshold, rejection_threshold = "DEFER", 0.0, 0.5, 0.5
+
+            # Honour any individual values the artifact did record.
+            if stored_decision:
+                hybrid_decision = stored_decision
+            if stored_confidence is not None:
+                hybrid_confidence = stored_confidence
+            if stored_approval is not None:
+                approval_threshold = stored_approval
+            if stored_rejection is not None:
+                rejection_threshold = stored_rejection
 
         model_probabilities = {
             model: _to_float(row.get(f"prob_{model}"))
@@ -273,7 +304,6 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
 def _build_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
     metrics = _load_model_metrics()
     cases, model_names = _load_prediction_outputs()
-    pipeline_summary = _load_pipeline_summary()
     display_metrics = [metric for metric in metrics if not _is_cbes_baseline(metric.get("model", ""))]
 
     if not display_metrics or not cases:
@@ -367,9 +397,13 @@ def _build_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
             }
         )
 
-    # Pull trusted accuracy from pipeline_summary if available (written during training)
-    ps_accuracy = _to_float(pipeline_summary.get("accuracy_non_deferred"))
-    automated_accuracy = round(ps_accuracy * 100, 2) if ps_accuracy else (
+    # Always compute from the current prediction artifact. This previously
+    # preferred pipeline_summary.json, which is written at training time and
+    # is not invalidated when the artifacts are regenerated - so after the
+    # move to real Home Credit data the dashboard kept reporting the old
+    # synthetic figure (60.61%) while every neighbouring card showed live
+    # values. A stale number that looks plausible is worse than no number.
+    automated_accuracy = (
         round((automated_correct / automated_cases) * 100, 2) if automated_cases else 0.0
     )
 
@@ -384,8 +418,13 @@ def _build_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
             "automatedCoverage": round((automated_cases / total_cases) * 100, 2),
             "automatedAccuracy": automated_accuracy,
             "overallHybridAccuracy": overall_hybrid_accuracy,
-            "bestModel": str(pipeline_summary.get("best_model", display_metrics[0]["model"] if display_metrics else "")),
-            "selectedAlpha": round(_to_float(pipeline_summary.get("selected_alpha"), 0.25), 4),
+            "bestModel": str(display_metrics[0]["model"]) if display_metrics else "",
+            # Read from the decision engine that actually blends the signals.
+            # This used to come from pipeline_summary.json (a training-time file
+            # last written in April, holding 0.2) and silently fell back to a
+            # hardcoded 0.25 once that file was retired. Sourcing it from the
+            # engine constant means it cannot drift away from the live blend.
+            "selectedAlpha": round(_BLEND_ALPHA, 4),
         },
         "modelPredictionSummary": model_prediction_summary,
         "confusionByModel": confusion_by_model,

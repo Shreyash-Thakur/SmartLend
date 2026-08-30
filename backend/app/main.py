@@ -9,7 +9,10 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.database import init_db
 from backend.app.routers.applications import router as applications_router
+from backend.app.routers.customers import router as customers_router
 from backend.app.routers.public import router as public_router
+from backend.app.routers.relearning import router as relearning_router
+from backend.app.routers.voice import router as voice_router
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.public_api_service import seed_recent_applications
 
@@ -37,6 +40,9 @@ app.add_middleware(
 
 app.include_router(public_router)
 app.include_router(applications_router, prefix="/api")
+app.include_router(customers_router, prefix="/api")
+app.include_router(relearning_router, prefix="/api")
+app.include_router(voice_router, prefix="/api")
 
 
 @app.on_event("startup")
