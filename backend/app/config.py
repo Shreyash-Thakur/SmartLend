@@ -66,6 +66,37 @@ def require_secret(name: str) -> str:
     return value
 
 
+# ---------------------------------------------------------------------------
+# Relearning loop — exploration arm
+# ---------------------------------------------------------------------------
+# Spec section 3 ("Also capture a control arm"): route a small random 2-5% of
+# would-be-auto-decided applications into human review anyway. 3% is the
+# midpoint default; the band is enforced as a hard clamp so a fat-fingered env
+# var cannot silently push a large slice of production traffic into manual
+# review (or switch the control arm off without anyone noticing).
+EXPLORATION_RATE_ENV = "SMARTLEND_EXPLORATION_RATE"
+DEFAULT_EXPLORATION_RATE = 0.03
+EXPLORATION_RATE_BOUNDS = (0.0, 0.05)
+
+
+def exploration_rate() -> float:
+    """Fraction of would-be-auto decisions routed to a human as the control arm.
+
+    Defaults to 3%. A malformed value falls back to the default rather than
+    raising: the exploration arm is a research instrument, and it must never be
+    the reason a lending decision fails.
+    """
+    raw = get_secret(EXPLORATION_RATE_ENV)
+    if raw is None:
+        return DEFAULT_EXPLORATION_RATE
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_EXPLORATION_RATE
+    low, high = EXPLORATION_RATE_BOUNDS
+    return max(low, min(high, value))
+
+
 ELEVENLABS_API_KEY = "ELEVENLABS_API_KEY"
 
 
@@ -76,3 +107,15 @@ def elevenlabs_api_key() -> str:
 def elevenlabs_configured() -> bool:
     """Check availability without raising — for health checks and feature flags."""
     return get_secret(ELEVENLABS_API_KEY) is not None
+
+
+SARVAM_API_KEY = "SARVAM_API_KEY"
+
+
+def sarvam_api_key() -> str:
+    return require_secret(SARVAM_API_KEY)
+
+
+def sarvam_configured() -> bool:
+    """Check availability without raising — for health checks and feature flags."""
+    return get_secret(SARVAM_API_KEY) is not None
