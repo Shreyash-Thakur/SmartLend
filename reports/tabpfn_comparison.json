@@ -1,0 +1,64 @@
+{
+  "best_vs_best": [
+    {
+      "model": "Logistic Regression",
+      "roc_auc": 0.7483,
+      "pr_auc": 0.2338,
+      "ece": 0.0043,
+      "brier": 0.0683,
+      "mean_pred": 0.08,
+      "train_rows": 246008,
+      "seconds": 5.1
+    },
+    {
+      "model": "LightGBM",
+      "roc_auc": 0.7689,
+      "pr_auc": 0.2823,
+      "ece": 0.0023,
+      "brier": 0.0663,
+      "mean_pred": 0.0798,
+      "train_rows": 246008,
+      "seconds": 6.1
+    },
+    {
+      "model": "XGBoost",
+      "roc_auc": 0.7725,
+      "pr_auc": 0.2828,
+      "ece": 0.0038,
+      "brier": 0.0662,
+      "mean_pred": 0.0794,
+      "train_rows": 246008,
+      "seconds": 10.6
+    },
+    {
+      "model": "CatBoost",
+      "roc_auc": 0.7704,
+      "pr_auc": 0.2821,
+      "ece": 0.0067,
+      "brier": 0.0663,
+      "mean_pred": 0.0806,
+      "train_rows": 246008,
+      "seconds": 14.8
+    },
+    {
+      "model": "Random Forest",
+      "roc_auc": 0.7369,
+      "pr_auc": 0.2224,
+      "ece": 0.0203,
+      "brier": 0.0696,
+      "mean_pred": 0.0809,
+      "train_rows": 246008,
+      "seconds": 19.4
+    }
+  ],
+  "matched_data": [],
+  "meta": {
+    "dataset": "Home Credit merged, 307511 rows",
+    "shared_holdout_rows": 10000,
+    "holdout_default_rate": 0.0807,
+    "gbm_train_rows": 246008,
+    "tabpfn_train_rows": null,
+    "seed": 42,
+    "note": "ECE/Brier on P(default); lower is better. AUC/PR-AUC higher is better."
+  }
+}
