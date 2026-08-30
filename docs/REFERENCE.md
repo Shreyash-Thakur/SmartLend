@@ -1,6 +1,6 @@
 # SmartLend — Reference Sheet
 
-**For:** mid-evaluation, 31 August 2026
+**For:** mid-evaluation, 31 August 2026 · *dashboard live on real data*
 **Purpose:** everything you may be asked to justify, in one place.
 
 ---
@@ -119,9 +119,20 @@ Stage B — disagree:  D = |p_ml − p_cbes|
 
 Abstaining on 25.5% of cases made accuracy **7.8 points worse**. A selective classifier should be *more* accurate on what it keeps.
 
-### Our diagnosis — say this if challenged
+### The diagnosis — now measured, not inferred
 
-From the calibration report:
+**On real data the hybrid defers 52.38% of applications** (up from 25.5% on synthetic) and is 60.61% accurate on what it keeps, against 70.5% for plain logistic regression deciding everything.
+
+**Direct evidence of the inversion.** Group applicants by model confidence, then ask who gets deferred:
+
+| Model confidence | Applicants | Deferred | % deferred |
+|---|---|---|---|
+| 0.4–0.6 — **genuinely uncertain** | 280 | 12 | **4.3%** |
+| 0.8–1.0 — **highly confident** | 22,942 | 12,580 | **54.8%** |
+
+**The rule defers 55% of the cases the model is sure about, and 4% of the cases it is unsure about.** This is visible live on the dashboard's probability-band chart.
+
+**The mechanism.** Deferral triggers on `|p_ml − p_cbes| > 0.43`. But CBES scores **0.5638 AUC** (random = 0.5) and sits systematically **~0.31 below** the ML score population-wide:
 
 | | Mean |
 |---|---|
@@ -129,13 +140,15 @@ From the calibration report:
 | `p_cbes` | 0.3646 |
 | `D` | 0.3105 |
 
-**CBES sits systematically ~0.31 below ML across the whole population.** So `D` is dominated by a *level offset between two differently-scaled scores*, not by genuine case-by-case disagreement. The rule fires wherever that constant offset happens to be widest — which is largely unrelated to which cases are actually hard.
+So `D` is dominated by a **fixed offset between two differently-scaled scores**, not by genuine case-by-case disagreement. It fires where the offset is widest, which tracks model confidence rather than difficulty.
 
-**Proposed fix:** rank-normalise or z-score both signals before differencing, so `D` measures *relative* disagreement rather than absolute scale mismatch. Then re-tune the threshold.
+**This is why three previous fixes failed** — they tuned a threshold on an inverted signal.
 
-This is why the project's framing is *"we measured why it fails"* rather than *"it works."*
+**The fix:** rank-normalise or z-score both signals before differencing, then re-tune `TAU_D`.
 
----
+### Say this if challenged
+
+> "The hybrid underperforms, and we can now show exactly why. It defers 55% of the cases the model is most confident about and only 4% of the genuinely uncertain ones — the deferral signal is inverted. The cause is that CBES is nearly uninformative at 0.5638 AUC and sits on a different scale to the ML score, so their difference measures scale mismatch rather than disagreement. That diagnosis is our contribution; the fix is to normalise both signals before comparing them."
 
 ## 4. Research positioning — what is ours vs cited
 
@@ -206,6 +219,54 @@ Be ready to say: *"We now have the number that explains it. CBES is 0.5636 AUC �
 
 ---
 
+## 5b. Calibration — and why it changes the model choice
+
+Same five models, shared 10,000-row holdout, four metrics:
+
+| Model | ROC-AUC | PR-AUC | ECE ↓ | Brier ↓ |
+|---|---|---|---|---|
+| **XGBoost** | **0.7725** | 0.2828 | 0.0038 | 0.0662 |
+| LightGBM | 0.7689 | 0.2823 | **0.0023** | 0.0663 |
+| CatBoost | 0.7704 | 0.2821 | 0.0067 | 0.0663 |
+| Logistic Regression | 0.7483 | 0.2338 | 0.0043 | 0.0683 |
+| Random Forest | 0.7369 | 0.2224 | 0.0203 | 0.0696 |
+
+**The two rankings disagree.** XGBoost ranks applicants best; LightGBM's probabilities are the most truthful (ECE = Expected Calibration Error, lower is better).
+
+**Why this matters here specifically:** the deferral rule consumes `p_ml` as a *probability*, not as a ranking. A better-calibrated score makes `|p_ml − p_cbes|` mean closer to what we intend. So there is a defensible argument for deploying **LightGBM** despite XGBoost's higher AUC — and that is a more interesting model-selection answer than "pick the top row."
+
+Random Forest being ~9× worse calibrated matches theory for vote-averaging ensembles — a useful check that the metric behaves.
+
+## 5c. TabPFN-2.5 — evaluated, hardware-blocked
+
+Assessed as a candidate. A tabular foundation model from Prior Labs.
+
+**Outcome: could not be fairly scored.** It exhausted 8 GB of VRAM at every configuration tried, including a 500-row prediction batch. The binding constraint is the **training context** — TabPFN holds it in memory for each forward pass at cost quadratic in rows — not the batch size. Prior Labs recommend A100/H100-class hardware. Fitting our data on this GPU would mean subsampling to ~5%, which is not a comparison worth reporting.
+
+Three verified corrections worth carrying:
+
+| Claim often repeated | Reality |
+|---|---|
+| "Published in *Nature*" | The *Nature* paper describes **TabPFN v2** (10k×500), **not v2.5** (50k×2000). Cite **arXiv:2511.08667** for v2.5 — a **preprint**. |
+| "Calibration is baked in" | Prior Labs' own report: results are *"computed using uncalibrated, default scores."* **No published ECE/Brier exists.** |
+| "Fine to use, it's open" | Licence is **non-commercial and covers outputs**, not just weights. Academic use is explicitly allowed; commercial deployment is not. |
+
+Also: `pip install tabpfn` installs **TabPFN-3**, not v2.5. The version must be pinned or you benchmark a different model than you report.
+
+## 5d. Running the dashboard
+
+```bash
+# terminal 1
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+
+# terminal 2
+cd frontend && npm run dev
+```
+
+Open **http://localhost:5173** → Model Analysis. Vite proxies `/api` to port 8000.
+
+The page shows: sortable leaderboard (best value per metric highlighted), AUC bar chart, 2×2 confusion matrix with derived rates, false-positive vs false-negative error profile, decision mix by probability band (**this is where the inversion is visible**), and a paginated 25,000-case drill-down.
+
 ## 6. Quick answers to likely questions
 
 **"Why did you move off your own dataset?"**
@@ -224,6 +285,16 @@ Not conformal prediction, not reject inference. What is ours: measuring how far 
 Home Credit carries `CODE_GENDER`, age and region. Missing data concentrates in thin-file applicants (the 44,020 with no bureau record), so imputation defaults would systematically hit them. We keep missingness explicit and measurable rather than filling it in.
 
 ---
+
+
+**"Which model are you deploying?"**
+XGBoost has the best AUC at 0.7670, but LightGBM is better calibrated (ECE 0.0023 vs 0.0038) and our deferral layer consumes probabilities rather than rankings — so LightGBM is arguably the better production choice. The three boosters are within 0.0004 AUC of each other, so the decision rests on calibration, not accuracy.
+
+**"Did you try a foundation model?"**
+Yes — TabPFN-2.5. It needs A100/H100-class memory for our data volume; our 8 GB GPU fits about 5% of the dataset, which would not be a fair comparison. We also found its licence is non-commercial and restricts outputs, so it could not be deployed even if it won.
+
+**"Why is your deferral rate so high?"**
+52.38% on real data, up from 25.5% on synthetic — and that is the finding, not an embarrassment. The rule defers 55% of the cases the model is most confident about and 4% of the uncertain ones. The signal is inverted, we know the mechanism, and we know the fix.
 
 ## 7. File map
 
