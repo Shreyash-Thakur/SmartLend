@@ -79,10 +79,15 @@ def _compute_metrics_from_predictions() -> dict[str, dict[str, float]]:
     if not rows or not prob_cols:
         return {}
     y_true = [_to_int(r.get("y_true")) for r in rows]
+    # Hoisted out of the loop: this re-reads a CSV, so calling it per model
+    # would re-parse the metrics file once for every column.
+    thresholds = _load_operating_thresholds()
     for col in prob_cols:
         model = col.replace("prob_", "")
         probs = [_to_float(r.get(col)) for r in rows]
-        preds = [1 if p >= 0.5 else 0 for p in probs]
+        # Same reasoning as _load_operating_thresholds: 0.5 is meaningless here.
+        _thr = thresholds.get(model, _DEFAULT_OPERATING_THRESHOLD)
+        preds = [1 if p >= _thr else 0 for p in probs]
         tp = sum(1 for yt, pd in zip(y_true, preds) if pd == 1 and yt == 1)
         fp = sum(1 for yt, pd in zip(y_true, preds) if pd == 1 and yt == 0)
         fn = sum(1 for yt, pd in zip(y_true, preds) if pd == 0 and yt == 1)
@@ -169,10 +174,36 @@ def _stored_float(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
+# Per-model operating thresholds, read from model_metrics.csv.
+# A hardcoded 0.5 is wrong on this dataset: only 8.07% of applicants default,
+# so a calibrated approval probability concentrates near 0.92 and almost
+# nothing falls below 0.5. Scoring at 0.5 approves ~99.5% of applicants and
+# yields a confusion matrix that is almost entirely true/false positives -
+# which is exactly what this dashboard used to display.
+_DEFAULT_OPERATING_THRESHOLD = 0.5
+
+
+def _load_operating_thresholds() -> dict[str, float]:
+    """Map model name -> operating threshold; empty dict when unavailable."""
+    _fields, rows = _read_csv(MODEL_METRICS_PATH)
+    out: dict[str, float] = {}
+    for row in rows:
+        name = str(row.get("model", "")).strip()
+        raw = row.get("operating_threshold")
+        if not name or raw in (None, "", "nan", "NaN"):
+            continue
+        value = _to_float(raw, 0.0)
+        # Guard a malformed artifact from driving every case one way.
+        if 0.0 < value < 1.0:
+            out[name] = value
+    return out
+
+
 def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
     fieldnames, raw_rows = _read_csv(PREDICTION_OUTPUTS_PATH)
     if not raw_rows:
         return [], []
+    thresholds = _load_operating_thresholds()
 
     model_names = [
         name.replace("prob_", "")
@@ -240,7 +271,7 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
             for model in model_names
         }
         model_predictions = {
-            model: "APPROVE" if prob >= 0.5 else "REJECT"
+            model: "APPROVE" if prob >= thresholds.get(model, _DEFAULT_OPERATING_THRESHOLD) else "REJECT"
             for model, prob in model_probabilities.items()
         }
 
