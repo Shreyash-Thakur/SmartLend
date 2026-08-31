@@ -17,6 +17,7 @@ STRUCTURAL DIVERGENCE FIX (2026-04-27):
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -86,6 +87,56 @@ _BLEND_ALPHA = 0.25
 # from two different routers are indistinguishable and all of them are useless.
 ENGINE_VERSION = "hybrid-2stage-5gate/2026-04-27+cbes-v2"
 
+# ---------------------------------------------------------------------------
+# Deferral routing mode (2026-08-31 deferral fix, see docs/DEFERRAL-FIX.md)
+# ---------------------------------------------------------------------------
+# The historical rule defers on raw disagreement D = |p_ml - p_cbes|, which is
+# dominated by a fixed ~0.31 calibration offset between the two scores and was
+# measured (research/deferral/evaluate.py, reports/deferral_fix.json) to defer
+# the EASIEST cases: gate condition 1 z = +24/+28 on the held-out split.
+# The fixed rule defers on ML uncertainty |p_ml - t_approve| < TAU_U, which
+# scored z = -92.5 / -99.7 (negative = harder-than-random, i.e. correct) at a
+# 22.7% deferral rate.
+#
+# DEFAULT IS THE OLD BEHAVIOUR. Nothing changes under the running demo unless
+# the environment explicitly opts in:
+#
+#   SMARTLEND_DEFERRAL_MODE=uncertainty   # switch the router
+#   SMARTLEND_TAU_U=0.2458                # optional half-width override
+#
+# When flipping the flag in production, bump ENGINE_VERSION alongside it so
+# relearning-loop capture rows from the two routers stay separable.
+_DEFERRAL_MODE_ENV = "SMARTLEND_DEFERRAL_MODE"
+_TAU_U_ENV = "SMARTLEND_TAU_U"
+DEFERRAL_MODE_DISAGREEMENT = "disagreement"   # legacy default
+DEFERRAL_MODE_UNCERTAINTY = "uncertainty"     # measured fix
+
+# Uncertainty half-width: the tune-split quantile that defers 22.5% of cases
+# (the mid-point of the 20-25% underwriter-capacity band). Source of truth:
+# reports/deferral_fix.json -> winner_detail.threshold_from_tune_split.
+DEFAULT_TAU_U = 0.2458
+
+
+def _resolve_deferral_mode(explicit: str | None) -> str:
+    """Explicit argument wins; else the env flag; else the legacy default."""
+    mode = (explicit or os.environ.get(_DEFERRAL_MODE_ENV, "")).strip().lower()
+    if mode == DEFERRAL_MODE_UNCERTAINTY:
+        return DEFERRAL_MODE_UNCERTAINTY
+    return DEFERRAL_MODE_DISAGREEMENT
+
+
+def _resolve_tau_u(explicit: float | None) -> float:
+    """Explicit argument wins; else the env override; else the measured default."""
+    if explicit is not None:
+        return _clip(float(explicit), 0.0, 0.5)
+    raw = os.environ.get(_TAU_U_ENV, "").strip()
+    if raw:
+        try:
+            return _clip(float(raw), 0.0, 0.5)
+        except ValueError:
+            pass  # malformed override degrades to the measured default
+    return DEFAULT_TAU_U
+
 
 def hybrid_decision(
     p_ml: float,
@@ -95,6 +146,8 @@ def hybrid_decision(
     shap_explanation: list[dict[str, Any]] | None = None,
     cbes_breakdown: dict[str, float] | None = None,
     all_model_predictions: dict[str, float] | None = None,
+    deferral_mode: str | None = None,
+    tau_u: float | None = None,
 ) -> DecisionResult:
     """Execute the two-stage blend + 5-gate hybrid decision process.
 
@@ -113,12 +166,25 @@ def hybrid_decision(
         Top-3 SHAP features forwarded from ml_service.
     cbes_breakdown : dict, optional
         Per-component CBES scores forwarded from cbes_engine.
+    deferral_mode : str, optional
+        "disagreement" (legacy default) or "uncertainty" (measured fix, see
+        docs/DEFERRAL-FIX.md). When None, the SMARTLEND_DEFERRAL_MODE
+        environment variable decides; unset means legacy behaviour.
+    tau_u : float, optional
+        Half-width of the uncertainty deferral band around t_approve. When
+        None, SMARTLEND_TAU_U or the measured default (0.2458) applies.
+        Ignored in "disagreement" mode.
     """
     # -- type / range safety ------------------------------------------------
     p_ml   = _clip(float(p_ml),   0.0, 1.0)
     p_cbes = _clip(float(p_cbes), 0.0, 1.0)
     tau_d  = _clip(float(tau_d),  0.10, 0.90)
-    t_base = _clip(float(t_base), 0.30, 0.75)
+    # Upper bound widened 0.75 -> 0.98. With an 8% default rate a calibrated
+    # p_ml concentrates near 0.92, so ANY balanced threshold lands above 0.75
+    # and the old clamp silently clipped it back - which is why the system
+    # approved ~99.5% of applicants and caught under 3% of defaults no matter
+    # what threshold selection produced. Youden's J picks 0.925 here.
+    t_base = _clip(float(t_base), 0.30, 0.98)
 
     # ── STAGE A — BLEND ─────────────────────────────────────────────────────
     # p_blend softens structural divergence between ML and CBES signals.
@@ -151,8 +217,28 @@ def hybrid_decision(
     # Threshold comparisons use p_blend so CBES nudges the effective decision
     # signal (not just the thresholds).  Reason strings kept for API compat.
 
-    # Gate 2a: Disagreement gate
-    if D > tau_d:
+    mode = _resolve_deferral_mode(deferral_mode)
+
+    if mode == DEFERRAL_MODE_UNCERTAINTY:
+        # MEASURED FIX (docs/DEFERRAL-FIX.md): defer on model uncertainty —
+        # distance of p_ml from the actual decision boundary. This is exactly
+        # the rule validated in research/deferral/evaluate.py (gate condition 1
+        # z = -92.5/-99.7 on the held-out split); the auto decision below is
+        # the same hard p_ml >= t_approve rule the evaluation scored, so the
+        # measured properties carry over to production unchanged.
+        tau_u_eff = _resolve_tau_u(tau_u)
+        if abs(p_ml - t_approve) < tau_u_eff:
+            decision = "DEFER"
+            reason   = "ml_uncertainty"
+        elif p_ml >= t_approve:
+            decision = "APPROVE"
+            reason   = "ml_approve"
+        else:
+            decision = "REJECT"
+            reason   = "ml_reject"
+
+    # Gate 2a: Disagreement gate (legacy default path)
+    elif D > tau_d:
         decision = "DEFER"
         reason   = "disagreement"
 

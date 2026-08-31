@@ -43,13 +43,14 @@ import numpy as np
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import brier_score_loss, average_precision_score, f1_score, roc_auc_score
+from sklearn.metrics import brier_score_loss, average_precision_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from backend.app.services import customer_profile_service as cps
 from backend.app.services.cbes_engine import DEFAULTS
+from backend.app.services.threshold_selection import confusion_metrics, select_t_base
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS_DIR = PROJECT_ROOT / "backend" / "artifacts"
@@ -147,7 +148,7 @@ def build_training_frame(csv_path: Path) -> tuple[pd.DataFrame, np.ndarray]:
     return X, y
 
 
-def main() -> None:
+def main(t_base_method: str = "cost") -> None:
     csv_path = cps._resolve_source_path()
     if csv_path is None:
         raise SystemExit("Home Credit extract not found; set SMARTLEND_CUSTOMER_DATA.")
@@ -186,19 +187,37 @@ def main() -> None:
     }
     print("[metrics]", json.dumps(metrics, indent=2))
 
-    # F1-optimal T_base on the held-out split. p_ml = P(approval) = 1 - P(default),
-    # and the engine predicts default when p_ml < t — same sweep as train_pipeline.
+    # ── T_base selection ────────────────────────────────────────────────────
+    # p_ml = P(approval) = 1 - P(default); the engine rejects when p_ml < t.
+    #
+    # WHY NOT THE OLD F1 SWEEP: until 2026-08 this script took the F1-argmax
+    # over a hardcoded np.arange(0.30, 0.70, 0.01). With a calibrated model on
+    # an 8% base rate, p_ml concentrates near 0.92, so <2% of applicants score
+    # below 0.70; F1 is near zero AND monotone increasing over the whole swept
+    # window, so the argmax was pinned at the top edge of the range (this
+    # script produced t_base = 0.65 with F1 = 0.0024 — an artifact of the
+    # sweep bounds, not an optimum). Do not reinstate it as the default; it is
+    # reachable via t_base_method="f1_legacy" for comparison only. See
+    # backend/app/services/threshold_selection.py and
+    # research/thresholds/t_base.py (reports/t_base_selection.json) for the
+    # method comparison that motivated the switch.
+    #
+    # Split discipline: the threshold argmax is itself a fitted parameter, so
+    # it is SELECTED on one half of the held-out test set and its metrics are
+    # REPORTED on the other half.
     p_ml_test = 1.0 - p_default_test
-    thresholds = np.arange(0.30, 0.70, 0.01)
-    f1_scores = [f1_score(y_test, (p_ml_test < t).astype(int), zero_division=0) for t in thresholds]
-    t_base = float(round(thresholds[int(np.argmax(f1_scores))], 4))
-    best_f1 = float(max(f1_scores))
-    # The sweep is inherited from train_pipeline() unchanged, but be honest
-    # about it: with a calibrated 8%-base-rate model, p_ml concentrates near
-    # 0.92, so almost nothing falls below any threshold in [0.30, 0.70] and the
-    # F1 at the argmax is near zero. The winning t_base is therefore the top of
-    # a very flat curve, not a sharply identified optimum. Reported, not tuned.
-    print(f"[t_base] F1-optimal = {t_base:.4f} (F1 = {best_f1:.4f})")
+    p_sel, p_rep, y_sel, y_rep = train_test_split(
+        p_ml_test, y_test, test_size=0.5, random_state=42, stratify=y_test
+    )
+    sel = select_t_base(y_default=y_sel, p_ml=p_sel, method=t_base_method)
+    t_base = float(round(sel["t_base"], 4))
+    t_base_report = confusion_metrics(t_base, p_rep, y_rep)
+    print(f"[t_base] method={t_base_method} -> {t_base:.4f} "
+          f"(criterion={sel['criterion_value']:.4f}); report-half metrics: "
+          f"{json.dumps(t_base_report)}")
+    if sel["engine_will_clip"]:
+        print(f"[t_base] WARNING: {t_base} is outside decision_engine's clip "
+              f"range [0.30, 0.75] and will be clamped at decision time.")
 
     # A plain fitted pipeline is still needed: ml_service unpacks `scaler` and
     # `model` off it for SHAP.
@@ -242,12 +261,16 @@ def main() -> None:
                 "dropped": DROPPED,
                 "held_out_metrics": metrics,
                 "t_base": t_base,
-                "t_base_f1": best_f1,
+                "t_base_method": t_base_method,
+                "t_base_selection": sel,
+                "t_base_report_half_metrics": t_base_report,
                 "t_base_note": (
-                    "Same F1 sweep over [0.30, 0.70) that train_pipeline() used. With a "
-                    "calibrated model on an 8% base rate, p_ml = 1 - P(default) concentrates "
-                    "near 0.92, so the sweep flags almost nothing and the F1 curve is flat and "
-                    "near zero. t_base is the argmax of that flat curve, not a sharp optimum."
+                    "Selected by threshold_selection.select_t_base on half of the held-out "
+                    "test set; metrics reported on the other half. The old fixed-range "
+                    "[0.30, 0.70) F1 sweep was degenerate here (F1 ~ 0.002, argmax pinned at "
+                    "the range edge because <2% of p_ml mass lies below 0.70) and was "
+                    "replaced; it remains reachable via t_base_method='f1_legacy'. See "
+                    "reports/t_base_selection.json for the full method comparison."
                 ),
                 "tau_d": 0.30,
                 "note": (
@@ -266,4 +289,17 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    _ap = argparse.ArgumentParser(description=__doc__)
+    _ap.add_argument(
+        "--t-base-method",
+        default="cost",
+        choices=["cost", "youden", "f1", "approval_rate", "f1_legacy"],
+        help=(
+            "How to fit the approve/reject threshold. 'cost' (default) minimises "
+            "expected misclassification cost; 'f1_legacy' is the old degenerate "
+            "fixed-range sweep, kept only for comparison."
+        ),
+    )
+    main(t_base_method=_ap.parse_args().t_base_method)

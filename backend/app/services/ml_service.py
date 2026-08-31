@@ -24,6 +24,7 @@ from catboost import CatBoostClassifier
 # We import the exact conservative risk-aware defaults defined directly in CBES Engine
 from backend.app.services.cbes_engine import DEFAULTS
 from backend.app.services.decision_engine import ENGINE_VERSION, hybrid_decision
+from backend.app.services.threshold_selection import select_t_base
 
 # Artifact Paths
 ARTIFACTS_DIR = Path(__file__).resolve().parent.parent.parent / "artifacts"
@@ -66,9 +67,14 @@ DATASET_PATH = Path(__file__).resolve().parents[2] / "synthetic_indian_loan_data
 # imputes 0.0 for keys that no longer exist in DEFAULTS instead of the old
 # conservative defaults — not fixed here, same deferred-schema-work reason as
 # above.
-def train_pipeline(df: pd.DataFrame) -> None:
+def train_pipeline(df: pd.DataFrame, t_base_method: str = "cost") -> None:
     """Train the unified pipeline using cross-validation over the top 5 model architectures.
     Performs score targeting, calibration, and joblib caching safely.
+
+    t_base_method selects how the approve/reject threshold is fitted — see
+    threshold_selection.select_t_base. "cost" (default) minimises expected
+    misclassification cost; "f1_legacy" reproduces the old degenerate
+    fixed-range F1 sweep and exists only for comparison/rollback.
     """
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
     
@@ -149,7 +155,7 @@ def train_pipeline(df: pd.DataFrame) -> None:
     calibrator = CalibratedClassifierCV(unfitted_pipeline, method=calib_method, cv=5)
     calibrator.fit(X, y)
 
-    # ── T_base discovery (F1-optimal threshold on a held-out validation split) ──
+    # ── T_base discovery on a held-out validation split ────────────────────
     # We use 20% of the training data as the calibration/validation split.
     X_train_t, X_val_t, y_train_t, y_val_t = train_test_split(
         X, y, test_size=0.20, random_state=42, stratify=y
@@ -160,15 +166,26 @@ def train_pipeline(df: pd.DataFrame) -> None:
         method=calib_method, cv=5
     )
     _calib_val.fit(X_train_t, y_train_t)
-    probs_val = _calib_val.predict_proba(X_val_t)[:, 1]
+    # predict_proba[:, 1] = P(y=1) = P(default); the engine score is
+    # p_ml = P(approval) = 1 - P(default).
+    p_ml_val = 1.0 - _calib_val.predict_proba(X_val_t)[:, 1]
 
-    # F1 sweep: p_ml is P(approval) = P(no-default), so predict default when p_ml < t
-    thresholds = np.arange(0.30, 0.70, 0.01)
-    f1_scores  = [f1_score(y_val_t, (probs_val < t).astype(int), zero_division=0)
-                  for t in thresholds]
-    t_base = float(round(thresholds[int(np.argmax(f1_scores))], 4))
-    print(f"[train_pipeline] F1-optimal T_base = {t_base:.4f} "
-          f"(F1 = {max(f1_scores):.4f})")
+    # WHY NOT THE OLD F1 SWEEP: the previous code took the F1-argmax over a
+    # hardcoded np.arange(0.30, 0.70, 0.01). On a calibrated model with a
+    # single-digit default rate, p_ml concentrates near 1 - base_rate (~0.92
+    # on Home Credit), so <2% of applicants score below 0.70 and F1 for
+    # catching defaulters is near zero AND monotonically increasing across
+    # the whole swept window. The argmax was pinned at the edge of the range
+    # — an artifact of the sweep bounds, not an optimum (v3 artifact: t_base
+    # = 0.65 with F1 = 0.0024). See threshold_selection.py and
+    # research/thresholds/t_base.py before changing this back.
+    sel = select_t_base(y_default=y_val_t, p_ml=p_ml_val, method=t_base_method)
+    t_base = float(round(sel["t_base"], 4))
+    print(f"[train_pipeline] T_base = {t_base:.4f} "
+          f"(method={sel['method']}, criterion={sel['criterion_value']:.4f})")
+    if sel["engine_will_clip"]:
+        print(f"[train_pipeline] WARNING: t_base={t_base} lies outside "
+              f"decision_engine's clip range [0.30, 0.75] and will be clamped.")
 
     # Cache representative background for LinearExplainer (using best_pipeline full fit)
     background_data = best_pipeline.named_steps["scaler"].transform(
@@ -181,7 +198,7 @@ def train_pipeline(df: pd.DataFrame) -> None:
         "feature_names":   feature_names,
         "model_name":      best_name,
         "background_data": background_data,
-        "t_base":          t_base,    # F1-optimal threshold — used by decision_engine
+        "t_base":          t_base,    # threshold_selection.select_t_base — used by decision_engine
         "tau_d":           0.30,      # default; overridden by calibrate_and_save()
     }
 
