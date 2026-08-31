@@ -1,0 +1,589 @@
+{
+  "meta": {
+    "oof_rows": 307511,
+    "n_defaults": 24825,
+    "default_rate": 0.0807,
+    "label_convention": "y=1 default; all probabilities are P(default)",
+    "fold_to_fold_auc_std": 0.0036,
+    "gain_criterion": "a hybrid 'gain' must exceed the fold-to-fold AUC std (0.0036) to count as a gain at all"
+  },
+  "tabpfn_alignment": {
+    "status": "ALIGNMENT_FAILED",
+    "auc_on_reconstructed_rows": 0.5052,
+    "expected_auc": 0.7446,
+    "corr_with_xgb_pd_on_reconstructed_rows": 0.0109,
+    "expected_corr_order_of_magnitude": "~0.6 for two informative models",
+    "diagnostics": "30 alternative reconstructions tried (legacy np.random RNG, sorted holdout, permutation draw, stratify on approve labels, consecutive 10k chunks, full-dataset subsample): all give AUC 0.47-0.53. Batch-of-500 permutation search (20x20 pairings): max |corr| with XGBoost P(default) = 0.126, i.e. null noise at n=500. The .npy cannot be matched to rows of the current CSV.",
+    "consequence": "Every XGBoost+TabPFN comparison is skipped. The hybrid question for TabPFN is UNANSWERED, not answered negatively. To answer it, re-score TabPFN and save the SK_ID_CURR of each scored row alongside the probabilities."
+  },
+  "correlations_full_oof": {
+    "pearson_probs": {
+      "XGBoost|LightGBM": 0.9604,
+      "XGBoost|CatBoost": 0.9541,
+      "XGBoost|Logistic Regression": 0.8184,
+      "XGBoost|Random Forest": 0.8278,
+      "XGBoost|CBES": 0.1928,
+      "LightGBM|CatBoost": 0.9602,
+      "LightGBM|Logistic Regression": 0.8328,
+      "LightGBM|Random Forest": 0.8412,
+      "LightGBM|CBES": 0.1899,
+      "CatBoost|Logistic Regression": 0.8596,
+      "CatBoost|Random Forest": 0.8717,
+      "CatBoost|CBES": 0.1973,
+      "Logistic Regression|Random Forest": 0.8536,
+      "Logistic Regression|CBES": 0.183,
+      "Random Forest|CBES": 0.1986
+    },
+    "spearman_probs": {
+      "XGBoost|LightGBM": 0.9571,
+      "XGBoost|CatBoost": 0.949,
+      "XGBoost|Logistic Regression": 0.8333,
+      "XGBoost|Random Forest": 0.841,
+      "XGBoost|CBES": 0.2401,
+      "LightGBM|CatBoost": 0.9574,
+      "LightGBM|Logistic Regression": 0.8548,
+      "LightGBM|Random Forest": 0.8602,
+      "LightGBM|CBES": 0.2334,
+      "CatBoost|Logistic Regression": 0.874,
+      "CatBoost|Random Forest": 0.8923,
+      "CatBoost|CBES": 0.2381,
+      "Logistic Regression|Random Forest": 0.8647,
+      "Logistic Regression|CBES": 0.225,
+      "Random Forest|CBES": 0.2016
+    },
+    "pearson_errors": {
+      "XGBoost|LightGBM": 0.9943,
+      "XGBoost|CatBoost": 0.9934,
+      "XGBoost|Logistic Regression": 0.9761,
+      "XGBoost|Random Forest": 0.9721,
+      "XGBoost|CBES": 0.4388,
+      "LightGBM|CatBoost": 0.9945,
+      "LightGBM|Logistic Regression": 0.9786,
+      "LightGBM|Random Forest": 0.9745,
+      "LightGBM|CBES": 0.4378,
+      "CatBoost|Logistic Regression": 0.9833,
+      "CatBoost|Random Forest": 0.98,
+      "CatBoost|CBES": 0.44,
+      "Logistic Regression|Random Forest": 0.9837,
+      "Logistic Regression|CBES": 0.435,
+      "Random Forest|CBES": 0.4326
+    },
+    "disagreement_rate_xgb_cbes_at_0.5": 0.1976,
+    "error_confusion_xgb_cbes": {
+      "threshold": 0.5,
+      "n": 307511,
+      "counts": {
+        "both_right": 228560,
+        "only_a_right": 54255,
+        "only_b_right": 6512,
+        "both_wrong": 18184
+      },
+      "fractions": {
+        "both_right": 0.7433,
+        "only_a_right": 0.1764,
+        "only_b_right": 0.0212,
+        "both_wrong": 0.0591
+      }
+    },
+    "note": "error_confusion is in approval space at threshold 0.5; with an 8.07% default rate a model that approves everyone is 'right' 91.9% of the time at this threshold, so read the overlap pattern, not the accuracy level."
+  },
+  "segments_xgb_vs_cbes_full_oof": {
+    "models": [
+      "XGBoost",
+      "CBES"
+    ],
+    "ext_source_2_quartile": [
+      {
+        "segment": "Q1_low",
+        "n": 76716,
+        "n_default": 10966,
+        "auc_XGBoost": 0.7357,
+        "auc_CBES": 0.5521,
+        "CBES_minus_XGBoost": -0.1836
+      },
+      {
+        "segment": "Q2",
+        "n": 76710,
+        "n_default": 6271,
+        "auc_XGBoost": 0.7227,
+        "auc_CBES": 0.5573,
+        "CBES_minus_XGBoost": -0.1654
+      },
+      {
+        "segment": "Q3",
+        "n": 76713,
+        "n_default": 4618,
+        "auc_XGBoost": 0.7386,
+        "auc_CBES": 0.559,
+        "CBES_minus_XGBoost": -0.1796
+      },
+      {
+        "segment": "Q4_high",
+        "n": 76712,
+        "n_default": 2918,
+        "auc_XGBoost": 0.7307,
+        "auc_CBES": 0.5553,
+        "CBES_minus_XGBoost": -0.1754
+      },
+      {
+        "segment": "missing",
+        "n": 660,
+        "n_default": 52,
+        "auc_XGBoost": 0.7511,
+        "auc_CBES": 0.487,
+        "CBES_minus_XGBoost": -0.2641
+      }
+    ],
+    "bureau_file": [
+      {
+        "segment": "thin_file_no_bureau",
+        "n": 44020,
+        "n_default": 4457,
+        "auc_XGBoost": 0.7353,
+        "auc_CBES": 0.5342,
+        "CBES_minus_XGBoost": -0.2011
+      },
+      {
+        "segment": "has_bureau_record",
+        "n": 263491,
+        "n_default": 20368,
+        "auc_XGBoost": 0.7686,
+        "auc_CBES": 0.5607,
+        "CBES_minus_XGBoost": -0.2079
+      }
+    ],
+    "income_quartile": [
+      {
+        "segment": "Q1_low",
+        "n": 100578,
+        "n_default": 8443,
+        "auc_XGBoost": 0.762,
+        "auc_CBES": 0.5759,
+        "CBES_minus_XGBoost": -0.1861
+      },
+      {
+        "segment": "Q2",
+        "n": 53182,
+        "n_default": 4537,
+        "auc_XGBoost": 0.7638,
+        "auc_CBES": 0.5623,
+        "CBES_minus_XGBoost": -0.2015
+      },
+      {
+        "segment": "Q3",
+        "n": 82213,
+        "n_default": 6902,
+        "auc_XGBoost": 0.7633,
+        "auc_CBES": 0.5562,
+        "CBES_minus_XGBoost": -0.2071
+      },
+      {
+        "segment": "Q4_high",
+        "n": 71538,
+        "n_default": 4943,
+        "auc_XGBoost": 0.7697,
+        "auc_CBES": 0.5488,
+        "CBES_minus_XGBoost": -0.2209
+      }
+    ],
+    "age_band": [
+      {
+        "segment": "<30",
+        "n": 45186,
+        "n_default": 5171,
+        "auc_XGBoost": 0.7423,
+        "auc_CBES": 0.5714,
+        "CBES_minus_XGBoost": -0.1709
+      },
+      {
+        "segment": "30-40",
+        "n": 82331,
+        "n_default": 7897,
+        "auc_XGBoost": 0.7671,
+        "auc_CBES": 0.5761,
+        "CBES_minus_XGBoost": -0.191
+      },
+      {
+        "segment": "40-50",
+        "n": 76599,
+        "n_default": 5853,
+        "auc_XGBoost": 0.7643,
+        "auc_CBES": 0.5703,
+        "CBES_minus_XGBoost": -0.194
+      },
+      {
+        "segment": "50-60",
+        "n": 68094,
+        "n_default": 4168,
+        "auc_XGBoost": 0.7519,
+        "auc_CBES": 0.5584,
+        "CBES_minus_XGBoost": -0.1935
+      },
+      {
+        "segment": "60+",
+        "n": 35301,
+        "n_default": 1736,
+        "auc_XGBoost": 0.719,
+        "auc_CBES": 0.5813,
+        "CBES_minus_XGBoost": -0.1377
+      }
+    ]
+  },
+  "hybrid_xgb_cbes_full_oof": {
+    "pair": "XGBoost + CBES",
+    "evaluation_rows": "all 307,511 OOF rows",
+    "auc_xgboost_alone": 0.7651,
+    "auc_cbes_alone": 0.565,
+    "auc_simple_average": 0.685,
+    "auc_weighted_best": {
+      "w_xgb": 1.0,
+      "auc": 0.7651,
+      "note": "weight chosen on the evaluation data itself \u2014 an optimistic upper bound, not an honest estimate"
+    },
+    "weight_sweep_curve": [
+      {
+        "w_a": 0.0,
+        "auc": 0.56504
+      },
+      {
+        "w_a": 0.05,
+        "auc": 0.57535
+      },
+      {
+        "w_a": 0.1,
+        "auc": 0.58626
+      },
+      {
+        "w_a": 0.15,
+        "auc": 0.59774
+      },
+      {
+        "w_a": 0.2,
+        "auc": 0.60972
+      },
+      {
+        "w_a": 0.25,
+        "auc": 0.62208
+      },
+      {
+        "w_a": 0.3,
+        "auc": 0.6347
+      },
+      {
+        "w_a": 0.35,
+        "auc": 0.64746
+      },
+      {
+        "w_a": 0.4,
+        "auc": 0.66018
+      },
+      {
+        "w_a": 0.45,
+        "auc": 0.67273
+      },
+      {
+        "w_a": 0.5,
+        "auc": 0.68497
+      },
+      {
+        "w_a": 0.55,
+        "auc": 0.69681
+      },
+      {
+        "w_a": 0.6,
+        "auc": 0.70814
+      },
+      {
+        "w_a": 0.65,
+        "auc": 0.71887
+      },
+      {
+        "w_a": 0.7,
+        "auc": 0.72893
+      },
+      {
+        "w_a": 0.75,
+        "auc": 0.73822
+      },
+      {
+        "w_a": 0.8,
+        "auc": 0.7466
+      },
+      {
+        "w_a": 0.85,
+        "auc": 0.75388
+      },
+      {
+        "w_a": 0.9,
+        "auc": 0.75975
+      },
+      {
+        "w_a": 0.95,
+        "auc": 0.76373
+      },
+      {
+        "w_a": 1.0,
+        "auc": 0.76506
+      }
+    ],
+    "auc_rank_average": 0.7067,
+    "auc_cv_logistic_stack": 0.765,
+    "best_honest_hybrid": {
+      "method": "cv_logistic_stack",
+      "auc": 0.765,
+      "gain_vs_xgb": -0.0,
+      "fold_std_reference": 0.0036,
+      "gain_exceeds_fold_std": false
+    },
+    "paired_bootstrap_simple_avg_vs_xgb": {
+      "delta_mean": -0.08006,
+      "delta_ci95": [
+        -0.08296,
+        -0.07719
+      ],
+      "frac_positive": 0.0,
+      "n_boot": 1000
+    }
+  },
+  "hybrid_xgb_lightgbm_full_oof": {
+    "pair": "XGBoost + LightGBM",
+    "evaluation_rows": "all 307,511 OOF rows",
+    "auc_xgboost_alone": 0.7651,
+    "auc_lightgbm_alone": 0.7631,
+    "auc_simple_average": 0.7662,
+    "auc_weighted_best": {
+      "w_xgb": 0.6,
+      "auc": 0.7663,
+      "note": "weight chosen on the evaluation data itself \u2014 an optimistic upper bound, not an honest estimate"
+    },
+    "weight_sweep_curve": [
+      {
+        "w_a": 0.0,
+        "auc": 0.76311
+      },
+      {
+        "w_a": 0.05,
+        "auc": 0.76361
+      },
+      {
+        "w_a": 0.1,
+        "auc": 0.76407
+      },
+      {
+        "w_a": 0.15,
+        "auc": 0.76449
+      },
+      {
+        "w_a": 0.2,
+        "auc": 0.76485
+      },
+      {
+        "w_a": 0.25,
+        "auc": 0.76517
+      },
+      {
+        "w_a": 0.3,
+        "auc": 0.76545
+      },
+      {
+        "w_a": 0.35,
+        "auc": 0.76569
+      },
+      {
+        "w_a": 0.4,
+        "auc": 0.76589
+      },
+      {
+        "w_a": 0.45,
+        "auc": 0.76604
+      },
+      {
+        "w_a": 0.5,
+        "auc": 0.76616
+      },
+      {
+        "w_a": 0.55,
+        "auc": 0.76623
+      },
+      {
+        "w_a": 0.6,
+        "auc": 0.76626
+      },
+      {
+        "w_a": 0.65,
+        "auc": 0.76626
+      },
+      {
+        "w_a": 0.7,
+        "auc": 0.76621
+      },
+      {
+        "w_a": 0.75,
+        "auc": 0.76612
+      },
+      {
+        "w_a": 0.8,
+        "auc": 0.76599
+      },
+      {
+        "w_a": 0.85,
+        "auc": 0.76582
+      },
+      {
+        "w_a": 0.9,
+        "auc": 0.76561
+      },
+      {
+        "w_a": 0.95,
+        "auc": 0.76535
+      },
+      {
+        "w_a": 1.0,
+        "auc": 0.76506
+      }
+    ],
+    "auc_rank_average": 0.7662,
+    "auc_cv_logistic_stack": 0.7662,
+    "best_honest_hybrid": {
+      "method": "cv_logistic_stack",
+      "auc": 0.7662,
+      "gain_vs_xgb": 0.0012,
+      "fold_std_reference": 0.0036,
+      "gain_exceeds_fold_std": false
+    },
+    "paired_bootstrap_simple_avg_vs_xgb": {
+      "delta_mean": 0.0011,
+      "delta_ci95": [
+        0.00067,
+        0.00152
+      ],
+      "frac_positive": 1.0,
+      "n_boot": 1000
+    }
+  },
+  "hybrid_xgb_catboost_full_oof": {
+    "pair": "XGBoost + CatBoost",
+    "evaluation_rows": "all 307,511 OOF rows",
+    "auc_xgboost_alone": 0.7651,
+    "auc_catboost_alone": 0.7643,
+    "auc_simple_average": 0.7672,
+    "auc_weighted_best": {
+      "w_xgb": 0.5,
+      "auc": 0.7672,
+      "note": "weight chosen on the evaluation data itself \u2014 an optimistic upper bound, not an honest estimate"
+    },
+    "weight_sweep_curve": [
+      {
+        "w_a": 0.0,
+        "auc": 0.7643
+      },
+      {
+        "w_a": 0.05,
+        "auc": 0.76485
+      },
+      {
+        "w_a": 0.1,
+        "auc": 0.76534
+      },
+      {
+        "w_a": 0.15,
+        "auc": 0.76576
+      },
+      {
+        "w_a": 0.2,
+        "auc": 0.76613
+      },
+      {
+        "w_a": 0.25,
+        "auc": 0.76643
+      },
+      {
+        "w_a": 0.3,
+        "auc": 0.76669
+      },
+      {
+        "w_a": 0.35,
+        "auc": 0.76689
+      },
+      {
+        "w_a": 0.4,
+        "auc": 0.76703
+      },
+      {
+        "w_a": 0.45,
+        "auc": 0.76713
+      },
+      {
+        "w_a": 0.5,
+        "auc": 0.76718
+      },
+      {
+        "w_a": 0.55,
+        "auc": 0.76718
+      },
+      {
+        "w_a": 0.6,
+        "auc": 0.76713
+      },
+      {
+        "w_a": 0.65,
+        "auc": 0.76703
+      },
+      {
+        "w_a": 0.7,
+        "auc": 0.76689
+      },
+      {
+        "w_a": 0.75,
+        "auc": 0.7667
+      },
+      {
+        "w_a": 0.8,
+        "auc": 0.76647
+      },
+      {
+        "w_a": 0.85,
+        "auc": 0.76618
+      },
+      {
+        "w_a": 0.9,
+        "auc": 0.76585
+      },
+      {
+        "w_a": 0.95,
+        "auc": 0.76548
+      },
+      {
+        "w_a": 1.0,
+        "auc": 0.76506
+      }
+    ],
+    "auc_rank_average": 0.7672,
+    "auc_cv_logistic_stack": 0.7671,
+    "best_honest_hybrid": {
+      "method": "simple_average",
+      "auc": 0.7672,
+      "gain_vs_xgb": 0.0021,
+      "fold_std_reference": 0.0036,
+      "gain_exceeds_fold_std": false,
+      "paired_bootstrap_vs_xgb": {
+        "delta_mean": 0.00213,
+        "delta_ci95": [
+          0.00163,
+          0.00262
+        ],
+        "frac_positive": 1.0,
+        "n_boot": 1000
+      }
+    },
+    "paired_bootstrap_simple_avg_vs_xgb": {
+      "delta_mean": 0.00213,
+      "delta_ci95": [
+        0.00163,
+        0.00262
+      ],
+      "frac_positive": 1.0,
+      "n_boot": 1000
+    }
+  }
+}
