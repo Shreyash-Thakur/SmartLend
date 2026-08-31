@@ -10,10 +10,23 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from backend.app.schemas import CustomerProfileResponse
-from backend.app.services.customer_profile_service import get_profile
+from backend.app.schemas import CustomerProfileResponse, CustomerSampleResponse
+from backend.app.services.customer_profile_service import get_profile, get_sample_customers
 
 router = APIRouter(tags=["customers"])
+
+
+# Declared BEFORE `/customers/{customer_id}/profile` only for readability; the
+# two paths cannot collide (different shapes), so order is not load-bearing.
+@router.get("/customers/samples", response_model=list[CustomerSampleResponse])
+def read_customer_samples(limit: int = 10) -> list[dict]:
+    """Example customer ids the form can offer as "try one of these".
+
+    Without this the applicant has to already know a valid `SK_ID_CURR`, which
+    nobody does on a fresh clone. Returns [] rather than 404 when nothing is
+    seeded, so the UI can simply hide the panel.
+    """
+    return get_sample_customers(limit=max(1, min(limit, 50)))
 
 
 @router.get("/customers/{customer_id}/profile", response_model=CustomerProfileResponse)

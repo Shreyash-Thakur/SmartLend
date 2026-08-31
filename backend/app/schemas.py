@@ -233,6 +233,21 @@ class CustomerProfileResponse(BaseModel):
     credit_utilisation: float | None = None
 
 
+class CustomerSampleResponse(BaseModel):
+    """One example customer id for the form's "try one of these" panel."""
+
+    model_config = ConfigDict(extra="allow")
+
+    customer_id: str
+    descriptor: str
+    # A hint from the profile's own drivers, NOT an engine prediction: the real
+    # decision also needs the loan amount, which does not exist until the form
+    # is filled in.
+    expected_decision_hint: str | None = None
+    credit_score_display: int | None = None
+    annual_income: float | None = None
+
+
 class DecisionPayload(BaseModel):
     id: str
     status: str

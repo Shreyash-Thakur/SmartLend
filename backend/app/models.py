@@ -95,3 +95,56 @@ class DeferredReview(Base):
 
     # --- control arm --------------------------------------------------------
     exploration_flag: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class CustomerProfile(Base):
+    """A seeded slice of the bank's "existing customer" database.
+
+    WHY THIS TABLE EXISTS
+    ---------------------
+    `customer_profile_service` originally read profiles only from a ~180MB
+    Home Credit extract that lives outside the repo. On any machine without
+    that file no customer id resolved, so the application form could not be
+    submitted at all. This table holds a small, committed sample of real
+    profiles so a fresh clone works with no external data present.
+
+    The columns are the *raw* Home Credit source columns, not the derived
+    profile block. Keeping them raw means `customer_profile_service` runs the
+    identical derivation over a DB row and a CSV row, so the two resolution
+    paths cannot drift apart.
+
+    NOT STORED: Home Credit's `TARGET` (the observed default outcome). It is
+    used only to stratify which customers get sampled, and is deliberately
+    absent from the table so it can never leak into a scoring payload.
+    """
+
+    __tablename__ = "customer_profiles"
+
+    customer_id: Mapped[int] = mapped_column(Integer, primary_key=True)  # SK_ID_CURR
+
+    # --- raw KYC / demographics (application_train) ---
+    code_gender: Mapped[str | None] = mapped_column(String, nullable=True)
+    days_birth: Mapped[float | None] = mapped_column(Float, nullable=True)
+    days_employed: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cnt_children: Mapped[float | None] = mapped_column(Float, nullable=True)
+    name_family_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    name_income_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    region_rating_client: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # --- raw account history ---
+    amt_income_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    amt_annuity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    amt_credit: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # --- raw bureau pull ---
+    ext_source_2: Mapped[float | None] = mapped_column(Float, nullable=True)
+    total_prev_credits: Mapped[float | None] = mapped_column(Float, nullable=True)
+    active_credits: Mapped[float | None] = mapped_column(Float, nullable=True)
+    closed_credits: Mapped[float | None] = mapped_column(Float, nullable=True)
+    overdue_credits: Mapped[float | None] = mapped_column(Float, nullable=True)
+    total_credit_sum: Mapped[float | None] = mapped_column(Float, nullable=True)
+    total_credit_debt: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # --- demo metadata (derived from the columns above, never from TARGET) ---
+    descriptor: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_sample: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

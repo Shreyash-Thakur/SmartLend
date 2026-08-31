@@ -42,6 +42,19 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _configure_sqlite_durability()
     _ensure_documents_column()
+    _seed_customer_profiles()
+
+
+def _seed_customer_profiles() -> None:
+    """Load the committed customer sample into `customer_profiles`.
+
+    Imported lazily to keep `database` free of service-layer imports. Idempotent
+    (a populated table is left alone) and never raises: the seed is demo data,
+    and its absence must not stop the API from starting.
+    """
+    from backend.app.services.customer_seed_service import seed_customer_profiles
+
+    seed_customer_profiles()
 
 
 def _configure_sqlite_durability() -> None:
