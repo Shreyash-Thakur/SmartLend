@@ -1,0 +1,45 @@
+{
+  "method": "5-fold stratified cross-validation",
+  "rows_evaluated": 307511,
+  "dataset_rows": 307511,
+  "default_rate": 0.0807,
+  "seed": 42,
+  "per_fold_auc": {
+    "Logistic Regression": [
+      0.7337,
+      0.7418,
+      0.7374,
+      0.7439,
+      0.7325
+    ],
+    "LightGBM": [
+      0.759,
+      0.7682,
+      0.7606,
+      0.7679,
+      0.7599
+    ],
+    "XGBoost": [
+      0.7634,
+      0.7689,
+      0.7624,
+      0.7699,
+      0.7608
+    ],
+    "CatBoost": [
+      0.761,
+      0.7694,
+      0.7624,
+      0.77,
+      0.7589
+    ],
+    "Random Forest": [
+      0.7359,
+      0.7386,
+      0.735,
+      0.7429,
+      0.7358
+    ]
+  },
+  "note": "Every row is predicted by a model trained on the other four folds, so the evaluation covers the entire dataset without any model scoring data it was trained on. TabPFN-2.5 retains its single-split figure - out-of-fold coverage would need ~6.5h of GPU time."
+}
