@@ -183,6 +183,23 @@ def _stored_float(value: Any) -> float | None:
 _DEFAULT_OPERATING_THRESHOLD = 0.5
 
 
+# ---------------------------------------------------------------- cache
+# prediction_outputs.csv holds 307,511 rows (~40 MB). Re-parsing it on every
+# request cost ~13 s per dashboard load, which reads as a hung page. The file
+# only changes when a training run rewrites it, so cache the parsed rows and
+# invalidate on (mtime, size) - cheap to check, and correct even if a rewrite
+# happens to preserve the timestamp.
+_PRED_CACHE: dict[str, Any] = {"key": None, "rows": None, "models": None}
+
+
+def _prediction_cache_key() -> tuple[float, int] | None:
+    try:
+        st = PREDICTION_OUTPUTS_PATH.stat()
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+
+
 def _load_operating_thresholds() -> dict[str, float]:
     """Map model name -> operating threshold; empty dict when unavailable."""
     _fields, rows = _read_csv(MODEL_METRICS_PATH)
@@ -200,6 +217,10 @@ def _load_operating_thresholds() -> dict[str, float]:
 
 
 def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
+    key = _prediction_cache_key()
+    if key is not None and _PRED_CACHE["key"] == key and _PRED_CACHE["rows"] is not None:
+        return _PRED_CACHE["rows"], _PRED_CACHE["models"]
+
     fieldnames, raw_rows = _read_csv(PREDICTION_OUTPUTS_PATH)
     if not raw_rows:
         return [], []
@@ -291,6 +312,8 @@ def _load_prediction_outputs() -> tuple[list[dict[str, Any]], list[str]]:
             }
         )
 
+    if key is not None:
+        _PRED_CACHE.update({"key": key, "rows": rows, "models": model_names})
     return rows, model_names
 
 
@@ -319,6 +342,14 @@ def _empty_payload() -> dict[str, Any]:
     }
 
 
+# Built-payload cache. Keyed on the same (mtime, size) as the row cache, so a
+# training run that rewrites the artifact invalidates both together.
+# _PAYLOAD_CACHE_CASES is how many case rows are retained; the frontend caps its
+# request at 4000, so building that many once covers every request it makes.
+_PAYLOAD_CACHE: dict[str, Any] = {"key": None, "payload": None}
+_PAYLOAD_CACHE_CASES = 4000
+
+
 def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
     """Build the model-analysis payload, degrading to an empty payload on error.
 
@@ -326,7 +357,20 @@ def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
     empty, mid-rewrite, or missing columns; this must never raise.
     """
     try:
-        return _build_model_analysis_payload(limit)
+        # Aggregates (metrics, confusion, bands, summary) are computed over all
+        # 307,511 rows and are identical regardless of `limit` - only `cases` is
+        # truncated by it. Building them per request cost ~7 s. Cache the built
+        # payload against the artifact's (mtime, size) and slice cases on the
+        # way out, so any limit is served from one build.
+        key = _prediction_cache_key()
+        cached = _PAYLOAD_CACHE.get("payload")
+        if key is not None and _PAYLOAD_CACHE.get("key") == key and cached is not None:
+            return {**cached, "cases": cached["cases"][:max(0, int(limit))]}
+
+        payload = _build_model_analysis_payload(max(limit, _PAYLOAD_CACHE_CASES))
+        if key is not None:
+            _PAYLOAD_CACHE.update({"key": key, "payload": payload})
+        return {**payload, "cases": payload["cases"][:max(0, int(limit))]}
     except Exception:
         logger.exception("Failed to build model analysis payload; serving empty payload")
         return _empty_payload()
