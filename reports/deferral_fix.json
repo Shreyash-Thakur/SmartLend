@@ -1,0 +1,864 @@
+{
+  "protocol": {
+    "data": "backend\\artifacts\\prediction_outputs.csv",
+    "n_total": 307511,
+    "split": "50/50 tune/test, seed 20260831; all fitting and threshold selection on tune, all reported numbers on test",
+    "target_deferral_rate": 0.225,
+    "required_rate_band": [
+      0.2,
+      0.25
+    ],
+    "gate": "research.relearning.gate.evaluate_condition_1, unmodified, 200 trials seed 20260830"
+  },
+  "scale_offset_hypothesis": {
+    "confirmed": true,
+    "mean_p_ml": 0.9207329408183773,
+    "mean_p_cbes": 0.6133117666912729,
+    "mean_offset": 0.30742117412710446,
+    "share_rows_p_ml_above_p_cbes": 0.983532296405657,
+    "mean_abs_diff": 0.3102849649768626,
+    "mean_abs_diff_after_removing_mean_offset": 0.10778817662490017,
+    "corr_D_with_ml_confidence": 0.37571405683821424
+  },
+  "before_production_router_on_test_split": {
+    "deferral_rate": 0.5182627019433388,
+    "gate_condition_1_status": "FAIL",
+    "balance_distance_z": 24.35686245379096,
+    "accuracy_z": 27.847674934839816,
+    "risk_coverage": {
+      "coverage": 0.4817372980566612,
+      "deferral_rate": 0.5182627019433388,
+      "selective_risk": 0.1062508437964088,
+      "random_risk_at_matched_coverage": 0.08352844767033482,
+      "oracle_risk_at_matched_coverage": 0.0,
+      "position_random0_oracle1": -0.2720318258008744,
+      "beats_random": false
+    }
+  },
+  "candidates_at_matched_rate": [
+    {
+      "signal": "current_abs_diff",
+      "description": "|p_ml - p_cbes| (production rule; scale-offset contaminated)",
+      "threshold_from_tune_split": 0.41006505000000004,
+      "test_deferral_rate": 0.22576029553318244,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "FAIL",
+        "balance_distance_z": 15.831681077911039,
+        "accuracy_z": 18.31579570136913,
+        "deferred_good_share": 0.9408273795805485,
+        "auto_good_share": 0.9128809515809281,
+        "deferred_accuracy": 0.9410866559115003,
+        "auto_accuracy": 0.9092940425388932,
+        "reason": "deferred pile is +15.8 sd MORE lopsided than random (94.08% good vs 91.29% good in the auto-decided pile) - the router defers EASIER cases; the model is +18.3 sd MORE accurate on the deferred pile than random selection would give"
+      },
+      "risk_coverage": {
+        "coverage": 0.7742397044668176,
+        "deferral_rate": 0.22576029553318244,
+        "selective_risk": 0.09070595746110682,
+        "random_risk_at_matched_coverage": 0.08352844767033482,
+        "oracle_risk_at_matched_coverage": 0.0,
+        "position_random0_oracle1": -0.08592892590437903,
+        "beats_random": false
+      }
+    },
+    {
+      "signal": "rank_diff",
+      "description": "|percentile(p_ml) - percentile(p_cbes)| with percentiles fit on tune",
+      "threshold_from_tune_split": 0.45160645182270515,
+      "test_deferral_rate": 0.2255521735737142,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -12.664003241621076,
+        "accuracy_z": -13.434903551986817,
+        "deferred_good_share": 0.9032871972318339,
+        "auto_good_share": 0.9238217608922032,
+        "deferred_accuracy": 0.8990772779700116,
+        "auto_accuracy": 0.9215375054586986,
+        "reason": "deferred pile is 12.7 sd closer to 50/50 and the model is 13.4 sd less accurate on it than a random router would give - the router is isolating genuinely hard cases"
+      },
+      "risk_coverage": {
+        "coverage": 0.7744478264262858,
+        "deferral_rate": 0.2255521735737142,
+        "selective_risk": 0.07846249454130136,
+        "random_risk_at_matched_coverage": 0.08352844767033482,
+        "oracle_risk_at_matched_coverage": 0.0,
+        "position_random0_oracle1": 0.06064943465760874,
+        "beats_random": true
+      }
+    },
+    {
+      "signal": "zscore_diff",
+      "description": "|z(p_ml) - z(p_cbes)| with mean/sd fit on tune",
+      "threshold_from_tune_split": 1.4124031678428355,
+      "test_deferral_rate": 0.22650823382502147,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -42.51344920557881,
+        "accuracy_z": -49.20634859683392,
+        "deferred_good_share": 0.8638986992850375,
+        "auto_good_share": 0.9353816142404292,
+        "deferred_accuracy": 0.8529876245441755,
+        "auto_accuracy": 0.9350620958723271,
+        "reason": "deferred pile is 42.5 sd closer to 50/50 and the model is 49.2 sd less accurate on it than a random router would give - the router is isolating genuinely hard cases"
+      },
+      "risk_coverage": {
+        "coverage": 0.7734917661749785,
+        "deferral_rate": 0.22650823382502147,
+        "selective_risk": 0.06493790412767281,
+        "random_risk_at_matched_coverage": 0.08352844767033482,
+        "oracle_risk_at_matched_coverage": 0.0,
+        "position_random0_oracle1": 0.22256541407346728,
+        "beats_random": true
+      }
+    },
+    {
+      "signal": "isotonic_diff",
+      "description": "|iso(p_ml) - iso(p_cbes)| after isotonic calibration onto y (fit on tune)",
+      "threshold_from_tune_split": 0.068754450424523,
+      "test_deferral_rate": 0.22658627955982205,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -66.03540156566585,
+        "accuracy_z": -70.58681304841106,
+        "deferred_good_share": 0.842274462527627,
+        "auto_good_share": 0.941724059638235,
+        "deferred_accuracy": 0.8302764143632136,
+        "auto_accuracy": 0.941724059638235,
+        "reason": "deferred pile is 66.0 sd closer to 50/50 and the model is 70.6 sd less accurate on it than a random router would give - the router is isolating genuinely hard cases"
+      },
+      "risk_coverage": {
+        "coverage": 0.773413720440178,
+        "deferral_rate": 0.22658627955982205,
+        "selective_risk": 0.05827594036176493,
+        "random_risk_at_matched_coverage": 0.08352844767033482,
+        "oracle_risk_at_matched_coverage": 0.0,
+        "position_random0_oracle1": 0.3023222388644765,
+        "beats_random": true
+      }
+    },
+    {
+      "signal": "ml_uncertainty",
+      "description": "-|p_ml - approval_threshold| (distance from the actual decision boundary)",
+      "threshold_from_tune_split": -0.24575764999999994,
+      "test_deferral_rate": 0.22704805015739224,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -92.49817194554625,
+        "accuracy_z": -99.68046829277205,
+        "deferred_good_share": 0.7994270982526497,
+        "auto_good_share": 0.9543695202194437,
+        "deferred_accuracy": 0.7857633915783443,
+        "auto_accuracy": 0.9548659609915353,
+        "reason": "deferred pile is 92.5 sd closer to 50/50 and the model is 99.7 sd less accurate on it than a random router would give - the router is isolating genuinely hard cases"
+      },
+      "risk_coverage": {
+        "coverage": 0.7729519498426077,
+        "deferral_rate": 0.22704805015739224,
+        "selective_risk": 0.04513403900846474,
+        "random_risk_at_matched_coverage": 0.08352844767033482,
+        "oracle_risk_at_matched_coverage": 0.0,
+        "position_random0_oracle1": 0.4596566766498868,
+        "beats_random": true
+      }
+    },
+    {
+      "signal": "ml_uncertainty_0.5",
+      "description": "-|p_ml - 0.5| (fixed-pivot selective-prediction baseline)",
+      "threshold_from_tune_split": -0.39212199999999997,
+      "test_deferral_rate": 0.2267618824631234,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -90.21186008532128,
+        "accuracy_z": -92.71921001735818,
+        "deferred_good_share": 0.7959616818677221,
+        "auto_good_share": 0.9553284548742536,
+        "deferred_accuracy": 0.7839155624390524,
+        "auto_accuracy": 0.9553452771469425,
+        "reason": "deferred pile is 90.2 sd closer to 50/50 and the model is 92.7 sd less accurate on it than a random router would give - the router is isolating genuinely hard cases"
+      },
+      "risk_coverage": {
+        "coverage": 0.7732381175368767,
+        "deferral_rate": 0.2267618824631234,
+        "selective_risk": 0.044654722853057445,
+        "random_risk_at_matched_coverage": 0.08352844767033482,
+        "oracle_risk_at_matched_coverage": 0.0,
+        "position_random0_oracle1": 0.4653950348832282,
+        "beats_random": true
+      }
+    }
+  ],
+  "winner": "ml_uncertainty",
+  "winner_detail": {
+    "signal": "ml_uncertainty",
+    "description": "-|p_ml - approval_threshold| (distance from the actual decision boundary)",
+    "threshold_from_tune_split": -0.24575764999999994,
+    "test_deferral_rate": 0.22704805015739224,
+    "rate_within_20_25_band": true,
+    "gate_condition_1": {
+      "status": "PASS",
+      "balance_distance_z": -92.49817194554625,
+      "accuracy_z": -99.68046829277205,
+      "deferred_good_share": 0.7994270982526497,
+      "auto_good_share": 0.9543695202194437,
+      "deferred_accuracy": 0.7857633915783443,
+      "auto_accuracy": 0.9548659609915353,
+      "reason": "deferred pile is 92.5 sd closer to 50/50 and the model is 99.7 sd less accurate on it than a random router would give - the router is isolating genuinely hard cases"
+    },
+    "risk_coverage": {
+      "coverage": 0.7729519498426077,
+      "deferral_rate": 0.22704805015739224,
+      "selective_risk": 0.04513403900846474,
+      "random_risk_at_matched_coverage": 0.08352844767033482,
+      "oracle_risk_at_matched_coverage": 0.0,
+      "position_random0_oracle1": 0.4596566766498868,
+      "beats_random": true
+    }
+  },
+  "capacity_vs_auc_bound": {
+    "required_rate_band": [
+      0.2,
+      0.25
+    ],
+    "auc_implied_bound": [
+      0.08003530817312846,
+      0.1600706163462569
+    ],
+    "winner_rate": 0.22704805015739224,
+    "rate_exceeds_auc_bound": true,
+    "excess_rate_above_bound": 0.06697743381113533,
+    "avoidable_deferral_share_of_deferrals": 0.2949923320843576,
+    "note": "The 20-25% rate is an underwriter-capacity requirement and sits above the AUC-implied natural rate: the model's discriminative power only justifies deferring up to the upper bound, so roughly the excess share of deferrals will be cases the model already decides correctly. Gate condition 2 is expected to keep FAILING at this rate; that is a capacity decision, not a router defect."
+  },
+  "risk_coverage_curves": {
+    "current_abs_diff": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.2844693028095734
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.21292924037460978
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.17408836664787755
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.15410880946961075
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.14139285621374126
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.1300323021224012
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.12217783145963021
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.11622386263861338
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.11127330539095245
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.10716980150368116
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.10297282595842301
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.09929108764931602
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.09627680331395523
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.09362718226500293
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.09147827293460635
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.08996382260883704
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.08840565294239171
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.08676109264344559
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.08511789029766959
+      }
+    ],
+    "rank_diff": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.08597814776274713
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.08396201873048907
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.08333694662446342
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.08243634353354362
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.08103748796794921
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.08105881587790231
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.0805537489547524
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.07994861955708757
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.0795490677843619
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.07916439033273498
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.07850672847243573
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.07858737832505908
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.07848630692108344
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.07839894452238709
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.07842729172628493
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.07876102597455388
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.07928504204509805
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.08004046827576239
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.08080483062683134
+      }
+    ],
+    "zscore_diff": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.059053069719042665
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.059963579604578564
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.06013961756926679
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.058794835940294624
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.059106636488982546
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.05827389598283001
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.058403790764656696
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.05843712399596761
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.05934383581442405
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.060121231041390256
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.06080457867227964
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.06130899473193574
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.06184648942876297
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.06315212442743127
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.06439640295880053
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.06581846266411935
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.0673563235980504
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.0691357132533603
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.0720280965029986
+      }
+    ],
+    "isotonic_diff": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.07206035379812695
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.07401144640998959
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.07479512639292372
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.07235537055705506
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.07216628944561514
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.0697422333990938
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.06685868252346
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.06599785372833404
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.06451799392975864
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.06289185462681131
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.061502258590923065
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.06004075704034514
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.05976526150428753
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.058330003995205756
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.057675798017638336
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.05835535140847933
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.058174500547083625
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.05969070674953028
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.0672631924856916
+      }
+    ],
+    "ml_uncertainty": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.010796045785639958
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.011966701352757543
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.01383167844599575
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.015186498000065038
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.017222092145997556
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.01922951850326273
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.021165102666542784
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.02330005528275503
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.02507587801705449
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.027615182496943207
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.03003571175176785
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.03290914215101784
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.036111305670345505
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.039218054613533525
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.04277773441903622
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.0474858745579448
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.05284139165831376
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.05949559184853302
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.06911164663033656
+      }
+    ],
+    "ml_uncertainty_0.5": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.007934443288241414
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.010796045785639958
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.01274769110696787
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.014243439237748366
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.01612945185878925
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.01860081947666226
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.020533308557093746
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.022779747000097557
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.024974707327648504
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.027224953822940243
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.02946810775015964
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.03251891516898996
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.03538087471608249
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.038725622276523985
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.04234414700347737
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.046924921751148325
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.0522216186023735
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.058520017343546754
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.06717419284169017
+      }
+    ],
+    "oracle": [
+      {
+        "coverage": 0.050001300762246674,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.10000260152449335,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.14999739847550664,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.19999869923775332,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.3000013007622467,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.35000260152449336,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.39999739847550664,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.4499986992377533,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.5500013007622466,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.6000026015244934,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.6499973984755066,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.6999986992377534,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.8000013007622466,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.8500026015244934,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.8999973984755066,
+        "selective_risk": 0.0
+      },
+      {
+        "coverage": 0.9499986992377534,
+        "selective_risk": 0.035291781909795435
+      }
+    ],
+    "random": [
+      {
+        "coverage": 0.05,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.1,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.15000000000000002,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.2,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.3,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.35000000000000003,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.4,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.45,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.55,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.6000000000000001,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.6500000000000001,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.7000000000000001,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.7500000000000001,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.8,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.8500000000000001,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.9000000000000001,
+        "selective_risk": 0.08352844767033482
+      },
+      {
+        "coverage": 0.9500000000000001,
+        "selective_risk": 0.08352844767033482
+      }
+    ]
+  }
+}
