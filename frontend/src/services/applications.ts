@@ -8,6 +8,7 @@ import type {
 } from '@/types/api'
 import type {
   CustomerProfile,
+  CustomerSample,
   LoanApplication,
   LoanApplicationFormData,
   ShortLoanApplicationFormData,
@@ -246,6 +247,47 @@ export async function getCustomerProfile(customerId: string): Promise<CustomerPr
       return null
     }
     throw extractApiError(error)
+  }
+}
+
+/** Fetch a handful of example customer ids to offer as one-click chips.
+ *
+ *  Graceful degradation: this endpoint is additive and may not be deployed yet.
+ *  Any failure at all — 404, 500, network, or a payload we cannot understand —
+ *  resolves to an empty array so the caller simply renders no chips. It must
+ *  never surface an error, and must never gate the form. */
+export async function getCustomerSamples(): Promise<CustomerSample[]> {
+  try {
+    const response = await apiClient.get<unknown>('/customers/samples')
+    const payload = response.data
+    // Tolerate both a bare array and the `{ samples: [...] }` envelope, since
+    // the exact shape is owned by another service.
+    const rows: unknown = Array.isArray(payload)
+      ? payload
+      : (payload as { samples?: unknown; customers?: unknown } | null)?.samples
+        ?? (payload as { customers?: unknown } | null)?.customers
+    if (!Array.isArray(rows)) return []
+
+    return rows
+      .map((row): CustomerSample | null => {
+        if (typeof row === 'string' || typeof row === 'number') {
+          return { customer_id: String(row), descriptor: '' }
+        }
+        if (typeof row !== 'object' || row === null) return null
+        const record = row as Record<string, unknown>
+        const id = record.customer_id ?? record.customerId ?? record.id ?? record.sk_id_curr
+        if (id === undefined || id === null || String(id).trim() === '') return null
+        const descriptor =
+          record.descriptor ?? record.description ?? record.label ?? record.summary ?? record.note
+        return {
+          customer_id: String(id).trim(),
+          descriptor: typeof descriptor === 'string' ? descriptor : '',
+        }
+      })
+      .filter((sample): sample is CustomerSample => sample !== null)
+      .slice(0, 12)
+  } catch {
+    return []
   }
 }
 

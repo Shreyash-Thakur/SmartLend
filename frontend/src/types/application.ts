@@ -220,6 +220,52 @@ export interface CustomerProfile {
   credit_utilisation: number | null
 }
 
+/** One suggested customer id returned by GET /api/customers/samples. Optional
+ *  endpoint — the UI renders nothing when it is absent. */
+export interface CustomerSample {
+  customer_id: string
+  descriptor: string
+}
+
+/** Where the sanctioned amount should land. Real forms ask for this because a
+ *  customer with several accounts has a preference the bank cannot infer. */
+export type DisbursementAccount = 'primary_savings' | 'salary_account' | 'current_account' | 'new_account'
+
+/** When the first EMI should be debited — the moratorium question on SBI/HDFC
+ *  forms. */
+export type EmiStartPreference = 'next_cycle' | 'after_30_days' | 'after_60_days' | 'after_90_days'
+
+export type PrepaymentIntent = 'none' | 'partial_within_12m' | 'full_within_24m' | 'undecided'
+
+export type AdditionalIncomeType =
+  | 'rental'
+  | 'freelance'
+  | 'spouse'
+  | 'investments'
+  | 'pension'
+  | 'agriculture'
+  | 'other'
+
+/** Proof of title offered for the pledged security. */
+export type OwnershipProofType =
+  | 'sale_deed'
+  | 'registry_extract'
+  | 'rc_book'
+  | 'fd_receipt'
+  | 'gold_appraisal'
+  | 'other'
+
+/** Products already held with this bank. Self-declared because the demo
+ *  profile lookup only exposes the lending relationship. */
+export type RelationshipProduct =
+  | 'savings'
+  | 'current'
+  | 'fixed_deposit'
+  | 'credit_card'
+  | 'demat'
+  | 'insurance'
+  | 'locker'
+
 export interface ShortLoanApplicationFormData {
   applicantId?: string
   customer_id: string
@@ -227,20 +273,42 @@ export interface ShortLoanApplicationFormData {
   // Section A · Loan request
   loan_amount: number
   loan_purpose: LoanPurposeShort
+  loan_purpose_details?: string
   loan_tenure_months: number
   repayment_source: RepaymentSource
   preferred_emi_date: number
-  end_use_declaration: boolean
+  disbursement_account: DisbursementAccount
+  emi_start_preference: EmiStartPreference
+  prepayment_intent: PrepaymentIntent
+  insurance_opt_in: boolean
 
   // Section B · What the bank cannot see
   obligations_other_banks: number
   employment_changed_recently: boolean
   additional_income: number
+  additional_income_type?: AdditionalIncomeType
+  expected_obligations_after_loan: number
+  relationship_products: RelationshipProduct[]
+
+  // Section C · Security offered
   collateral_type: CollateralType
   collateral_value: number
-  is_related_party: boolean
+  collateral_description?: string
+  collateral_ownership_proof?: OwnershipProofType
+  collateral_co_owner_name?: string
 
-  // Section C · Guarantor (conditional; `guarantor_required` is server-derived)
+  // Section D · Guarantor (conditional; `guarantor_required` is server-derived)
+  guarantor_name?: string
   guarantor_relationship?: GuarantorRelationship
+  guarantor_contact?: string
+  guarantor_banks_here?: boolean
   guarantor_customer_id?: string
+  guarantor_consent_ack?: boolean
+
+  // Section E · Declarations
+  end_use_declaration: boolean
+  is_related_party: boolean
+  no_wilful_default: boolean
+  bureau_pull_consent: boolean
+  terms_accepted: boolean
 }
