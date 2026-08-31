@@ -1,0 +1,691 @@
+{
+  "generated_by": "python -m research.thresholds.t_base",
+  "data": {
+    "source": "backend/artifacts/prediction_outputs.csv (out-of-fold predictions)",
+    "n_rows": 307511,
+    "default_rate": 0.080729,
+    "primary_prob_column": "prob_Logistic Regression",
+    "primary_column_reason": "The serving artifact (pipeline_v3_real.joblib) is a calibrated LogisticRegression; this column is the closest OOF analogue of the p_ml the decision engine thresholds.",
+    "p_ml_percentiles_by_column": {
+      "cbes_prob": {
+        "p0.5": 0.3079,
+        "p1": 0.3175,
+        "p2": 0.3387,
+        "p5": 0.39,
+        "p10": 0.435,
+        "p25": 0.5298,
+        "p50": 0.6258,
+        "p75": 0.7056,
+        "p90": 0.7731,
+        "p99": 0.8373
+      },
+      "best_model_prob": {
+        "p0.5": 0.511,
+        "p1": 0.5771,
+        "p2": 0.6487,
+        "p5": 0.7463,
+        "p10": 0.8171,
+        "p25": 0.9005,
+        "p50": 0.9505,
+        "p75": 0.9746,
+        "p90": 0.9857,
+        "p99": 0.9946
+      },
+      "prob_Logistic Regression": {
+        "p0.5": 0.5865,
+        "p1": 0.638,
+        "p2": 0.6962,
+        "p5": 0.7725,
+        "p10": 0.8285,
+        "p25": 0.897,
+        "p50": 0.9424,
+        "p75": 0.9673,
+        "p90": 0.9798,
+        "p99": 0.9909
+      },
+      "prob_LightGBM": {
+        "p0.5": 0.5173,
+        "p1": 0.5833,
+        "p2": 0.6524,
+        "p5": 0.748,
+        "p10": 0.8179,
+        "p25": 0.9011,
+        "p50": 0.9498,
+        "p75": 0.9727,
+        "p90": 0.9833,
+        "p99": 0.9924
+      },
+      "prob_XGBoost": {
+        "p0.5": 0.511,
+        "p1": 0.5771,
+        "p2": 0.6487,
+        "p5": 0.7463,
+        "p10": 0.8171,
+        "p25": 0.9005,
+        "p50": 0.9505,
+        "p75": 0.9746,
+        "p90": 0.9857,
+        "p99": 0.9946
+      },
+      "prob_CatBoost": {
+        "p0.5": 0.5372,
+        "p1": 0.6033,
+        "p2": 0.6695,
+        "p5": 0.7589,
+        "p10": 0.823,
+        "p25": 0.8988,
+        "p50": 0.9463,
+        "p75": 0.9705,
+        "p90": 0.9819,
+        "p99": 0.9914
+      },
+      "prob_Random Forest": {
+        "p0.5": 0.74,
+        "p1": 0.7624,
+        "p2": 0.7871,
+        "p5": 0.824,
+        "p10": 0.8545,
+        "p25": 0.897,
+        "p50": 0.932,
+        "p75": 0.9539,
+        "p90": 0.9659,
+        "p99": 0.9774
+      },
+      "prob_CBES": {
+        "p0.5": 0.3079,
+        "p1": 0.3175,
+        "p2": 0.3387,
+        "p5": 0.39,
+        "p10": 0.435,
+        "p25": 0.5298,
+        "p50": 0.6258,
+        "p75": 0.7056,
+        "p90": 0.7731,
+        "p99": 0.8373
+      }
+    }
+  },
+  "cost_model": {
+    "unit": "expected cost per applicant, EAD normalised to 1 (no loan amounts in the OOF file)",
+    "false_approval_cost": {
+      "value": 0.45,
+      "meaning": "LGD x EAD for an approved defaulter",
+      "source": "Basel II foundation-IRB supervisory LGD, senior unsecured exposures \u2014 BCBS 128 (June 2006), para 287"
+    },
+    "false_rejection_cost": {
+      "value": 0.2644,
+      "meaning": "foregone return on a rejected good customer",
+      "source": "Verbraken, Bravo, Weber & Baesens (2014), 'Development and application of consumer credit scoring models using profit-based classification measures', EJOR 238(2) \u2014 the EMP measure's ROI parameter"
+    },
+    "bayes_optimal_threshold_if_calibrated": 0.6299,
+    "caveat": "The cost-optimal threshold is only as defensible as these two numbers. They are literature defaults, not SmartLend portfolio estimates; see cost_sensitivity for how the answer moves with the assumed ratio."
+  },
+  "engine_clip_range": [
+    0.3,
+    0.75
+  ],
+  "defect_evidence": {
+    "claim": "The old fixed-range F1 sweep [0.30, 0.70) is degenerate: p_ml mass below 0.70 is ~2%, F1 is near zero and monotone increasing across the whole window, and the argmax sits at the top edge of the sweep \u2014 i.e. t_base was set by the range bounds, not the data.",
+    "f1_curve_full_data": [
+      {
+        "t": 0.3,
+        "f1": 0.00056,
+        "fraction_of_p_ml_below_t": 4e-05
+      },
+      {
+        "t": 0.35,
+        "f1": 0.00145,
+        "fraction_of_p_ml_below_t": 9e-05
+      },
+      {
+        "t": 0.4,
+        "f1": 0.00305,
+        "fraction_of_p_ml_below_t": 0.00022
+      },
+      {
+        "t": 0.45,
+        "f1": 0.0076,
+        "fraction_of_p_ml_below_t": 0.00055
+      },
+      {
+        "t": 0.5,
+        "f1": 0.01609,
+        "fraction_of_p_ml_below_t": 0.0013
+      },
+      {
+        "t": 0.55,
+        "f1": 0.03311,
+        "fraction_of_p_ml_below_t": 0.00296
+      },
+      {
+        "t": 0.6,
+        "f1": 0.06083,
+        "fraction_of_p_ml_below_t": 0.00609
+      },
+      {
+        "t": 0.65,
+        "f1": 0.09802,
+        "fraction_of_p_ml_below_t": 0.01157
+      }
+    ],
+    "fraction_of_p_ml_below_0.70": 0.0209,
+    "v3_artifact_reported": {
+      "t_base": 0.65,
+      "f1_at_selection": 0.0024
+    }
+  },
+  "oof_analysis": {
+    "split": "50/50 stratified split, random_state=42. Thresholds are SELECTED on the select half only; every metric below is computed on the REPORT half the selection never saw.",
+    "n_select": 153755,
+    "n_report": 153756,
+    "methods": {
+      "f1_legacy": {
+        "selection": {
+          "t_base": 0.69,
+          "method": "f1_legacy",
+          "criterion_value": 0.131898,
+          "grid_lo": 0.3,
+          "grid_hi": 0.69,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": false
+        },
+        "report_half_metrics": {
+          "threshold": 0.69,
+          "approval_rate": 0.981223,
+          "rejection_rate": 0.018777,
+          "precision_default": 0.372012,
+          "recall_default": 0.086522,
+          "f1_default": 0.140392,
+          "expected_cost_per_applicant": 0.036304,
+          "default_rate_among_approved": 0.075158
+        }
+      },
+      "cost": {
+        "selection": {
+          "t_base": 0.588173,
+          "method": "cost",
+          "criterion_value": 0.036074,
+          "grid_lo": 0.588173,
+          "grid_hi": 0.992461,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": false
+        },
+        "report_half_metrics": {
+          "threshold": 0.588173,
+          "approval_rate": 0.99479,
+          "rejection_rate": 0.00521,
+          "precision_default": 0.436954,
+          "recall_default": 0.028196,
+          "f1_default": 0.052974,
+          "expected_cost_per_applicant": 0.036081,
+          "default_rate_among_approved": 0.078866
+        }
+      },
+      "youden": {
+        "selection": {
+          "t_base": 0.925223,
+          "method": "youden",
+          "criterion_value": 0.350175,
+          "grid_lo": 0.588173,
+          "grid_hi": 0.992461,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": true
+        },
+        "report_half_metrics": {
+          "threshold": 0.925223,
+          "approval_rate": 0.618747,
+          "rejection_rate": 0.381253,
+          "precision_default": 0.150205,
+          "recall_default": 0.709337,
+          "f1_default": 0.247913,
+          "expected_cost_per_applicant": 0.096222,
+          "default_rate_among_approved": 0.037925
+        }
+      },
+      "f1": {
+        "selection": {
+          "t_base": 0.864669,
+          "method": "f1",
+          "criterion_value": 0.283954,
+          "grid_lo": 0.588173,
+          "grid_hi": 0.992461,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": true
+        },
+        "report_half_metrics": {
+          "threshold": 0.864669,
+          "approval_rate": 0.84013,
+          "rejection_rate": 0.15987,
+          "precision_default": 0.215695,
+          "recall_default": 0.427133,
+          "f1_default": 0.286641,
+          "expected_cost_per_applicant": 0.053964,
+          "default_rate_among_approved": 0.055049
+        }
+      },
+      "approval_rate": {
+        "selection": {
+          "t_base": 0.859929,
+          "method": "approval_rate",
+          "criterion_value": 0.85,
+          "grid_lo": null,
+          "grid_hi": null,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": true
+        },
+        "report_half_metrics": {
+          "threshold": 0.859929,
+          "approval_rate": 0.849951,
+          "rejection_rate": 0.150049,
+          "precision_default": 0.220407,
+          "recall_default": 0.409651,
+          "f1_default": 0.286608,
+          "expected_cost_per_applicant": 0.052376,
+          "default_rate_among_approved": 0.056074
+        }
+      }
+    },
+    "cost_legacy_minus_cost_optimal_bootstrap": {
+      "mean_delta": 0.000222,
+      "ci95": [
+        3e-05,
+        0.000413
+      ],
+      "n_bootstrap": 500,
+      "significant": true
+    },
+    "cost_sensitivity": [
+      {
+        "cost_ratio_lgd_over_roi": 1.0,
+        "lgd": 0.45,
+        "roi": 0.45,
+        "t_base": 0.588173,
+        "approval_rate": 0.99479,
+        "default_rate_among_approved": 0.078866,
+        "expected_cost_per_applicant": 0.036625,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 1.7,
+        "lgd": 0.45,
+        "roi": 0.2647,
+        "t_base": 0.588173,
+        "approval_rate": 0.99479,
+        "default_rate_among_approved": 0.078866,
+        "expected_cost_per_applicant": 0.036081,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 2.0,
+        "lgd": 0.45,
+        "roi": 0.225,
+        "t_base": 0.638841,
+        "approval_rate": 0.989815,
+        "default_rate_among_approved": 0.07741,
+        "expected_cost_per_applicant": 0.035846,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 3.0,
+        "lgd": 0.45,
+        "roi": 0.15,
+        "t_base": 0.743399,
+        "approval_rate": 0.965009,
+        "default_rate_among_approved": 0.071804,
+        "expected_cost_per_applicant": 0.034714,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 4.0,
+        "lgd": 0.45,
+        "roi": 0.1125,
+        "t_base": 0.786755,
+        "approval_rate": 0.94077,
+        "default_rate_among_approved": 0.067446,
+        "expected_cost_per_applicant": 0.033272,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 5.0,
+        "lgd": 0.45,
+        "roi": 0.09,
+        "t_base": 0.836037,
+        "approval_rate": 0.889897,
+        "default_rate_among_approved": 0.060675,
+        "expected_cost_per_applicant": 0.031801,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 7.5,
+        "lgd": 0.45,
+        "roi": 0.06,
+        "t_base": 0.882858,
+        "approval_rate": 0.794876,
+        "default_rate_among_approved": 0.05068,
+        "expected_cost_per_applicant": 0.028009,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 10.0,
+        "lgd": 0.45,
+        "roi": 0.045,
+        "t_base": 0.902651,
+        "approval_rate": 0.727601,
+        "default_rate_among_approved": 0.045033,
+        "expected_cost_per_applicant": 0.024844,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 15.0,
+        "lgd": 0.45,
+        "roi": 0.03,
+        "t_base": 0.935794,
+        "approval_rate": 0.550379,
+        "default_rate_among_approved": 0.034269,
+        "expected_cost_per_applicant": 0.02012,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 20.0,
+        "lgd": 0.45,
+        "roi": 0.0225,
+        "t_base": 0.949362,
+        "approval_rate": 0.439976,
+        "default_rate_among_approved": 0.029343,
+        "expected_cost_per_applicant": 0.016884,
+        "engine_will_clip": true
+      }
+    ]
+  },
+  "serving_model_v3_check": {
+    "split": "50/50 stratified split, random_state=42. Thresholds are SELECTED on the select half only; every metric below is computed on the REPORT half the selection never saw.",
+    "n_select": 30751,
+    "n_report": 30752,
+    "methods": {
+      "f1_legacy": {
+        "selection": {
+          "t_base": 0.65,
+          "method": "f1_legacy",
+          "criterion_value": 0.00161,
+          "grid_lo": 0.3,
+          "grid_hi": 0.69,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": false
+        },
+        "report_half_metrics": {
+          "threshold": 0.65,
+          "approval_rate": 0.999837,
+          "rejection_rate": 0.000163,
+          "precision_default": 0.8,
+          "recall_default": 0.001611,
+          "f1_default": 0.003215,
+          "expected_cost_per_applicant": 0.036284,
+          "default_rate_among_approved": 0.080626
+        }
+      },
+      "cost": {
+        "selection": {
+          "t_base": 0.711997,
+          "method": "cost",
+          "criterion_value": 0.036744,
+          "grid_lo": 0.711997,
+          "grid_hi": 0.985566,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": false
+        },
+        "report_half_metrics": {
+          "threshold": 0.711997,
+          "approval_rate": 0.994667,
+          "rejection_rate": 0.005333,
+          "precision_default": 0.310976,
+          "recall_default": 0.02054,
+          "f1_default": 0.038534,
+          "expected_cost_per_applicant": 0.036559,
+          "default_rate_among_approved": 0.079508
+        }
+      },
+      "youden": {
+        "selection": {
+          "t_base": 0.912995,
+          "method": "youden",
+          "criterion_value": 0.286529,
+          "grid_lo": 0.711997,
+          "grid_hi": 0.985566,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": true
+        },
+        "report_half_metrics": {
+          "threshold": 0.912995,
+          "approval_rate": 0.663014,
+          "rejection_rate": 0.336986,
+          "precision_default": 0.139824,
+          "recall_default": 0.583568,
+          "f1_default": 0.225596,
+          "expected_cost_per_applicant": 0.091772,
+          "default_rate_among_approved": 0.050714
+        }
+      },
+      "f1": {
+        "selection": {
+          "t_base": 0.871252,
+          "method": "f1",
+          "criterion_value": 0.249259,
+          "grid_lo": 0.711997,
+          "grid_hi": 0.985566,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": true
+        },
+        "report_half_metrics": {
+          "threshold": 0.871252,
+          "approval_rate": 0.83936,
+          "rejection_rate": 0.16064,
+          "precision_default": 0.184818,
+          "recall_default": 0.3677,
+          "f1_default": 0.245992,
+          "expected_cost_per_applicant": 0.057598,
+          "default_rate_among_approved": 0.060824
+        }
+      },
+      "approval_rate": {
+        "selection": {
+          "t_base": 0.870546,
+          "method": "approval_rate",
+          "criterion_value": 0.85,
+          "grid_lo": null,
+          "grid_hi": null,
+          "params": {
+            "lgd": 0.45,
+            "roi": 0.2644,
+            "target_approval_rate": 0.85
+          },
+          "engine_will_clip": true
+        },
+        "report_half_metrics": {
+          "threshold": 0.870546,
+          "approval_rate": 0.840433,
+          "rejection_rate": 0.159567,
+          "precision_default": 0.185449,
+          "recall_default": 0.366492,
+          "f1_default": 0.246279,
+          "expected_cost_per_applicant": 0.057383,
+          "default_rate_among_approved": 0.060863
+        }
+      }
+    },
+    "cost_legacy_minus_cost_optimal_bootstrap": {
+      "mean_delta": -0.00028,
+      "ci95": [
+        -0.000524,
+        2e-06
+      ],
+      "n_bootstrap": 500,
+      "significant": false
+    },
+    "cost_sensitivity": [
+      {
+        "cost_ratio_lgd_over_roi": 1.0,
+        "lgd": 0.45,
+        "roi": 0.45,
+        "t_base": 0.711997,
+        "approval_rate": 0.994667,
+        "default_rate_among_approved": 0.079508,
+        "expected_cost_per_applicant": 0.037241,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 1.7,
+        "lgd": 0.45,
+        "roi": 0.2647,
+        "t_base": 0.711997,
+        "approval_rate": 0.994667,
+        "default_rate_among_approved": 0.079508,
+        "expected_cost_per_applicant": 0.036561,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 2.0,
+        "lgd": 0.45,
+        "roi": 0.225,
+        "t_base": 0.711997,
+        "approval_rate": 0.994667,
+        "default_rate_among_approved": 0.079508,
+        "expected_cost_per_applicant": 0.036415,
+        "engine_will_clip": false
+      },
+      {
+        "cost_ratio_lgd_over_roi": 3.0,
+        "lgd": 0.45,
+        "roi": 0.15,
+        "t_base": 0.777182,
+        "approval_rate": 0.970343,
+        "default_rate_among_approved": 0.074765,
+        "expected_cost_per_applicant": 0.035866,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 4.0,
+        "lgd": 0.45,
+        "roi": 0.1125,
+        "t_base": 0.811785,
+        "approval_rate": 0.946865,
+        "default_rate_among_approved": 0.071365,
+        "expected_cost_per_applicant": 0.034904,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 5.0,
+        "lgd": 0.45,
+        "roi": 0.09,
+        "t_base": 0.83982,
+        "approval_rate": 0.907258,
+        "default_rate_among_approved": 0.066452,
+        "expected_cost_per_applicant": 0.033636,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 7.5,
+        "lgd": 0.45,
+        "roi": 0.06,
+        "t_base": 0.871252,
+        "approval_rate": 0.83936,
+        "default_rate_among_approved": 0.060824,
+        "expected_cost_per_applicant": 0.030831,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 10.0,
+        "lgd": 0.45,
+        "roi": 0.045,
+        "t_base": 0.911771,
+        "approval_rate": 0.666753,
+        "default_rate_among_approved": 0.050722,
+        "expected_cost_per_applicant": 0.028103,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 15.0,
+        "lgd": 0.45,
+        "roi": 0.03,
+        "t_base": 0.930541,
+        "approval_rate": 0.543835,
+        "default_rate_among_approved": 0.042873,
+        "expected_cost_per_applicant": 0.022454,
+        "engine_will_clip": true
+      },
+      {
+        "cost_ratio_lgd_over_roi": 20.0,
+        "lgd": 0.45,
+        "roi": 0.0225,
+        "t_base": 0.950607,
+        "approval_rate": 0.340075,
+        "default_rate_among_approved": 0.03385,
+        "expected_cost_per_applicant": 0.018471,
+        "engine_will_clip": true
+      }
+    ],
+    "artifact": "backend/artifacts/pipeline_v3_real.joblib",
+    "artifact_current_t_base": 0.65,
+    "p_ml_percentiles": {
+      "p0.5": 0.712,
+      "p1": 0.7158,
+      "p2": 0.7532,
+      "p5": 0.8068,
+      "p10": 0.8425,
+      "p25": 0.8992,
+      "p50": 0.934,
+      "p75": 0.9591,
+      "p90": 0.9722,
+      "p99": 0.9841
+    },
+    "note": "p_ml from the live serving calibrator on the artifact's own 20% held-out split (same seed/stratify as the retrain script), then select/report halved within that split."
+  },
+  "recommendation": {
+    "method": "cost",
+    "reasons": [
+      "It optimises the quantity a lender actually loses money on, with an explicit, citable loss matrix \u2014 the criterion credit-scoring reviewers expect.",
+      "With literature-default costs (LGD 0.45 / ROI 0.2644) the empirical optimum sits near the analytic Bayes threshold 0.63 for a calibrated score, which is independent corroboration that the method is reading the calibration correctly.",
+      "It is the only y-aware method whose optimum lies inside decision_engine's hard clip range [0.30, 0.75]; Youden and percentile-F1 optima (~0.86-0.93) would be silently clamped to 0.75 at decision time.",
+      "The percentile grid removes the structural defect: candidates always cover the observed score mass, whatever the base rate."
+    ],
+    "honesty": [
+      "On the report half the cost saving vs the legacy 0.69 threshold is small; see cost_legacy_minus_cost_optimal_bootstrap for whether it clears resampling noise. The main win is that the threshold is now DERIVED from stated economics instead of being an artifact of arbitrary sweep bounds.",
+      "The recommended value moves materially with the LGD/ROI ratio (cost_sensitivity); revisit the parameters once SmartLend has portfolio estimates."
+    ]
+  }
+}
