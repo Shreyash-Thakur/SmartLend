@@ -91,7 +91,12 @@ def _interp(value: float, edges: list[float], positions: list[float]) -> float:
 
 
 def component_sigmoid(x: float) -> float:
-    """k=4: softer curve, output spans [0.27, 0.73] rather than [0.02, 0.98]."""
+    """k=4: softer curve. For x in [0, 1] the output spans [0.1192, 0.8808].
+
+    (Verified empirically: sigmoid(-4*0.5)=0.11920292, sigmoid(4*0.5)=0.88079708.
+    An earlier version of this docstring claimed [0.27, 0.73]; that is the k=2
+    span, not k=4. The code is and always was k=4 - only the comment was wrong.)
+    """
     return 1.0 / (1.0 + math.exp(-4.0 * (x - 0.5)))
 
 

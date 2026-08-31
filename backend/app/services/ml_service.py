@@ -1,5 +1,6 @@
 import functools
 import hashlib
+import logging
 import os
 import math
 import numpy as np
@@ -25,6 +26,8 @@ from catboost import CatBoostClassifier
 from backend.app.services.cbes_engine import DEFAULTS
 from backend.app.services.decision_engine import ENGINE_VERSION, hybrid_decision
 from backend.app.services.threshold_selection import select_t_base
+
+logger = logging.getLogger(__name__)
 
 # Artifact Paths
 ARTIFACTS_DIR = Path(__file__).resolve().parent.parent.parent / "artifacts"
@@ -250,13 +253,28 @@ class MLPredictor:
         self.scaler = self.pipeline.named_steps["scaler"]
         self.classifier = self.pipeline.named_steps["model"]
         
-        # Cache explainer mapping
+        # Cache explainer mapping.
+        #
+        # NOTE (inherent property, not a bug): the explainer reads
+        # `self.classifier` — the plain LogisticRegression inside the pipeline —
+        # while the served probability below comes from `self.calibrator`
+        # (CalibratedClassifierCV, isotonic). The two are siblings fitted on the
+        # same split, so the attributions rank the drivers faithfully, but they
+        # decompose the PLAIN model's log-odds, not the served probability;
+        # isotonic calibration is a non-linear monotone map and no additive
+        # decomposition survives it. See docs/DEFENCE-SHAP-CBES.md §1.6 / §3.1.
         try:
             if "Logistic" in str(self.model_name):
                 self.explainer = shap.LinearExplainer(self.classifier, self.background_data)
             else:
                 self.explainer = shap.TreeExplainer(self.classifier)
         except Exception:
+            logger.warning(
+                "SHAP explainer could not be built for model_name=%r; explanations will fall "
+                "back to the heuristic rule table in explainability_service.",
+                self.model_name,
+                exc_info=True,
+            )
             self.explainer = None
 
     def predict_application(self, input_data: Dict[str, Any]) -> Any:
@@ -302,7 +320,23 @@ class MLPredictor:
                 # We return exact SHAP absolute mapping keys without the giant explanation array
                 top_3_shap = [{"name": k, "impact": float(v), "value": float(sanitized.get(k, 0.0))} for k, v in top.items()]
             except Exception:
-                pass
+                # Kept non-fatal on purpose: a broken explainer must not fail a
+                # scoring request. But it is NOT silent any more — an empty list
+                # here is what makes explainability_service fall back to its
+                # heuristic rules, and that fallback is labelled "heuristic" all
+                # the way to the UI so nothing impersonates SHAP.
+                logger.warning(
+                    "SHAP value computation failed for model_name=%r; emitting an empty "
+                    "explanation, downstream will use the heuristic fallback.",
+                    self.model_name,
+                    exc_info=True,
+                )
+        else:
+            logger.warning(
+                "No SHAP explainer available (model_name=%r); downstream will use the "
+                "heuristic fallback.",
+                self.model_name,
+            )
 
         # Grab TAU_D and T_base from artifact
         try:
@@ -330,6 +364,20 @@ class MLPredictor:
             p_ml = all_model_predictions[active_model]
             used_model_name = active_model
         else:
+            # The requested model is not in this artifact (the v3 artifact carries
+            # no `all_pipelines` at all), so the calibrated serving model is used.
+            # That is correct behaviour, but it must not be silent: an
+            # active_model.txt naming an unavailable model is a configuration
+            # error and would otherwise look like it took effect.
+            if active_model and active_model != self.model_name:
+                logger.warning(
+                    "active_model.txt requests %r but that model is not available in %s "
+                    "(available: %s); falling back to the calibrated %r.",
+                    active_model,
+                    _active_artifact_path().name,
+                    sorted(all_model_predictions) or "none",
+                    self.model_name,
+                )
             p_ml = float(1.0 - self.calibrator.predict_proba(df)[0, 1])
             used_model_name = self.model_name
             

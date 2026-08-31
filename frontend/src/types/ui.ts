@@ -90,6 +90,9 @@ export interface FeatureContributionChartProps {
   features: FeatureContribution[]
   maxFeatures?: number
   isLoading?: boolean
+  /** Overrides the per-feature `source`. When either resolves to "heuristic"
+   *  the chart labels itself as not-SHAP. */
+  source?: 'shap' | 'heuristic'
 }
 
 export interface DecisionBannerProps {

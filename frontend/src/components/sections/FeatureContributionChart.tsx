@@ -13,9 +13,27 @@ import {
 import type { FeatureContribution } from '@/types/application'
 import type { FeatureContributionChartProps } from '@/types/ui'
 
+/** SHAP values here are log-odds contributions and are therefore unbounded — a
+ *  fixed [-1, 1] domain silently clips the largest attributions, which are
+ *  exactly the ones that matter. Derive a symmetric, padded domain from the data
+ *  instead, with a small floor so an all-tiny-impact chart is not blown up. */
+const MIN_AXIS_EXTENT = 0.5
+const AXIS_PADDING = 1.15
+
+const symmetricDomain = (values: number[]): [number, number] => {
+  const maxAbs = values.reduce(
+    (acc, value) => (Number.isFinite(value) ? Math.max(acc, Math.abs(value)) : acc),
+    0,
+  )
+  const extent = Math.max(MIN_AXIS_EXTENT, maxAbs * AXIS_PADDING)
+  const rounded = Number(extent.toFixed(2))
+  return [-rounded, rounded]
+}
+
 export const FeatureContributionChart: React.FC<FeatureContributionChartProps> = ({
   features,
   maxFeatures = 5,
+  source,
 }) => {
   const topFeatures = [...features]
     .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
@@ -25,14 +43,24 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
       displayImpact: Number(feature.impact.toFixed(2)),
     }))
 
+  const domain = symmetricDomain(topFeatures.map((feature) => feature.displayImpact))
+  const resolvedSource = source ?? topFeatures.find((feature) => feature.source)?.source
+  const isHeuristic = resolvedSource === 'heuristic'
+
   return (
     <Card title="Feature Importance Analysis" className="mt-6">
       <div className="space-y-6">
+        {isHeuristic && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <span className="font-medium">Not SHAP.</span> SHAP attributions were unavailable for
+            this application, so these factors come from a hand-written rule fallback.
+          </div>
+        )}
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topFeatures} layout="vertical" margin={{ left: 12, right: 16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis type="number" domain={[-1, 1]} />
+              <XAxis type="number" domain={domain} allowDataOverflow={false} />
               <YAxis dataKey="name" type="category" width={110} />
               <Tooltip
                 formatter={(value: number) => [value, 'Impact']}

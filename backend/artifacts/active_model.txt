@@ -1,1 +1,1 @@
-TabPFN-2.5
+LogisticRegression

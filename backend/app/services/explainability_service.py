@@ -4,26 +4,52 @@ from typing import Any
 
 from backend.app.models import LoanApplication
 
-# NOTE (2026-08-30): explainability_service.py's input vocabulary changed
-# from the old 15-key India-specific schema to a 7-key Home Credit schema
-# (see docs/superpowers/specs/2026-08-29-home-credit-swap-design.md). This
-# file still builds/expects the OLD vocabulary, so live CBES scores are now
-# silently near-constant (~0.13-0.22) rather than erroring — only a couple of
-# keys happen to overlap between the two schemas. Not fixed here: rebuilding
-# this schema is deferred until a production model is chosen (same spec,
-# section 2a / "Descoped from this plan"). This note exists so the silent
-# degradation isn't mistaken for correct behavior.
+# NOTE (2026-08-31): this module is a PRESENTATION layer. It does not compute
+# SHAP — `ml_service.MLPredictor.predict_application` does, and hands the top-3
+# down through `_decision_meta["shap_explanation"]`.
+#
+# Vocabulary: FEATURE_LABELS and the counterfactual tables below now key on the
+# 15 `feature_names` of the live serving artifact
+# (backend/artifacts/pipeline_v3_real.joblib): age, dependents, years_employed,
+# annual_income, monthly_income, existing_emis, cibil_score, total_loans,
+# active_loans, closed_loans, missed_payments, credit_utilization_ratio,
+# debt_to_income_ratio, loan_amount, loan_income_ratio. The old India-specific
+# keys (emi_income_ratio, credit_component, asset_component, ...) survive only
+# in the heuristic fallback below, which is built on CBES component names and
+# engineered features rather than on the artifact's feature vocabulary.
+#
+# CAVEAT (inherent, not a bug): SHAP explains
+# `pipeline.named_steps["model"]` — the plain LogisticRegression — while the
+# served probability comes from the sibling `CalibratedClassifierCV(isotonic)`.
+# Attributions therefore rank the drivers faithfully but do NOT decompose the
+# served probability; isotonic calibration is a non-linear monotone map and no
+# additive decomposition survives it. Documented in
+# docs/DEFENCE-SHAP-CBES.md §1.6 (item 1) and §3.1.
 
+# --- Live serving vocabulary (all 15 artifact features) ---------------------
 FEATURE_LABELS = {
-    "debt_to_income_ratio": "Debt To Income Ratio",
-    "emi_income_ratio": "EMI To Income Ratio",
+    "age": "Age",
+    "dependents": "Dependents",
+    "years_employed": "Years Employed",
+    "annual_income": "Annual Income",
+    "monthly_income": "Monthly Income",
+    "existing_emis": "Existing EMIs",
     "cibil_score": "CIBIL Score",
+    "total_loans": "Total Loans",
+    "active_loans": "Active Loans",
+    "closed_loans": "Closed Loans",
+    "missed_payments": "Missed Payments",
+    "credit_utilization_ratio": "Credit Utilization Ratio",
+    "debt_to_income_ratio": "Debt To Income Ratio",
+    "loan_amount": "Loan Amount",
+    "loan_income_ratio": "Loan To Income Ratio",
+    # --- legacy / CBES-component keys, still emitted by the heuristic fallback
+    "emi_income_ratio": "EMI To Income Ratio",
     "credit_component": "Credit Strength",
     "capacity_component": "Repayment Capacity",
     "asset_component": "Collateral And Liquidity",
     "stability_component": "Employment Stability",
     "missed_payment_ratio": "Missed Payment Ratio",
-    "loan_income_ratio": "Loan To Income Ratio",
 }
 
 
@@ -36,22 +62,89 @@ def _to_label(feature: str) -> str:
     return FEATURE_LABELS.get(feature, feature.replace("_", " ").title())
 
 
-def _counterfactual_target(feature: str, value: float) -> float:
-    targets = {
-        "debt_to_income_ratio": 0.4,
-        "emi_income_ratio": 0.35,
-        "cibil_score": 720,
-        "credit_component": 0.6,
-        "capacity_component": 0.6,
-        "asset_component": 0.55,
-        "stability_component": 0.55,
-        "missed_payment_ratio": 0.08,
-        "loan_income_ratio": 0.65,
-    }
-    return float(targets.get(feature, value))
+# Features for which a counterfactual is meaningless or the attribute is
+# immutable/not actionable by the applicant. No suggestion is emitted for these
+# — "improve Age from 35 to 35" is worse than saying nothing.
+#   age, dependents      : immutable / not a lending lever we may ask them to pull
+#   total_loans          : historical count (= active + closed); cannot be reduced
+#   closed_loans         : already-settled history; cannot be un-closed
+IMMUTABLE_FEATURES = frozenset({"age", "dependents", "total_loans", "closed_loans"})
+
+# feature -> (absolute target, "higher" | "lower")
+_ABSOLUTE_TARGETS: dict[str, tuple[float, str]] = {
+    "cibil_score": (720.0, "higher"),
+    "years_employed": (5.0, "higher"),
+    "missed_payments": (0.0, "lower"),
+    "active_loans": (1.0, "lower"),
+    "existing_emis": (0.0, "lower"),
+    "credit_utilization_ratio": (0.30, "lower"),
+    "debt_to_income_ratio": (0.35, "lower"),
+    # legacy / CBES-component keys used by the heuristic fallback
+    "emi_income_ratio": (0.35, "lower"),
+    "missed_payment_ratio": (0.08, "lower"),
+    "credit_component": (0.60, "higher"),
+    "capacity_component": (0.60, "higher"),
+    "asset_component": (0.55, "higher"),
+    "stability_component": (0.55, "higher"),
+}
+
+# feature -> (multiplicative factor, "higher" | "lower"). Used where no absolute
+# target is meaningful because the quantity has no natural scale (rupee amounts,
+# and a loan/income ratio whose Home Credit median is ~3.3, not ~0.65).
+_RELATIVE_TARGETS: dict[str, tuple[float, str]] = {
+    "annual_income": (1.20, "higher"),
+    "monthly_income": (1.20, "higher"),
+    "loan_amount": (0.80, "lower"),
+    "loan_income_ratio": (0.80, "lower"),
+}
 
 
-def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
+def _counterfactual_target(feature: str, value: float) -> float | None:
+    """Target value the applicant would need to reach for this factor.
+
+    Returns ``None`` when no meaningful counterfactual exists — the feature is
+    immutable, is unknown to the tables, or the applicant is already at/past the
+    target. Callers MUST omit the suggestion in that case rather than emit a
+    zero-delta one.
+
+    This is a hand-written lookup, not a model-derived counterfactual: nothing is
+    re-scored. See docs/DEFENCE-SHAP-CBES.md §1.6 (item 6).
+    """
+    if feature in IMMUTABLE_FEATURES:
+        return None
+
+    target: float | None = None
+    direction: str | None = None
+
+    if feature in _ABSOLUTE_TARGETS:
+        target, direction = _ABSOLUTE_TARGETS[feature]
+    elif feature in _RELATIVE_TARGETS:
+        factor, direction = _RELATIVE_TARGETS[feature]
+        if value == 0.0:
+            return None  # 0 * factor == 0 -> zero delta
+        target = float(value) * factor
+
+    if target is None or direction is None:
+        return None
+
+    # Already at or beyond the target: nothing to suggest.
+    if direction == "higher" and target <= value:
+        return None
+    if direction == "lower" and target >= value:
+        return None
+
+    return float(target)
+
+
+def _build_top_factors(app_item: LoanApplication) -> tuple[list[dict[str, Any]], str]:
+    """Returns (top factors, source) where source is "shap" or "heuristic".
+
+    "shap" means the factors were derived from the SHAP attributions computed in
+    ml_service. "heuristic" means SHAP was unavailable (explainer failed to build,
+    or `shap_values` raised) and the hand-written rule table below produced them.
+    The two have the same output shape; only this flag distinguishes them, so it
+    must be carried all the way to the UI.
+    """
     data = app_item.input_data or {}
     meta = data.get("_decision_meta", {}) if isinstance(data.get("_decision_meta", {}), dict) else {}
     engineered = meta.get("engineered_features", {}) if isinstance(meta.get("engineered_features", {}), dict) else {}
@@ -74,6 +167,7 @@ def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
             else:
                 reason = f"Applicant's {label} ({value}) requires analyst review." if direction_impact >= 0 else f"Applicant's {label} ({value}) is generally favorable."
 
+            target = _counterfactual_target(feature, value)
             normalized.append(
                 {
                     "feature": feature,
@@ -82,13 +176,16 @@ def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
                     "direction": "supports_decision" if direction_impact >= 0 else "opposes_decision",
                     "severity": round(min(1.0, abs(direction_impact) * 2.0), 4),
                     "value": round(value, 2),
-                    "targetValue": round(_counterfactual_target(feature, value), 2),
+                    # None => no meaningful counterfactual; downstream must omit
+                    # the suggestion rather than render a zero-delta one.
+                    "targetValue": None if target is None else round(target, 2),
                     "reason": reason,
+                    "source": "shap",
                 }
             )
 
         normalized.sort(key=lambda entry: abs(float(entry.get("impact", 0.0))), reverse=True)
-        return normalized[:5]
+        return normalized[:5], "shap"
 
     dti = float(engineered.get("debt_to_income_ratio", 0))
     emi_ratio = float(engineered.get("emi_income_ratio", 0))
@@ -171,34 +268,46 @@ def _build_top_factors(app_item: LoanApplication) -> list[dict[str, Any]]:
         "loan_income_ratio": loan_income,
     }
 
-    scored = [
-        {
+    def _heuristic_entry(item: dict[str, Any]) -> dict[str, Any]:
+        current = float(value_lookup.get(item["feature"], 0.0))
+        signed = _impact_sign_for_decision(decision, float(item["impact"]))
+        target = _counterfactual_target(item["feature"], current)
+        return {
             "feature": item["feature"],
             "name": _to_label(item["feature"]),
-            "impact": round(_impact_sign_for_decision(decision, float(item["impact"])), 4),
-            "direction": "supports_decision" if _impact_sign_for_decision(decision, float(item["impact"])) >= 0 else "opposes_decision",
+            "impact": round(signed, 4),
+            "direction": "supports_decision" if signed >= 0 else "opposes_decision",
             "severity": round(min(1.0, abs(float(item["impact"])) * 1.6), 4),
-            "value": round(float(value_lookup.get(item["feature"], 0.0)), 4),
-            "targetValue": round(_counterfactual_target(item["feature"], float(value_lookup.get(item["feature"], 0.0))), 4),
+            "value": round(current, 4),
+            "targetValue": None if target is None else round(target, 4),
             "reason": item["reason"],
+            "source": "heuristic",
         }
-        for item in raw_factors
-    ]
+
+    scored = [_heuristic_entry(item) for item in raw_factors]
     scored.sort(key=lambda item: abs(item["impact"]), reverse=True)
-    return scored[:5]
+    return scored[:5], "heuristic"
 
 
 def _build_suggestions(app_item: LoanApplication, top_factors: list[dict[str, Any]]) -> list[str]:
     feature_set = {item["feature"] for item in top_factors}
     suggestions: list[str] = []
 
-    if "debt_to_income_ratio" in feature_set or "emi_income_ratio" in feature_set:
+    if feature_set & {"debt_to_income_ratio", "emi_income_ratio", "existing_emis"}:
         suggestions.append("Reduce EMI or loan amount")
-    if "cibil_score" in feature_set or "credit_component" in feature_set:
+    if feature_set & {"loan_amount", "loan_income_ratio"}:
+        suggestions.append("Request a smaller loan relative to income")
+    if feature_set & {"annual_income", "monthly_income"}:
+        suggestions.append("Evidence additional or co-applicant income")
+    if feature_set & {"cibil_score", "credit_component", "credit_utilization_ratio"}:
         suggestions.append("Improve credit score")
+    if feature_set & {"missed_payments", "missed_payment_ratio"}:
+        suggestions.append("Maintain an unbroken on-time repayment record")
+    if feature_set & {"active_loans"}:
+        suggestions.append("Close one or more active credit lines before reapplying")
     if "asset_component" in feature_set:
         suggestions.append("Provide additional collateral or improve liquid balance")
-    if "stability_component" in feature_set:
+    if feature_set & {"years_employed", "stability_component"}:
         suggestions.append("Share stronger employment continuity proof")
 
     if not suggestions:
@@ -218,19 +327,28 @@ def _build_counterfactuals(top_factors: list[dict[str, Any]], decision: str) -> 
 
     recs: list[dict[str, Any]] = []
     for item in top_factors:
-        if item["impact"] < 0:
-            current = float(item.get("value", 0.0))
-            target = float(item.get("targetValue", current))
-            recs.append(
-                {
-                    "feature": item["feature"],
-                    "name": item["name"],
-                    "current": round(current, 4),
-                    "target": round(target, 4),
-                    "delta": round(target - current, 4),
-                    "priority": "high" if abs(item["impact"]) >= 0.2 else "medium",
-                }
-            )
+        if item["impact"] >= 0:
+            continue
+        raw_target = item.get("targetValue")
+        if raw_target is None:
+            # Immutable / unknown / already-at-target feature: omit entirely.
+            # A "change X from 35 to 35" row is worse than no row at all.
+            continue
+        current = float(item.get("value", 0.0))
+        target = float(raw_target)
+        delta = round(target - current, 4)
+        if delta == 0.0:
+            continue
+        recs.append(
+            {
+                "feature": item["feature"],
+                "name": item["name"],
+                "current": round(current, 4),
+                "target": round(target, 4),
+                "delta": delta,
+                "priority": "high" if abs(item["impact"]) >= 0.2 else "medium",
+            }
+        )
     return recs[:3]
 
 
@@ -238,7 +356,7 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     data = app_item.input_data or {}
     meta = data.get("_decision_meta", {}) if isinstance(data.get("_decision_meta", {}), dict) else {}
 
-    top_factors = _build_top_factors(app_item)
+    top_factors, explanation_source = _build_top_factors(app_item)
     suggestions = _build_suggestions(app_item, top_factors)
     reasons = [factor["reason"] for factor in top_factors[:3]]
     positive_factors = [factor["reason"] for factor in top_factors if factor["impact"] > 0][:3]
@@ -272,14 +390,26 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
         "stabilityWeighted": round(stability_component * stability_weight, 4),
     }
 
-    explanation_text = (
-        "Top factors are ranked by directional impact on the final hybrid decision, combining tuned ML probability with CBES components."
-    )
+    if explanation_source == "shap":
+        explanation_text = (
+            "Top factors are SHAP attributions from the serving logistic-regression model, "
+            "re-signed to show which features supported the decision actually taken. "
+            "They rank the drivers of the model's log-odds; they do not sum to the displayed risk score, "
+            "because the served probability comes from the isotonic-calibrated sibling model."
+        )
+    else:
+        explanation_text = (
+            "SHAP attributions were unavailable for this application, so top factors come from a "
+            "hand-written rule table over the CBES components and engineered features. "
+            "These are NOT SHAP values."
+        )
 
     return {
         "id": app_item.id,
         "decision": app_item.final_decision,
         "topFactors": top_factors,
+        # "shap" | "heuristic" — which mechanism actually produced topFactors.
+        "explanationSource": explanation_source,
         "reasons": reasons,
         "positiveFactors": positive_factors,
         "negativeFactors": negative_factors,

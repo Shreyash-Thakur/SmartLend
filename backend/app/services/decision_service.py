@@ -54,12 +54,26 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     explain_payload = build_explainability_payload(app_item)
     analyst_notes = str(input_data.get("_manual_notes", ""))
 
+    # "shap" | "heuristic" — carried onto every feature row so the chart can label
+    # itself honestly without the page needing to thread an extra prop.
+    explanation_source = str(explain_payload.get("explanationSource", "shap"))
+
+    def _base_value(item: dict[str, Any]) -> float:
+        # targetValue is None when no meaningful counterfactual exists (immutable
+        # feature, or already at target). Fall back to the current value so the
+        # chart still has a number; the *suggestion* is omitted upstream.
+        target = item.get("targetValue")
+        if target is None:
+            target = item.get("value", 0.0)
+        return float(target)
+
     feature_importance = [
         {
             "name": str(item.get("name", "Feature")),
             "impact": float(item.get("impact", 0.0)),
             "value": float(item.get("value", 0.0)),
-            "baseValue": float(item.get("targetValue", item.get("value", 0.0))),
+            "baseValue": _base_value(item),
+            "source": str(item.get("source", explanation_source)),
         }
         for item in explain_payload.get("topFactors", [])
     ]
@@ -105,6 +119,7 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
             "positiveFactors": list(explain_payload.get("positiveFactors", [])),
             "negativeFactors": list(explain_payload.get("negativeFactors", [])),
             "featureImportance": feature_importance,
+            "explanationSource": explanation_source,
             "modelVersion": "cbes-v2",
             "analystNotes": analyst_notes,
             "allModelPredictions": meta.get("all_model_predictions", {}),

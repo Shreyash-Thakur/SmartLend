@@ -297,10 +297,11 @@ p_cbes = 1 / (1 + exp(−5 · (CBES_raw − 0.5)))
 all-worst applicant and an *empty dict* both return `p_cbes = 0.12966`. These are the exact
 theoretical bounds.
 
-> ⚠️ **The docstring at `cbes_engine.py:94` is wrong.** It claims k=4 gives a
-> `[0.27, 0.73]` span. The true span is `[0.1192, 0.8808]`; `[0.27, 0.73]` corresponds to
-> k=2. Concede this immediately if it is raised — it is a comment error, not a maths error;
-> the code and the measured outputs agree with each other.
+> ⚠️ **The docstring at `cbes_engine.py:94` used to be wrong** — it claimed k=4 gives a
+> `[0.27, 0.73]` span, which is the **k=2** span. The true k=4 span is `[0.1192, 0.8808]`.
+> **Fixed (2026-08-31):** the docstring now states `[0.1192, 0.8808]` and records that the
+> old figure was the k=2 value. It was a comment error, not a maths error; the code was
+> always k=4 and the measured outputs always agreed with it.
 
 **Consequence you must be ready to state:** `p_cbes` is structurally confined to
 `[0.130, 0.870]` and its observed mean over all 307,511 rows is **0.6133**, while the
@@ -484,8 +485,9 @@ Do not present it as an accuracy contribution.
 
 # 3. Known defects in the current code — disclose these first
 
-These are live in the working tree and reachable from the UI. **This document reports them;
-no code was changed.**
+**Status (2026-08-31):** §3.2, §3.3, §3.4 and the `active_model.txt` half of §3.5 have since
+been **fixed in code**; the text below is retained as the original finding, each with a
+"Fixed" line stating what changed. §3.1 is *not* a bug and remains open by design.
 
 ### 3.1 SHAP explains a different model than the one that scores
 `shap.LinearExplainer(self.classifier, ...)` reads the plain pipeline
@@ -496,6 +498,12 @@ probability, and isotonic calibration is non-monotone in the *gaps* between feat
 This is not accidental — `retrain_serving_model_v3.py:222-225` saves the plain pipeline
 specifically so the existing SHAP code has a linear object to read. **Severity: honesty
 issue, not a crash.** State it as a limitation, do not let it be discovered.
+
+**Not fixed — inherent, not a defect.** Attributions cannot decompose an isotonically
+calibrated probability; that is a property of calibration, not of this code. The point is
+now stated in the code itself, at the explainer construction site
+(`ml_service.py`, the comment above `shap.LinearExplainer`) and in the module header of
+`explainability_service.py`, so a reader of either file meets it without needing this brief.
 
 ### 3.2 `explainability_service.py` still speaks the OLD 15-key India vocabulary
 `FEATURE_LABELS` (lines 17-27) and `_counterfactual_target` (lines 39-51) key on
@@ -512,6 +520,15 @@ uncovered features fall back to title-case (`_to_label`, line 36), which is cosm
 fine but confirms the vocabulary drift. **Severity: user-visible nonsense on the
 recommendations panel.**
 
+**Fixed (2026-08-31).** `FEATURE_LABELS` now covers all 15 artifact features (plus the
+legacy CBES-component keys the heuristic fallback still emits), and
+`_counterfactual_target` returns `float | None` off three tables: `IMMUTABLE_FEATURES`
+(`age`, `dependents`, `total_loans`, `closed_loans`), `_ABSOLUTE_TARGETS` and
+`_RELATIVE_TARGETS`. `None` is returned for an immutable feature, an unknown feature, a
+zero base value under a relative target, or an applicant already at/past the target;
+`_build_counterfactuals` skips those entries and any residual zero delta. **Coverage went
+from 3/15 to 15/15, and a zero-delta suggestion can no longer be emitted.**
+
 ### 3.3 The frontend chart's x-axis is hardcoded to [−1, 1]
 `FeatureContributionChart.tsx:35` sets `<XAxis type="number" domain={[-1, 1]} />`. SHAP
 values here are **log-odds**, which are unbounded. The verified sample already produced
@@ -519,12 +536,27 @@ values here are **log-odds**, which are unbounded. The verified sample already p
 clip. **Severity: silent visual truncation of the largest attributions** — the exact ones
 that matter most.
 
+**Fixed (2026-08-31).** The domain is now derived from the plotted data via
+`symmetricDomain()` in the same file: symmetric about zero at
+`max(0.5, max|impact| * 1.15)`. Nothing clips, and the floor stops an all-small chart from
+being magnified.
+
 ### 3.4 A silent, unlabelled heuristic fallback impersonates SHAP
 If the explainer throws, `ml_service.py:304-305` swallows it and emits an empty list;
 `explainability_service.py:61` then falls through to nine hand-written rules
 (lines 93-188) built on the old vocabulary — with the same `topFactors` shape, the same
 chart, and no indication to the user that these are not SHAP values. **Severity: an
 examiner clicking an application cannot tell which mechanism produced the bars.**
+
+**Fixed (2026-08-31).** The fallback is retained — it is correct defensive behaviour — but
+it no longer impersonates SHAP. `_build_top_factors` returns `(factors, source)` with
+`source` in `{"shap", "heuristic"}`; the flag is stamped on every factor, surfaced as
+`explainability_payload["explanationSource"]` (added to `ApplicationExplainResponse`) and as
+`decision.explanationSource` / `featureImportance[].source` in the application response; and
+`FeatureContributionChart.tsx` renders an amber "Not SHAP" banner when it resolves to
+`heuristic`. The `explanation` string also differs between the two. Separately,
+`ml_service.py` now logs a warning instead of `except Exception: pass` at all three points
+where SHAP can go missing (explainer construction, `shap_values`, no explainer at all).
 
 ### 3.5 Two stale artifacts that will be spotted
 - **`backend/app/services/explainability_service.py:7-15`** — the NOTE claims live CBES
@@ -536,10 +568,13 @@ examiner clicking an application cannot tell which mechanism produced the bars.*
   **The note is out of date on the `customer_id` path.** It remains accurate for a legacy
   full-form payload with no `customer_id`, which does bypass the profile merge
   (`routers/applications.py:222-232`) and does score `p_cbes = 0.12966` for everyone.
-- **`backend/artifacts/active_model.txt` contains `TabPFN-2.5`**, but the v3 artifact
-  carries no `all_pipelines`, so `all_model_predictions` is empty and the lookup at
-  `ml_service.py:329` always misses — the served score silently falls back to the
-  calibrator (`ml_service.py:333`). Behaviour is correct; the file is misleading.
+- **`backend/artifacts/active_model.txt` contained `TabPFN-2.5`**, but the v3 artifact
+  carries no `all_pipelines`, so `all_model_predictions` is empty and the lookup always
+  missed — the served score silently fell back to the calibrator. Behaviour was correct;
+  the file was misleading. **Fixed (2026-08-31):** the file now reads `LogisticRegression`,
+  which is the model actually serving, and the lookup logs a warning naming the requested
+  model, the artifact, and the available models whenever a requested model is unavailable,
+  instead of falling through silently.
 - **`backend/training.py:30`** imports `COMPONENT_WEIGHTS, compute_cbes_probability` from
   `cbes_engine`, and **neither name exists** in the current module. That script cannot run.
   It does not affect serving, and — verified in §2.7 — the committed
