@@ -78,7 +78,25 @@ class DecisionResult:
 # ---------------------------------------------------------------------------
 
 # Blend weight: CBES contributes 25%, ML contributes 75%.
-_BLEND_ALPHA = 0.25
+# CBES weight in the decision blend. Chosen deliberately, not inherited.
+#
+# The blend p_blend = (1-a)*p_ml + a*p_cbes makes the decision boundary a
+# SLANTED line in (p_ml, p_cbes) space rather than a vertical cut, so CBES
+# genuinely changes outcomes. But CBES scores 0.5621 AUC against 0.5 for
+# random, so every point of weight given to it costs discrimination. Measured
+# on 153,756 held-out rows (reports/blend_decision.json):
+#
+#     alpha   AUC      defaults caught
+#     0.00    0.7669   61.7%
+#     0.10    0.7613   57.5%     <- chosen
+#     0.25    0.7393   53.5%
+#     0.50    0.6843   48.5%
+#
+# 0.25 was the inherited value; it costs 0.028 AUC, approves 849 more
+# defaulters, and flips the deferral gate's accuracy-z from -39.8 to +29.5,
+# undoing the router fix. 0.10 keeps the boundary visibly slanted for roughly
+# a fifth of that cost.
+_BLEND_ALPHA = 0.10
 
 # Provenance stamp written onto every relearning-loop capture row. Bump this
 # whenever the gate logic, blend weight, or confidence formula above changes:

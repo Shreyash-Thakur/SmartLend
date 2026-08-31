@@ -1,0 +1,234 @@
+{
+  "spec": "decisions must be taken on p_blend = (1-alpha)*p_ml + alpha*p_cbes, not on p_ml alone (decision_engine.py Stage A/B)",
+  "alpha_source": "backend.app.services.decision_engine._BLEND_ALPHA",
+  "alpha": 0.1,
+  "label_semantics": {
+    "y_true==1": "GOOD customer (approve-worthy, did not default)",
+    "probabilities": "all prob_* / cbes_prob are APPROVAL probabilities"
+  },
+  "split": "50/50 tune/test, seed 20260831; thresholds fitted on tune, all reported metrics on test (research.deferral.evaluate.split_tune_test)",
+  "policy": {
+    "rule": "DEFER iff |p_blend - t*| < tau_u; else APPROVE iff p_blend >= t*, else REJECT",
+    "youden_threshold_t_star": 0.885269,
+    "tau_u": 0.023741,
+    "approval_threshold_stored": 0.90901,
+    "rejection_threshold_stored": 0.861528,
+    "confidence_stored": "clip(2*|p_blend - t*|, 0, 1)",
+    "target_deferral_rate": 0.225,
+    "deferral_rate_band": [
+      0.2,
+      0.25
+    ],
+    "test_deferral_rate": 0.22484976196050885,
+    "test_rate_within_band": true,
+    "full_artifact_deferral_rate": 0.22492528722549762
+  },
+  "discrimination_cost": {
+    "auc_p_ml": 0.7669235325489244,
+    "auc_p_blend": 0.7613203976389629,
+    "auc_p_cbes": 0.5621344664487338,
+    "auc_delta_blend_minus_ml": -0.00560313490996156,
+    "paired_bootstrap": {
+      "iterations": 1000,
+      "seed": 20260831,
+      "delta_mean": -0.005586322498328842,
+      "ci95": [
+        -0.006687973378293679,
+        -0.004467444692134603
+      ],
+      "prob_delta_negative": 1.0
+    }
+  },
+  "decision_policy_comparison": {
+    "old_p_ml_only": {
+      "n": 153756,
+      "deferral_rate": 0.22589687556908347,
+      "approve_rate_all_rows": 0.5554970212544551,
+      "approve_rate_auto_decided": 0.717600799845408,
+      "default_capture_rejected": 0.5348088531187123,
+      "default_capture_rejected_or_deferred": 0.7509859154929578,
+      "auto_accuracy": 0.7474353696344403,
+      "confusion_matrix": {
+        "approve_good": 82317,
+        "approve_bad": 3094,
+        "reject_good": 26967,
+        "reject_bad": 6645,
+        "defer_good": 32047,
+        "defer_bad": 2686
+      }
+    },
+    "new_blend": {
+      "n": 153756,
+      "deferral_rate": 0.22484976196050885,
+      "approve_rate_all_rows": 0.5445511069486719,
+      "approve_rate_auto_decided": 0.7025104040810847,
+      "default_capture_rejected": 0.5748088531187123,
+      "default_capture_rejected_or_deferred": 0.7951710261569417,
+      "auto_accuracy": 0.7410810175862532,
+      "confusion_matrix": {
+        "approve_good": 81183,
+        "approve_bad": 2545,
+        "reject_good": 28314,
+        "reject_bad": 7142,
+        "defer_good": 31834,
+        "defer_bad": 2738
+      }
+    }
+  },
+  "gate_condition_1": {
+    "note": "research.relearning.gate.evaluate_condition_1, unmodified, trials=200, seed=20260830, on the test half",
+    "old_p_ml_only": {
+      "status": "FAIL",
+      "balance_distance_z": 2.7971688484654247,
+      "accuracy_z": 29.51559947653774,
+      "deferred_good_share": 0.9226672040998474,
+      "auto_good_share": 0.9181754786889929,
+      "deferred_accuracy": 0.8982235913972303,
+      "auto_accuracy": 0.8292850961578855,
+      "reason": "deferred pile is +2.8 sd MORE lopsided than random (92.27% good vs 91.82% good in the auto-decided pile) - the router defers EASIER cases; the model is +29.5 sd MORE accurate on the deferred pile than random selection would give"
+    },
+    "new_blend": {
+      "status": "FAIL",
+      "balance_distance_z": 1.3454465194090586,
+      "accuracy_z": -0.8660174741536864,
+      "deferred_good_share": 0.9208029619345135,
+      "auto_good_share": 0.9187223117196939,
+      "deferred_accuracy": 0.7422480620155039,
+      "auto_accuracy": 0.7445798093703853,
+      "reason": "deferred pile is +1.3 sd MORE lopsided than random (92.08% good vs 91.87% good in the auto-decided pile) - the router defers EASIER cases; model accuracy on the deferred pile is not meaningfully below the random baseline"
+    }
+  },
+  "alpha_sweep": [
+    {
+      "alpha": 0.0,
+      "auc_blend": 0.7669235325489244,
+      "youden_threshold": 0.925506,
+      "tau_u": 0.022655,
+      "deferral_rate": 0.22439449517417207,
+      "approve_rate_all_rows": 0.5172416035796977,
+      "default_capture_rejected": 0.6171428571428571,
+      "default_capture_rejected_or_deferred": 0.8214084507042253,
+      "auto_accuracy": 0.7125798715347075
+    },
+    {
+      "alpha": 0.05,
+      "auc_blend": 0.7654490246059213,
+      "youden_threshold": 0.908587,
+      "tau_u": 0.022022,
+      "deferral_rate": 0.224648143812274,
+      "approve_rate_all_rows": 0.5181261219074378,
+      "default_capture_rejected": 0.6140845070422535,
+      "default_capture_rejected_or_deferred": 0.8185915492957746,
+      "auto_accuracy": 0.7133414419326427
+    },
+    {
+      "alpha": 0.1,
+      "auc_blend": 0.7613203976389629,
+      "youden_threshold": 0.885269,
+      "tau_u": 0.023741,
+      "deferral_rate": 0.22484976196050885,
+      "approve_rate_all_rows": 0.5445511069486719,
+      "default_capture_rejected": 0.5748088531187123,
+      "default_capture_rejected_or_deferred": 0.7951710261569417,
+      "auto_accuracy": 0.7410810175862532
+    },
+    {
+      "alpha": 0.15,
+      "auc_blend": 0.7553067191454192,
+      "youden_threshold": 0.871626,
+      "tau_u": 0.021613,
+      "deferral_rate": 0.22545461640521344,
+      "approve_rate_all_rows": 0.5249226046463228,
+      "default_capture_rejected": 0.5934808853118713,
+      "default_capture_rejected_or_deferred": 0.7975855130784708,
+      "auto_accuracy": 0.718517772123838
+    },
+    {
+      "alpha": 0.2,
+      "auc_blend": 0.7478587684629261,
+      "youden_threshold": 0.845372,
+      "tau_u": 0.024426,
+      "deferral_rate": 0.22689846249902443,
+      "approve_rate_all_rows": 0.5599066052706886,
+      "default_capture_rejected": 0.5393963782696177,
+      "default_capture_rejected_or_deferred": 0.7621730382293762,
+      "auto_accuracy": 0.7557563368077463
+    },
+    {
+      "alpha": 0.25,
+      "auc_blend": 0.7392667358346967,
+      "youden_threshold": 0.828091,
+      "tau_u": 0.024227,
+      "deferral_rate": 0.22589687556908347,
+      "approve_rate_all_rows": 0.5554970212544551,
+      "default_capture_rejected": 0.5348088531187123,
+      "default_capture_rejected_or_deferred": 0.7509859154929578,
+      "auto_accuracy": 0.7474353696344403
+    },
+    {
+      "alpha": 0.3,
+      "auc_blend": 0.7297206957703798,
+      "youden_threshold": 0.808902,
+      "tau_u": 0.025054,
+      "deferral_rate": 0.22564973074221495,
+      "approve_rate_all_rows": 0.5585082858555114,
+      "default_capture_rejected": 0.5161368209255534,
+      "default_capture_rejected_or_deferred": 0.7348893360160966,
+      "auto_accuracy": 0.7474571858123147
+    },
+    {
+      "alpha": 0.35,
+      "auc_blend": 0.7193408245070824,
+      "youden_threshold": 0.794587,
+      "tau_u": 0.024739,
+      "deferral_rate": 0.22353599209136554,
+      "approve_rate_all_rows": 0.5418520252868181,
+      "default_capture_rejected": 0.5232193158953722,
+      "default_capture_rejected_or_deferred": 0.7339235412474849,
+      "auto_accuracy": 0.7246075754276046
+    },
+    {
+      "alpha": 0.4,
+      "auc_blend": 0.70823764814727,
+      "youden_threshold": 0.777211,
+      "tau_u": 0.025769,
+      "deferral_rate": 0.22368557974973335,
+      "approve_rate_all_rows": 0.5376115403626525,
+      "default_capture_rejected": 0.5086519114688128,
+      "default_capture_rejected_or_deferred": 0.7238631790744466,
+      "auto_accuracy": 0.7167212620326232
+    },
+    {
+      "alpha": 0.45,
+      "auc_blend": 0.6965089217120584,
+      "youden_threshold": 0.757129,
+      "tau_u": 0.02752,
+      "deferral_rate": 0.22444002185280573,
+      "approve_rate_all_rows": 0.5446096412497724,
+      "default_capture_rejected": 0.47927565392354127,
+      "default_capture_rejected_or_deferred": 0.7020523138832998,
+      "auto_accuracy": 0.7211082878395264
+    },
+    {
+      "alpha": 0.5,
+      "auc_blend": 0.6842808324143729,
+      "youden_threshold": 0.745029,
+      "tau_u": 0.027695,
+      "deferral_rate": 0.22511641822107756,
+      "approve_rate_all_rows": 0.5220349124587008,
+      "default_capture_rejected": 0.4853118712273642,
+      "default_capture_rejected_or_deferred": 0.7066398390342052,
+      "auto_accuracy": 0.6937125974669095
+    }
+  ],
+  "artifact": {
+    "path": "backend\\artifacts\\prediction_outputs.csv",
+    "rows": 307511,
+    "columns_updated": [
+      "final_decision",
+      "approval_threshold",
+      "rejection_threshold",
+      "confidence"
+    ]
+  }
+}
