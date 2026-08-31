@@ -1,0 +1,25 @@
+{
+  "method": "Youden J threshold + model-uncertainty deferral",
+  "t_base": 0.925484,
+  "tau_u": -0.022269,
+  "deferral_rate": 0.2204,
+  "rows": 307511,
+  "auc": 0.7651,
+  "confusion_auto_decided": {
+    "tp": 77876,
+    "fp": 2292,
+    "tn": 7569,
+    "fn": 32132
+  },
+  "accuracy": 0.7128,
+  "precision": 0.9714,
+  "recall": 0.7079,
+  "specificity": 0.7676,
+  "approve_rate": 0.6688,
+  "before": {
+    "threshold": 0.588,
+    "approve_rate": 0.995,
+    "defaults_caught": 0.028
+  },
+  "note": "Threshold fit on a 50% split, metrics reported on the other half. Specificity is the headline: share of applicants who would have defaulted that the system correctly rejects."
+}
