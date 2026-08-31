@@ -29,8 +29,26 @@ from backend.app.services.decision_engine import ENGINE_VERSION, hybrid_decision
 ARTIFACTS_DIR = Path(__file__).resolve().parent.parent.parent / "artifacts"
 PIPELINE_PATH = ARTIFACTS_DIR / "pipeline.joblib"
 PIPELINE_V2_PATH = ARTIFACTS_DIR / "pipeline_v2.joblib"
+# v3: trained on the REAL Home Credit extract with the two leaked output columns
+# (`loan_approved`, `confidence_score`) removed — see backend/retrain_serving_model_v3.py
+# and reports/serving_model_retrain.json. v1/v2 are kept on disk for rollback.
+PIPELINE_V3_PATH = ARTIFACTS_DIR / "pipeline_v3_real.joblib"
 METRICS_PATH = ARTIFACTS_DIR / "model_metrics.csv"
 TARGET_COL = "default_risk"
+
+
+def _active_artifact_path() -> Path:
+    """Newest artifact present on disk, newest-first with fallback.
+
+    v3 (real Home Credit, leak removed) wins when it exists; otherwise the old
+    v2/v1 synthetic artifacts keep the service running exactly as before. Every
+    load site in this module goes through here so they cannot disagree about
+    which artifact is live.
+    """
+    for candidate in (PIPELINE_V3_PATH, PIPELINE_V2_PATH, PIPELINE_PATH):
+        if candidate.exists():
+            return candidate
+    return PIPELINE_PATH
 
 # Dataset path (used by training_data_service)
 DATASET_PATH = Path(__file__).resolve().parents[2] / "synthetic_indian_loan_dataset.csv"
@@ -196,10 +214,13 @@ def _threshold_artifact_hash(artifact_name: str, t_base: float, tau_d: float) ->
 class MLPredictor:
     def __init__(self):
         """Loads and caches artifact purely read-only state. Prevents runtime retraining constraint."""
+        # Unchanged guard: the original v1 artifact is the "an artifact exists at
+        # all" sentinel, and enforces the no-retraining-at-startup constraint.
         if not PIPELINE_PATH.exists():
             raise FileNotFoundError(f"Pipeline artifact not found at {PIPELINE_PATH}. Refusing to retrain at startup.")
 
-        artifact_path = PIPELINE_V2_PATH if PIPELINE_V2_PATH.exists() else PIPELINE_PATH
+        # v3 (real data, leak removed) first, falling back to v2/v1 if absent.
+        artifact_path = _active_artifact_path()
         payload = joblib.load(artifact_path)
         self.pipeline = payload["pipeline"]
         self.calibrator = payload["calibrator"]
@@ -268,7 +289,7 @@ class MLPredictor:
 
         # Grab TAU_D and T_base from artifact
         try:
-            artifact_path = PIPELINE_V2_PATH if PIPELINE_V2_PATH.exists() else PIPELINE_PATH
+            artifact_path = _active_artifact_path()  # v3-first, v2/v1 fallback
             _payload = joblib.load(artifact_path)
             tau_d  = float(_payload.get("tau_d",  0.30))
             t_base = float(_payload.get("t_base", self.t_base))
@@ -324,7 +345,7 @@ class MLPredictor:
         decision_result.tau_d = float(tau_d)
         decision_result.engine_version = f"{ENGINE_VERSION}+model={used_model_name}"
         decision_result.threshold_artifact_hash = _threshold_artifact_hash(
-            (PIPELINE_V2_PATH if PIPELINE_V2_PATH.exists() else PIPELINE_PATH).name,
+            _active_artifact_path().name,  # v3-first, v2/v1 fallback
             float(t_base),
             float(tau_d),
         )
@@ -368,7 +389,7 @@ def dynamic_hybrid_decision(
         _tau_d = _cached_tau_d
         _t_base = _cached_t_base
     else:
-        artifact_path = PIPELINE_V2_PATH if PIPELINE_V2_PATH.exists() else PIPELINE_PATH
+        artifact_path = _active_artifact_path()  # v3-first, v2/v1 fallback
         if artifact_path.exists():
             try:
                 _pl = joblib.load(artifact_path)
