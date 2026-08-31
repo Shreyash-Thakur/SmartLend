@@ -152,7 +152,6 @@ export const ModelAnalysisDashboard: React.FC = () => {
 
   const [sortKey, setSortKey] = useState<SortKey>('auc')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [confusionModel, setConfusionModel] = useState<string>('')
   const [casePage, setCasePage] = useState(0)
 
   useEffect(() => {
@@ -181,14 +180,6 @@ export const ModelAnalysisDashboard: React.FC = () => {
   const models = useMemo(() => analysis?.models ?? [], [analysis])
   const cases = useMemo(() => analysis?.cases ?? [], [analysis])
   const confusionRows = useMemo(() => analysis?.confusionByModel ?? [], [analysis])
-
-  // Default the confusion-matrix selector to the best model once data lands.
-  useEffect(() => {
-    if (!confusionRows.length) return
-    setConfusionModel((current) =>
-      current && confusionRows.some((row) => row.model === current) ? current : confusionRows[0].model,
-    )
-  }, [confusionRows])
 
   const bestValues = useMemo(() => {
     const map = {} as Record<MetricKey, number | null>
@@ -318,11 +309,6 @@ export const ModelAnalysisDashboard: React.FC = () => {
         }
       }),
     [confusionRows],
-  )
-
-  const selectedConfusion = useMemo(
-    () => confusionDerived.find((row) => row.model === confusionModel) ?? confusionDerived[0] ?? null,
-    [confusionDerived, confusionModel],
   )
 
   const insightLines = useMemo(
@@ -586,82 +572,7 @@ export const ModelAnalysisDashboard: React.FC = () => {
         </Card>
       </section>
 
-      <section className="mb-6 grid gap-6 lg:grid-cols-2">
-        <Card
-          title="Confusion Matrix"
-          description="Per-model true/false decisions computed over every evaluation case."
-        >
-          {isLoading ? (
-            <p className="text-neutral-600">Loading confusion summary...</p>
-          ) : !selectedConfusion ? (
-            <p className="text-neutral-600">No confusion counts available.</p>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {confusionDerived.map((row) => (
-                  <button
-                    key={row.model}
-                    type="button"
-                    onClick={() => setConfusionModel(row.model)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      row.model === selectedConfusion.model
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-primary-300'
-                    }`}
-                  >
-                    {row.model}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-[auto_1fr_1fr] gap-2 text-sm">
-                <div />
-                <div className="text-center text-xs font-semibold uppercase text-neutral-500">Predicted approve</div>
-                <div className="text-center text-xs font-semibold uppercase text-neutral-500">Predicted reject</div>
-
-                <div className="flex items-center text-xs font-semibold uppercase text-neutral-500">Actual approve</div>
-                <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-4 text-center">
-                  <p className="text-xs text-green-700">True Positive</p>
-                  <p className="text-2xl font-bold text-green-800">{fmtInt(selectedConfusion.tp)}</p>
-                </div>
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-4 text-center">
-                  <p className="text-xs text-amber-700">False Negative</p>
-                  <p className="text-2xl font-bold text-amber-800">{fmtInt(selectedConfusion.fn)}</p>
-                </div>
-
-                <div className="flex items-center text-xs font-semibold uppercase text-neutral-500">Actual reject</div>
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-4 text-center">
-                  <p className="text-xs text-red-700">False Positive</p>
-                  <p className="text-2xl font-bold text-red-800">{fmtInt(selectedConfusion.fp)}</p>
-                </div>
-                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-4 text-center">
-                  <p className="text-xs text-neutral-600">True Negative</p>
-                  <p className="text-2xl font-bold text-neutral-800">{fmtInt(selectedConfusion.tn)}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-                {[
-                  { label: 'Accuracy', value: selectedConfusion.accuracy },
-                  { label: 'Precision', value: selectedConfusion.precision },
-                  { label: 'Recall', value: selectedConfusion.recall },
-                  { label: 'Specificity', value: selectedConfusion.specificity },
-                  { label: 'False Positive Rate', value: selectedConfusion.falsePositiveRate },
-                ].map((item) => (
-                  <div key={item.label} className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
-                    <p className="text-xs text-neutral-500">{item.label}</p>
-                    <p className="font-semibold text-neutral-900">{fmtRatioPct(item.value)}</p>
-                  </div>
-                ))}
-                <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
-                  <p className="text-xs text-neutral-500">Cases scored</p>
-                  <p className="font-semibold text-neutral-900">{fmtInt(selectedConfusion.total)}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </Card>
-
+      <section className="mb-6 grid gap-6">
         <Card
           title="Error Profile Across Models"
           description="Stacked false positives vs false negatives — the two failures that cost money."
@@ -714,11 +625,13 @@ export const ModelAnalysisDashboard: React.FC = () => {
 
       <section className="mb-6 grid gap-6 lg:grid-cols-2">
         <Card
-          title="ML vs CBES Decision Landscape"
+          title="Decision Landscape — ML score vs CBES score"
           description={
-            cases.length > scatterData.length
-              ? `Sampled ${scatterData.length.toLocaleString('en-IN')} of ${cases.length.toLocaleString('en-IN')} loaded cases to keep the chart responsive.`
-              : 'Scatter view to inspect confidence and deferral zones.'
+            `Decisions are set by the ML score threshold; the CBES score is shown for comparison only.${
+              cases.length > scatterData.length
+                ? ` Sampled ${scatterData.length.toLocaleString('en-IN')} of ${cases.length.toLocaleString('en-IN')} loaded cases to keep the chart responsive.`
+                : ''
+            }`
           }
         >
           <div className="h-96">
