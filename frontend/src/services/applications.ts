@@ -1,4 +1,5 @@
 import type {
+  DecisionReport,
   FileUploadResponse,
   ModelAnalysisResponse,
   ManualDecisionRequest,
@@ -6,6 +7,7 @@ import type {
   StatsResponse,
   TrendDataPoint,
 } from '@/types/api'
+import { REASON_CODES, type ReasonCode } from '@/lib/reasonCodes'
 import type {
   CustomerProfile,
   CustomerSample,
@@ -329,6 +331,60 @@ export async function submitManualDecision(
     return normalizeApplication(response.data)
   } catch (error) {
     throw extractApiError(error)
+  }
+}
+
+/** Fetch the per-application audit record (engine half + human half).
+ *
+ *  Returns null for an unknown application (HTTP 404) so the caller can say so
+ *  plainly. A case that simply has no human review yet is NOT a 404 — the
+ *  backend answers 200 with `humanReview: null`, which is the common state for
+ *  a freshly deferred application. */
+export async function getDecisionReport(applicationId: string): Promise<DecisionReport | null> {
+  try {
+    const response = await apiClient.get<DecisionReport>(`/applications/${applicationId}/report`)
+    return response.data
+  } catch (error) {
+    if (
+      typeof error === 'object' && error !== null && 'response' in error
+      && (error as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return null
+    }
+    throw extractApiError(error)
+  }
+}
+
+/** The reviewer reason-code taxonomy, from the backend that will store the codes.
+ *
+ *  Any failure resolves to the bundled copy in `@/lib/reasonCodes` rather than
+ *  an error: a reviewer must never be shown a decision form with no reason
+ *  checkboxes, because a decision with no recorded reason is exactly what this
+ *  whole flow exists to prevent. */
+export async function getReasonCodeCatalog(): Promise<ReasonCode[]> {
+  try {
+    const response = await apiClient.get<{ reasonCodes?: unknown }>('/review-reason-codes')
+    const rows = response.data?.reasonCodes
+    if (!Array.isArray(rows) || rows.length === 0) return REASON_CODES
+    const parsed = rows
+      .map((row): ReasonCode | null => {
+        if (typeof row !== 'object' || row === null) return null
+        const record = row as Record<string, unknown>
+        const code = typeof record.code === 'string' ? record.code : ''
+        if (!code) return null
+        return {
+          code,
+          label: typeof record.label === 'string' ? record.label : code,
+          direction: (record.direction === 'approve' || record.direction === 'reject' || record.direction === 'either')
+            ? record.direction
+            : 'either',
+          description: typeof record.description === 'string' ? record.description : '',
+        }
+      })
+      .filter((entry): entry is ReasonCode => entry !== null)
+    return parsed.length > 0 ? parsed : REASON_CODES
+  } catch {
+    return REASON_CODES
   }
 }
 

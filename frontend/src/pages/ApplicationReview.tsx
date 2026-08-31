@@ -2,26 +2,32 @@ import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FileText, Trash2, Eye, ChevronLeft, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
-import { Card, Button, Textarea } from '@/components/common'
-import { DecisionBanner, FeatureContributionChart, DecisionExplanation } from '@/components/sections'
+import { Card, Button } from '@/components/common'
+import {
+  DecisionBanner,
+  DecisionReportPanel,
+  FeatureContributionChart,
+  DecisionExplanation,
+  ReviewerFeedbackForm,
+} from '@/components/sections'
+import type { ReviewerFeedback } from '@/components/sections/ReviewerFeedbackForm'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { formatCurrency } from '@/lib/utils'
 
 import { useAuth } from '@/hooks/useAuth'
 
-type AnalystDecision = 'approved' | 'rejected' | null
-
 export const ApplicationReview: React.FC = () => {
   const { applicationId } = useParams()
   const navigate = useNavigate()
-  const { role } = useAuth()
+  const { role, user } = useAuth()
   const { application, overrideDecision, deleteDocument, isLoading, error } = useApplicationData(applicationId)
-  const [manualDecision, setManualDecision] = useState<AnalystDecision>(null)
-  const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<{ name: string; dataUrl: string; mimeType: string } | null>(null)
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+  // Bumped after a decision is submitted so the audit panel re-fetches and the
+  // reviewer immediately sees their own feedback in the record.
+  const [reportRefreshKey, setReportRefreshKey] = useState(0)
 
   if (isLoading && !application) {
     return (
@@ -44,16 +50,21 @@ export const ApplicationReview: React.FC = () => {
     )
   }
 
-  const handleSubmitDecision = async () => {
-    if (!manualDecision || !notes.trim()) {
-      setSubmitError('Please select a decision and provide notes before submitting.')
-      return
-    }
+  /** Submit the analyst's verdict together with the structured feedback the
+   *  relearning capture layer records against the deferral row. The reviewer is
+   *  kept on the page afterwards so the refreshed Decision Report shows what was
+   *  just captured — leaving immediately would hide the audit trail from the
+   *  person who created it. */
+  const handleSubmitDecision = async (
+    decision: 'approved' | 'rejected',
+    decisionNotes: string,
+    feedback: ReviewerFeedback,
+  ) => {
     setSubmitError(null)
     setIsSubmitting(true)
     try {
-      await overrideDecision(application.id, manualDecision, notes)
-      navigate('/review')
+      await overrideDecision(application.id, decision, decisionNotes, feedback)
+      setReportRefreshKey((key) => key + 1)
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Submission failed')
     } finally {
@@ -259,75 +270,21 @@ export const ApplicationReview: React.FC = () => {
             </>
           )}
 
-          {/* Analyst Decision Section — always visible for org */}
+          {/* Analyst Decision Section — always visible for org.
+              The structured reviewer-feedback form lives in
+              components/sections/ReviewerFeedbackForm.tsx: verdict, mandatory
+              reason codes, 1-5 confidence, optional note, and an automatically
+              measured time-on-case. All of it is posted through fields
+              ManualDecisionRequest already accepts. */}
           {!orgConfirmed && role !== 'customer' ? (
-            <Card
-              title={statusIsDeferred ? 'Analyst Decision Required' : 'Override or Confirm Model Decision'}
-              className={`border-2 ${statusIsDeferred ? 'border-amber-300 bg-amber-50/40' : 'border-neutral-200'}`}
-            >
-              <div className="space-y-5">
-                {statusIsDeferred && (
-                  <div className="rounded-xl bg-amber-100 border border-amber-200 p-4 text-sm text-amber-800">
-                    This case was deferred by the model — it requires a human decision before the customer can proceed.
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-semibold text-neutral-900 mb-3">
-                    {statusIsDeferred ? 'Analyst Decision' : 'Override Decision (optional)'}
-                  </label>
-                  <div className="space-y-3">
-                    <DecisionOption
-                      label="✓ Approve"
-                      description="Approve the loan application"
-                      value="approved"
-                      checked={manualDecision === 'approved'}
-                      onChange={() => setManualDecision('approved')}
-                      color="green"
-                    />
-                    <DecisionOption
-                      label="✗ Reject"
-                      description="Reject the loan application"
-                      value="rejected"
-                      checked={manualDecision === 'rejected'}
-                      onChange={() => setManualDecision('rejected')}
-                      color="red"
-                    />
-                  </div>
-                </div>
-
-                <Textarea
-                  label="Decision Notes *"
-                  placeholder="Provide your reasoning. This will be visible to the applicant on their dashboard."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={4}
-                  required
-                />
-
-                {submitError && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>
-                )}
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate('/review')}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    className="flex-1"
-                    isLoading={isSubmitting}
-                    onClick={() => void handleSubmitDecision()}
-                    disabled={!manualDecision || !notes.trim()}
-                  >
-                    {isSubmitting ? 'Submitting…' : 'Submit Decision'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <ReviewerFeedbackForm
+              isDeferred={statusIsDeferred}
+              reviewerId={user?.email || user?.uid || undefined}
+              isSubmitting={isSubmitting}
+              submitError={submitError}
+              onCancel={() => navigate('/review')}
+              onSubmit={handleSubmitDecision}
+            />
           ) : (
             <Card title="Org Decision Recorded" className={`border-2 ${
               application.status === 'rejected' ? 'border-red-200 bg-red-50/40' :
@@ -362,6 +319,13 @@ export const ApplicationReview: React.FC = () => {
                 </div>
               </div>
             </Card>
+          )}
+
+          {/* Full audit record: the engine's probabilities/thresholds/pillars
+              and, once someone has ruled, the reviewer's verdict and reason
+              codes. Org-only — it exposes engine internals, not customer copy. */}
+          {role !== 'customer' && (
+            <DecisionReportPanel applicationId={application.id} refreshKey={reportRefreshKey} />
           )}
         </section>
       </div>

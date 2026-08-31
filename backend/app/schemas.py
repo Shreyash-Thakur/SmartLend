@@ -305,6 +305,11 @@ class ApplicationExplainResponse(BaseModel):
     id: str
     decision: str
     topFactors: list[dict[str, Any]] = Field(default_factory=list)
+    #: Which mechanism produced `topFactors`: "shap" (real SHAP attributions from
+    #: ml_service) or "heuristic" (hand-written fallback rules, used when the
+    #: explainer was unavailable). The two share a shape, so this is the only
+    #: thing that tells them apart.
+    explanationSource: str = "shap"
     reasons: list[str]
     positiveFactors: list[str] = Field(default_factory=list)
     negativeFactors: list[str] = Field(default_factory=list)
@@ -317,6 +322,33 @@ class ApplicationExplainResponse(BaseModel):
     riskScore: float
     explanation: str
     modelVersion: str
+
+
+class DecisionReportResponse(BaseModel):
+    """Per-application audit record returned by
+    `GET /api/applications/{id}/report`.
+
+    `humanReview` is `None` until a reviewer actually rules on the case — that
+    is a normal state for a freshly deferred application, not an error, so the
+    endpoint answers 200 with the engine half alone. The nested blocks are typed
+    as open dicts on purpose: they are an audit *record*, and pinning every key
+    here would mean a field added to the capture table silently disappears from
+    the report until someone remembers to mirror it.
+    """
+
+    applicationId: str
+    generatedAt: str
+    application: dict[str, Any]
+    engine: dict[str, Any]
+    humanReview: dict[str, Any] | None = None
+    analystNotes: str | None = None
+    manualDecisionApplied: bool = False
+
+
+class ReasonCodeCatalogResponse(BaseModel):
+    """The reviewer reason-code taxonomy the review screen renders."""
+
+    reasonCodes: list[dict[str, str]] = Field(default_factory=list)
 
 
 class PublicMetricsResponse(BaseModel):

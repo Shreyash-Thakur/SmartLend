@@ -20,15 +20,18 @@ from backend.app.models import DeferredReview, LoanApplication
 from backend.app.schemas import (
     ApplicationExplainResponse,
     DashboardMetricsResponse,
+    DecisionReportResponse,
     DocumentUploadResponse,
     LoanApplicationInput,
     LoanApplicationResponse,
     ManualDecisionRequest,
     ModelAnalysisResponse,
     PublicMetricsResponse,
+    ReasonCodeCatalogResponse,
     StatsResponse,
 )
 from backend.app.services.customer_profile_service import resolve_application_payload
+from backend.app.services.decision_report_service import build_decision_report, latest_review_for
 from backend.app.services.decision_service import apply_manual_decision, build_application_response, build_dashboard_metrics
 from backend.app.services.deferred_review_service import (
     maybe_route_to_exploration,
@@ -39,6 +42,7 @@ from backend.app.services.explainability_service import build_explainability_pay
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.model_analysis_service import get_model_analysis_payload
 from backend.app.services.parser_service import parse_document
+from backend.app.services.review_reason_codes import catalog as reason_code_catalog
 from backend.app.services.training_data_service import get_training_application_by_id, get_training_applications
 
 logger = logging.getLogger(__name__)
@@ -861,6 +865,35 @@ def explain_application(application_id: str, db: Session = Depends(get_db)) -> d
     payload = build_explainability_payload(item)
     payload["responseStatus"] = "success"
     return payload
+
+
+@router.get("/applications/{application_id}/report", response_model=DecisionReportResponse)
+def application_decision_report(application_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Complete audit record for one application: engine half + human half.
+
+    An application that has not been reviewed — or was auto-decided and never
+    captured at all — returns `humanReview: null` with a 200. Only a genuinely
+    unknown application id is a 404. The report is exactly where an auditor
+    looks *because* a case is unresolved, so "no reviewer yet" must never be an
+    error response.
+    """
+    item = db.query(LoanApplication).filter(LoanApplication.id == application_id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail=_error_payload("Not found", "Application not found"))
+
+    return build_decision_report(item, latest_review_for(db, application_id))
+
+
+@router.get("/review-reason-codes", response_model=ReasonCodeCatalogResponse)
+def review_reason_codes() -> dict[str, Any]:
+    """The reviewer reason-code taxonomy.
+
+    Served so the review screen and this backend cannot drift apart on the code
+    strings that end up in `deferred_reviews.human_reason_codes`. The frontend
+    ships the same list as a static fallback, so a failure here degrades to
+    stale labels rather than a review screen with no checkboxes.
+    """
+    return {"reasonCodes": reason_code_catalog()}
 
 
 @router.get("/dashboard-metrics", response_model=DashboardMetricsResponse)

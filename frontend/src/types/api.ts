@@ -55,6 +55,92 @@ export interface GetDecisionResponse {
 export interface ManualDecisionRequest {
   status: DecisionType
   notes: string
+
+  /**
+   * Structured reviewer feedback for the relearning capture layer. Every field
+   * is optional and maps 1:1 onto a column the backend's `ManualDecisionRequest`
+   * already accepts — do not invent new ones here, they would be silently
+   * dropped by Pydantic. Omitting a field leaves the column NULL rather than
+   * guessed. See docs/RELEARNING-LOOP.md.
+   */
+  reviewerId?: string
+  /** Self-rated 1-5 (Madras et al. scale); the backend rejects anything else. */
+  reviewerConfidence?: number
+  /** Measured by the UI from when the case was opened — never typed by hand. */
+  timeSpentSeconds?: number
+  /** Codes from `@/lib/reasonCodes`. */
+  reasonCodes?: string[]
+}
+
+/** One reason code as it comes back on a decision report (already expanded). */
+export interface ReportReasonCode {
+  code: string
+  label: string
+  direction: string
+  description: string
+}
+
+/** The human half of a decision report — null until a reviewer rules. */
+export interface DecisionReportHumanReview {
+  reviewId: string
+  reviewerId: string | null
+  decision: string
+  reviewedAt: string | null
+  reasonCodes: ReportReasonCode[]
+  freeText: string | null
+  reviewerConfidence: number | null
+  timeSpentSeconds: number | null
+  agreedWithEngine: boolean | null
+  overrideDirection: string | null
+  explorationFlag: boolean
+  outcomeCensored: boolean
+  realizedOutcome: number | null
+}
+
+export interface DecisionReportEngine {
+  decision: string
+  decisionReason: string
+  selectedModel: string
+  engineVersion: string | null
+  thresholdArtifactHash: string | null
+  pMl: number | null
+  pCbes: number | null
+  pBlend: number | null
+  /** "captured" (read off the deferral row) | "derived" | "unavailable". */
+  pBlendSource: string
+  disagreement: number | null
+  confidence: number | null
+  confidenceLabel: string | null
+  riskScore: number | null
+  thresholds: { approve: number | null; reject: number | null; base: number | null }
+  cbesBreakdown: Record<string, number | null>
+  cbesWeights: Record<string, number | null>
+  topFactors: Array<Record<string, unknown>>
+  explanation: string
+  routedToHumanReview: boolean
+  explorationFlag: boolean
+}
+
+/** `GET /api/applications/{id}/report` — the per-application audit record. */
+export interface DecisionReport {
+  applicationId: string
+  generatedAt: string
+  application: {
+    applicantId: string
+    applicantName: string
+    email: string
+    phone: string
+    createdAt: string | null
+    status: string
+    loanAmount: number | null
+    loanPurpose: string
+    loanTenureMonths: number
+    data: Record<string, unknown>
+  }
+  engine: DecisionReportEngine
+  humanReview: DecisionReportHumanReview | null
+  analystNotes: string | null
+  manualDecisionApplied: boolean
 }
 
 export interface ManualDecisionResponse {

@@ -30,6 +30,9 @@ export interface FeatureContribution {
   impact: number
   value: number
   baseValue?: number
+  /** Which mechanism produced this contribution: real SHAP attributions, or the
+   *  hand-written heuristic fallback used when the explainer is unavailable. */
+  source?: 'shap' | 'heuristic'
 }
 
 export interface ApplicationDecision {
@@ -45,6 +48,8 @@ export interface ApplicationDecision {
   positiveFactors: string[]
   negativeFactors: string[]
   featureImportance: FeatureContribution[]
+  /** "shap" | "heuristic" — see FeatureContribution.source. */
+  explanationSource?: 'shap' | 'heuristic'
   analystId?: string
   analystNotes?: string
   modelVersion?: string

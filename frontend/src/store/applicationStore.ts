@@ -4,6 +4,7 @@ import type {
   LoanApplicationFormData,
   ShortLoanApplicationFormData,
 } from '@/types/application'
+import type { ManualDecisionRequest } from '@/types/api'
 import {
   bulkDecision,
   createApplication,
@@ -26,9 +27,24 @@ interface ApplicationStore {
   addApplication: (payload: LoanApplicationFormData | ShortLoanApplicationFormData) => Promise<LoanApplication>
   uploadDocument: (applicationId: string, file: File) => Promise<void>
   deleteDocument: (applicationId: string, documentId: string) => Promise<void>
-  overrideDecision: (applicationId: string, status: 'approved' | 'rejected' | 'deferred', notes: string) => Promise<void>
+  overrideDecision: (
+    applicationId: string,
+    status: 'approved' | 'rejected' | 'deferred',
+    notes: string,
+    feedback?: ReviewerFeedback,
+  ) => Promise<void>
   bulkOverrideDecision: (applicationIds: string[], status: 'approved' | 'rejected', notes: string) => Promise<void>
 }
+
+/** Structured reviewer feedback for the relearning capture layer.
+ *
+ * Optional so the bulk-triage and legacy call sites keep working; when it is
+ * absent the corresponding `deferred_reviews` columns are left NULL rather than
+ * guessed. The keys are exactly the ones `ManualDecisionRequest` accepts. */
+export type ReviewerFeedback = Pick<
+  ManualDecisionRequest,
+  'reviewerId' | 'reviewerConfidence' | 'timeSpentSeconds' | 'reasonCodes'
+>
 
 export const useApplicationStore = create<ApplicationStore>((set) => ({
   applications: [],
@@ -98,10 +114,10 @@ export const useApplicationStore = create<ApplicationStore>((set) => ({
       throw error
     }
   },
-  overrideDecision: async (applicationId, status, notes) => {
+  overrideDecision: async (applicationId, status, notes, feedback) => {
     set({ isLoading: true, error: null })
     try {
-      await submitManualDecision(applicationId, { status, notes })
+      await submitManualDecision(applicationId, { status, notes, ...(feedback ?? {}) })
       const applications = await getApplications()
       set({
         applications,

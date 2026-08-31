@@ -263,22 +263,22 @@ export const ReviewPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              {/* Deciding a single case goes through the full review screen, which
+                  collects the reason codes, reviewer confidence and measured
+                  time-on-case that the relearning capture layer records against
+                  the deferral row. An Accept/Reject button here would write a
+                  human decision with no recorded reason — a row that can never be
+                  audited or analysed, which is exactly what the structured form
+                  exists to prevent. Bulk triage above remains deliberately
+                  reason-less; it is a queue action, not an adjudication. */}
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
                   variant="primary"
                   leftIcon={<CheckCircle2 className="h-4 w-4" />}
-                  disabled={actionLoading || selectedApplication.status === 'approved' || selectedApplication.source !== 'customer'}
-                  onClick={() => void decide(selectedApplication, 'approved')}
+                  disabled={actionLoading || selectedApplication.source !== 'customer'}
+                  onClick={() => navigate(`/review/${selectedApplication.id}`)}
                 >
-                  Accept
-                </Button>
-                <Button
-                  variant="secondary"
-                  leftIcon={<XCircle className="h-4 w-4" />}
-                  disabled={actionLoading || selectedApplication.status === 'rejected' || selectedApplication.source !== 'customer'}
-                  onClick={() => void decide(selectedApplication, 'rejected')}
-                >
-                  Reject
+                  Record Decision with Reasons
                 </Button>
                 <Button
                   variant="ghost"
@@ -286,8 +286,11 @@ export const ReviewPage: React.FC = () => {
                   disabled={actionLoading || selectedApplication.status === 'deferred' || selectedApplication.source !== 'customer'}
                   onClick={() => void decide(selectedApplication, 'deferred')}
                 >
-                  Defer
+                  Keep Deferred
                 </Button>
+                <p className="text-xs text-neutral-500">
+                  Approving or rejecting requires at least one reason code.
+                </p>
               </div>
 
               {selectedApplication.source !== 'customer' && (

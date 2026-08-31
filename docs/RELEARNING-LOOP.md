@@ -52,15 +52,30 @@ design, not an unfinished part of it.
                └─ record_deferral()            backend/app/services/deferred_review_service.py
                     → INSERT INTO deferred_reviews
 
-  analyst reviews the case
-            │
+  analyst opens the case in the review screen
+            │        frontend/src/pages/ApplicationReview.tsx
+            │         └─ <ReviewerFeedbackForm>   ← clock starts on mount
+            │              • verdict: Approve | Reject
+            │              • reason codes (≥1 REQUIRED, filtered by verdict)
+            │              • reviewer confidence 1-5
+            │              • optional free-text note
+            │              • time on case — measured, never typed
             ▼
   POST /api/applications/{id}/decision
+   {status, notes, reasonCodes, reviewerConfidence, timeSpentSeconds, reviewerId}
    └─ update_manual_decision()                backend/app/routers/applications.py
         ├─ apply_manual_decision() + COMMIT    ← the decision is durable HERE
         └─ _capture_human_decision()           [failure-isolated]
                └─ record_human_decision()
                     → UPDATE the open deferred_reviews row for this application
+
+  anyone asks "what happened on this application?"
+            │
+            ▼
+  GET /api/applications/{id}/report           backend/app/routers/applications.py
+   └─ build_decision_report()                 backend/app/services/decision_report_service.py
+        → { engine: {...}, humanReview: {...} | null }
+        rendered by <DecisionReportPanel> on the same review screen
 
   loan seasons, outcome becomes known  (not yet automated)
             │
@@ -87,6 +102,11 @@ design, not an unfinished part of it.
 | `backend/app/services/relearning_service.py` | status, and the one honest `attempt_retrain()` refusal |
 | `backend/app/routers/relearning.py` | `GET /api/relearning/status` |
 | `research/relearning/gate.py` | the real four-condition gate (imported, never forked) |
+| `backend/app/services/review_reason_codes.py` | the reason-code taxonomy (source of truth) + code→label expansion |
+| `backend/app/services/decision_report_service.py` | assembles the per-application audit record |
+| `frontend/src/components/sections/ReviewerFeedbackForm.tsx` | the reviewer UI: reason checkboxes, confidence, measured time |
+| `frontend/src/components/sections/DecisionReportPanel.tsx` | renders the audit record on the review screen |
+| `frontend/src/lib/reasonCodes.ts` | frontend mirror of the taxonomy, used as an offline fallback |
 
 ---
 
@@ -129,6 +149,84 @@ as an "override" would inflate the metric.
 The reviewer fields are all optional additions to `ManualDecisionRequest`. An
 existing client that posts only `{status, notes}` still works; the extra columns
 are simply NULL rather than guessed.
+
+### How the reviewer actually supplies all that
+
+`frontend/src/components/sections/ReviewerFeedbackForm.tsx`, rendered on the
+analyst review screen (`/review/:applicationId`). It collects four things and
+posts them through the fields above — it introduces **no new backend field**.
+
+1. **Verdict** — Approve or Reject.
+2. **Reason codes** — multi-select checkboxes, filtered to the codes that argue
+   for the chosen verdict plus the direction-neutral ones. Changing the verdict
+   drops any ticked code that no longer applies, so an approve-only reason can
+   never be filed against a rejection.
+3. **Reviewer confidence** — a 1–5 selector, labelled *very unsure … very
+   confident*. Sent as `reviewerConfidence`; the backend rejects anything
+   outside 1–5.
+4. **Free-text note** — optional, and *required only* when `GEN-OTHER` is
+   ticked. Sent as `notes`, stored in `human_free_text`.
+
+**Submit is disabled until at least one reason code is ticked**, and the form
+says why in-line. This is the one hard requirement in the UI. A human decision
+recorded with no reason is a row that can never contribute to the
+disparate-deferral check or to reviewer-consistency analysis; it inflates
+`reviewed_count` without adding a single piece of evidence, which is strictly
+worse than not capturing it. If `GEN-OTHER` is ticked, the note becomes required
+too — "other" with no explanation records nothing at all.
+
+**Time spent is measured, never typed.** A `useRef` timestamp is taken when the
+form mounts (i.e. when the reviewer opens the case) and the elapsed seconds are
+sent at submit. There is deliberately no input for it: the
+reviewer-attention-degradation check needs a real measurement, and a
+self-reported number would be a rounded guess. The elapsed time is shown live so
+the measurement is visible rather than covert.
+
+Single-case adjudication in the review queue (`ReviewPage.tsx`) routes to this
+screen rather than offering bare Accept/Reject buttons, for the same reason. The
+**bulk** queue actions are unchanged and remain reason-less — they are a triage
+action over cases the engine already auto-decided, not an adjudication of a
+deferral, and they generally act on applications that have no open capture row
+at all.
+
+### The reason-code taxonomy
+
+Source of truth: `backend/app/services/review_reason_codes.py`. The frontend
+ships a mirror in `frontend/src/lib/reasonCodes.ts` and fetches the live list
+from `GET /api/review-reason-codes`, falling back to the mirror if that call
+fails — a backend hiccup degrades to possibly-stale *labels*, never to a review
+form with no checkboxes.
+
+| Code | Label | Supports |
+|---|---|---|
+| `APR-EMP-STABLE` | Stable employment | APPROVE |
+| `APR-REPAY-STRONG` | Strong repayment history | APPROVE |
+| `APR-COLLATERAL` | Adequate collateral | APPROVE |
+| `APR-INCOME-HEADROOM` | Sufficient income headroom | APPROVE |
+| `APR-RELATIONSHIP` | Long-standing customer | APPROVE |
+| `APR-GUARANTOR` | Guarantor strength | APPROVE |
+| `REJ-OBLIGATIONS` | High existing obligations | REJECT |
+| `REJ-THIN-FILE` | Thin or no credit file | REJECT |
+| `REJ-DELINQUENCY` | Recent delinquency | REJECT |
+| `REJ-EMI-BURDEN` | Income insufficient for EMI | REJECT |
+| `REJ-DOCS` | Unverifiable documents | REJECT |
+| `REJ-UTILISATION` | High credit utilisation | REJECT |
+| `GEN-MODEL-MISMATCH` | Model score inconsistent with the file | either |
+| `GEN-POLICY-EXCEPTION` | Policy exception applied | either |
+| `GEN-OTHER` | Other (free text becomes required) | either |
+
+**The codes are not validated server-side, on purpose.** `reasonCodes` accepts
+any string. Two reasons: an older client, a bulk action, or a future taxonomy
+revision must never cause a reviewer's *decision* to be rejected over a
+bookkeeping mismatch; and codes written under an earlier taxonomy must stay
+readable. `describe_reason_code()` surfaces an unrecognised code verbatim with
+`direction: "unknown"` rather than dropping it — an audit record must never
+quietly lose a reason a human actually recorded.
+
+The direction split is presentation guidance only. `GEN-MODEL-MISMATCH` in
+particular is the code that makes an override legible after the fact: it says
+the reviewer looked at the file and disagreed with the score, which is exactly
+the population condition 1 of the gate is about.
 
 ### Later — when the loan outcome is known
 
@@ -320,3 +418,92 @@ The endpoint **fails closed**. An unreadable database yields zeroed counts
 flagged `counts_unavailable`; an unevaluable gate yields
 `gate.unavailable = true` and the closed verdict. There is no failure mode that
 produces a permissive answer.
+
+### `GET /api/applications/{application_id}/report`
+
+The per-application audit record: everything the engine did, and everything the
+human did, in one payload. Read-only — it builds a dict out of rows that already
+exist and writes nothing.
+
+```jsonc
+{
+  "applicationId": "app-...",
+  "generatedAt": "2026-08-31T09:12:44+00:00",
+  "application": {
+    "applicantId": "cust-...", "applicantName": "...", "email": "...", "phone": "...",
+    "createdAt": "...", "status": "submitted",
+    "loanAmount": 500000, "loanPurpose": "personal", "loanTenureMonths": 36,
+    "data": { /* the submitted form, minus underscore-prefixed internals */ }
+  },
+  "engine": {
+    "decision": "DEFER", "decisionReason": "disagreement_gate",
+    "selectedModel": "...", "engineVersion": "...", "thresholdArtifactHash": "...",
+    "pMl": 0.9, "pCbes": 0.1, "pBlend": 0.7,
+    "pBlendSource": "captured",          // "captured" | "derived" | "unavailable"
+    "disagreement": 0.8, "confidence": 0.42, "confidenceLabel": "low", "riskScore": 0.1,
+    "thresholds": { "approve": 0.55, "reject": 0.45, "base": 0.50 },
+    "cbesBreakdown": { "credit": 0.4, "capacity": 0.5, /* ... one per pillar */ },
+    "cbesWeights":   { /* pillar weights, when recorded */ },
+    "topFactors": [ /* SHAP top factors, [] when unavailable */ ],
+    "explanation": "...",
+    "routedToHumanReview": true, "explorationFlag": false
+  },
+  "humanReview": {                        // null until a reviewer actually rules
+    "reviewId": "rev-...", "reviewerId": "analyst-11", "decision": "REJECT",
+    "reviewedAt": "...",
+    "reasonCodes": [ { "code": "REJ-DOCS", "label": "Unverifiable documents",
+                       "direction": "reject", "description": "..." } ],
+    "freeText": "...", "reviewerConfidence": 4, "timeSpentSeconds": 214.0,
+    "agreedWithEngine": false,
+    "overrideDirection": "engine_approve_to_human_reject",
+    "explorationFlag": false, "outcomeCensored": true, "realizedOutcome": null
+  },
+  "analystNotes": "...", "manualDecisionApplied": true
+}
+```
+
+Three behaviours worth knowing:
+
+* **`humanReview: null` is a 200, not a 404.** An application awaiting review —
+  or one that was auto-decided and never captured — returns the engine half
+  alone. A report that errored whenever the case was unresolved would fail
+  exactly when it is most needed. Only an unknown `application_id` is a 404.
+* **Where the capture row and `_decision_meta` overlap, the capture row wins.**
+  It was written from the live `DecisionResult` and carries `p_blend`, `t_base`,
+  `engine_version` and `threshold_artifact_hash`, none of which the application's
+  stored metadata holds.
+* **`pBlendSource` is honest about reconstruction.** With no capture row there is
+  nothing recorded to read `p_blend` from, so it is recomputed from the engine's
+  own `_BLEND_ALPHA` (imported, never re-declared) and flagged `"derived"`. A
+  reader can always tell a recorded number from a recomputed one.
+
+Rendered by `<DecisionReportPanel>` as the "Decision Report" panel on the
+analyst review screen, org role only.
+
+### `GET /api/review-reason-codes`
+
+`{ "reasonCodes": [ { code, label, direction, description }, ... ] }` — the
+taxonomy in §3, served so the review screen and the backend that stores the
+codes cannot drift apart.
+
+---
+
+## 10. Is the loop actually closed? (the end-to-end evidence)
+
+`backend/tests/test_decision_report_and_reviewer_feedback.py::test_relearning_loop_closes_end_to_end`
+walks the whole chain in one test, rather than leaving it inferred from four
+unit tests that never meet:
+
+1. The engine defers → exactly one `deferred_reviews` row exists, with
+   `human_decision IS NULL`, and the report already answers with the engine half
+   and `humanReview: null`.
+2. A reviewer decision carrying three reason codes, confidence 4 and 214 measured
+   seconds **updates that same row** (asserted: still exactly one row) and sets
+   `agreed_with_engine = false` /
+   `override_direction = engine_approve_to_human_reject`.
+3. `GET /api/relearning/status` moves: `reviewed_count` +1,
+   `override_denominator` 1, `override_rate` 1.0 — and
+   `retraining_permitted` stays `false`. Capturing feedback unlocks nothing.
+4. `GET /api/applications/{id}/report` returns both halves, with `pMl`, `pCbes`,
+   `pBlend`, `confidence` and all three thresholds matching the live
+   `DecisionResult`, and the reason codes expanded to readable labels.
