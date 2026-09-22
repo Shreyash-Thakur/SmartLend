@@ -8,13 +8,725 @@
     "gain_criterion": "a hybrid 'gain' must exceed the fold-to-fold AUC std (0.0036) to count as a gain at all"
   },
   "tabpfn_alignment": {
-    "status": "ALIGNMENT_FAILED",
-    "auc_on_reconstructed_rows": 0.5052,
-    "expected_auc": 0.7446,
-    "corr_with_xgb_pd_on_reconstructed_rows": 0.0109,
-    "expected_corr_order_of_magnitude": "~0.6 for two informative models",
-    "diagnostics": "30 alternative reconstructions tried (legacy np.random RNG, sorted holdout, permutation draw, stratify on approve labels, consecutive 10k chunks, full-dataset subsample): all give AUC 0.47-0.53. Batch-of-500 permutation search (20x20 pairings): max |corr| with XGBoost P(default) = 0.126, i.e. null noise at n=500. The .npy cannot be matched to rows of the current CSV.",
-    "consequence": "Every XGBoost+TabPFN comparison is skipped. The hybrid question for TabPFN is UNANSWERED, not answered negatively. To answer it, re-score TabPFN and save the SK_ID_CURR of each scored row alongside the probabilities."
+    "status": "verified",
+    "source": "tabpfn_scored_rows.csv",
+    "scored_rows": 8000,
+    "label_mismatches_vs_dataset": 0,
+    "auc_on_joined_rows": 0.7284,
+    "expected_auc": 0.7284,
+    "corr_with_xgb_pd": 0.8297
+  },
+  "segments_xgb_vs_tabpfn": {
+    "models": [
+      "XGBoost",
+      "TabPFN"
+    ],
+    "ext_source_2_quartile": [
+      {
+        "segment": "Q1_low",
+        "n": 1997,
+        "n_default": 278,
+        "auc_XGBoost": 0.7598,
+        "auc_TabPFN": 0.7073,
+        "TabPFN_minus_XGBoost": -0.0525
+      },
+      {
+        "segment": "Q2",
+        "n": 1997,
+        "n_default": 150,
+        "auc_XGBoost": 0.6939,
+        "auc_TabPFN": 0.6785,
+        "TabPFN_minus_XGBoost": -0.0154
+      },
+      {
+        "segment": "Q3",
+        "n": 1996,
+        "n_default": 120,
+        "auc_XGBoost": 0.7198,
+        "auc_TabPFN": 0.6826,
+        "TabPFN_minus_XGBoost": -0.0372
+      },
+      {
+        "segment": "Q4_high",
+        "n": 1997,
+        "n_default": 97,
+        "auc_XGBoost": 0.7511,
+        "auc_TabPFN": 0.7267,
+        "TabPFN_minus_XGBoost": -0.0244
+      },
+      {
+        "segment": "missing",
+        "n": 13,
+        "n_default": 1,
+        "auc_XGBoost": 0.75,
+        "auc_TabPFN": 0.6667,
+        "TabPFN_minus_XGBoost": -0.0833
+      }
+    ],
+    "bureau_file": [
+      {
+        "segment": "thin_file_no_bureau",
+        "n": 1170,
+        "n_default": 122,
+        "auc_XGBoost": 0.7174,
+        "auc_TabPFN": 0.6742,
+        "TabPFN_minus_XGBoost": -0.0432
+      },
+      {
+        "segment": "has_bureau_record",
+        "n": 6830,
+        "n_default": 524,
+        "auc_XGBoost": 0.7644,
+        "auc_TabPFN": 0.735,
+        "TabPFN_minus_XGBoost": -0.0294
+      }
+    ],
+    "income_quartile": [
+      {
+        "segment": "Q1_low",
+        "n": 2592,
+        "n_default": 236,
+        "auc_XGBoost": 0.7498,
+        "auc_TabPFN": 0.7106,
+        "TabPFN_minus_XGBoost": -0.0392
+      },
+      {
+        "segment": "Q2",
+        "n": 1435,
+        "n_default": 118,
+        "auc_XGBoost": 0.7732,
+        "auc_TabPFN": 0.7451,
+        "TabPFN_minus_XGBoost": -0.0281
+      },
+      {
+        "segment": "Q3",
+        "n": 2204,
+        "n_default": 171,
+        "auc_XGBoost": 0.762,
+        "auc_TabPFN": 0.7294,
+        "TabPFN_minus_XGBoost": -0.0326
+      },
+      {
+        "segment": "Q4_high",
+        "n": 1769,
+        "n_default": 121,
+        "auc_XGBoost": 0.7564,
+        "auc_TabPFN": 0.7388,
+        "TabPFN_minus_XGBoost": -0.0176
+      }
+    ],
+    "age_band": [
+      {
+        "segment": "<30",
+        "n": 1214,
+        "n_default": 140,
+        "auc_XGBoost": 0.7587,
+        "auc_TabPFN": 0.7341,
+        "TabPFN_minus_XGBoost": -0.0246
+      },
+      {
+        "segment": "30-40",
+        "n": 2138,
+        "n_default": 181,
+        "auc_XGBoost": 0.7554,
+        "auc_TabPFN": 0.7171,
+        "TabPFN_minus_XGBoost": -0.0383
+      },
+      {
+        "segment": "40-50",
+        "n": 1961,
+        "n_default": 162,
+        "auc_XGBoost": 0.7683,
+        "auc_TabPFN": 0.7542,
+        "TabPFN_minus_XGBoost": -0.0141
+      },
+      {
+        "segment": "50-60",
+        "n": 1764,
+        "n_default": 117,
+        "auc_XGBoost": 0.7491,
+        "auc_TabPFN": 0.6938,
+        "TabPFN_minus_XGBoost": -0.0553
+      },
+      {
+        "segment": "60+",
+        "n": 923,
+        "n_default": 46,
+        "auc_XGBoost": 0.6716,
+        "auc_TabPFN": 0.6387,
+        "TabPFN_minus_XGBoost": -0.0329
+      }
+    ]
+  },
+  "hybrid_xgb_tabpfn": {
+    "pair": "XGBoost + TabPFN",
+    "evaluation_rows": "8,000 TabPFN-scored rows (id-joined, labels verified)",
+    "auc_xgboost_alone": 0.7595,
+    "auc_tabpfn_alone": 0.7284,
+    "auc_simple_average": 0.7539,
+    "auc_weighted_best": {
+      "w_xgb": 1.0,
+      "auc": 0.7595,
+      "note": "weight chosen on the evaluation data itself \u2014 an optimistic upper bound, not an honest estimate"
+    },
+    "weight_sweep_curve": [
+      {
+        "w_a": 0.0,
+        "auc": 0.72839
+      },
+      {
+        "w_a": 0.05,
+        "auc": 0.73254
+      },
+      {
+        "w_a": 0.1,
+        "auc": 0.73619
+      },
+      {
+        "w_a": 0.15,
+        "auc": 0.73944
+      },
+      {
+        "w_a": 0.2,
+        "auc": 0.74239
+      },
+      {
+        "w_a": 0.25,
+        "auc": 0.74494
+      },
+      {
+        "w_a": 0.3,
+        "auc": 0.74719
+      },
+      {
+        "w_a": 0.35,
+        "auc": 0.74917
+      },
+      {
+        "w_a": 0.4,
+        "auc": 0.75095
+      },
+      {
+        "w_a": 0.45,
+        "auc": 0.75257
+      },
+      {
+        "w_a": 0.5,
+        "auc": 0.75392
+      },
+      {
+        "w_a": 0.55,
+        "auc": 0.75511
+      },
+      {
+        "w_a": 0.6,
+        "auc": 0.75606
+      },
+      {
+        "w_a": 0.65,
+        "auc": 0.75697
+      },
+      {
+        "w_a": 0.7,
+        "auc": 0.75768
+      },
+      {
+        "w_a": 0.75,
+        "auc": 0.75832
+      },
+      {
+        "w_a": 0.8,
+        "auc": 0.75881
+      },
+      {
+        "w_a": 0.85,
+        "auc": 0.75908
+      },
+      {
+        "w_a": 0.9,
+        "auc": 0.75927
+      },
+      {
+        "w_a": 0.95,
+        "auc": 0.75943
+      },
+      {
+        "w_a": 1.0,
+        "auc": 0.75952
+      }
+    ],
+    "auc_rank_average": 0.7519,
+    "auc_cv_logistic_stack": 0.7587,
+    "best_honest_hybrid": {
+      "method": "cv_logistic_stack",
+      "auc": 0.7587,
+      "gain_vs_xgb": -0.0008,
+      "fold_std_reference": 0.0036,
+      "gain_exceeds_fold_std": false
+    },
+    "paired_bootstrap_simple_avg_vs_xgb": {
+      "delta_mean": -0.00565,
+      "delta_ci95": [
+        -0.00981,
+        -0.00101
+      ],
+      "frac_positive": 0.009,
+      "n_boot": 1000
+    }
+  },
+  "correlations_tabpfn_rows": {
+    "pearson_probs": {
+      "XGBoost|LightGBM": 0.9645,
+      "XGBoost|CatBoost": 0.9539,
+      "XGBoost|Logistic Regression": 0.8156,
+      "XGBoost|Random Forest": 0.8226,
+      "XGBoost|CBES": 0.1967,
+      "XGBoost|TabPFN": 0.8297,
+      "LightGBM|CatBoost": 0.9624,
+      "LightGBM|Logistic Regression": 0.835,
+      "LightGBM|Random Forest": 0.8443,
+      "LightGBM|CBES": 0.1949,
+      "LightGBM|TabPFN": 0.8572,
+      "CatBoost|Logistic Regression": 0.856,
+      "CatBoost|Random Forest": 0.8734,
+      "CatBoost|CBES": 0.2022,
+      "CatBoost|TabPFN": 0.872,
+      "Logistic Regression|Random Forest": 0.8494,
+      "Logistic Regression|CBES": 0.1853,
+      "Logistic Regression|TabPFN": 0.8477,
+      "Random Forest|CBES": 0.2061,
+      "Random Forest|TabPFN": 0.8481,
+      "CBES|TabPFN": 0.2305
+    },
+    "spearman_probs": {
+      "XGBoost|LightGBM": 0.9573,
+      "XGBoost|CatBoost": 0.9499,
+      "XGBoost|Logistic Regression": 0.8348,
+      "XGBoost|Random Forest": 0.8434,
+      "XGBoost|CBES": 0.2548,
+      "XGBoost|TabPFN": 0.847,
+      "LightGBM|CatBoost": 0.9606,
+      "LightGBM|Logistic Regression": 0.8595,
+      "LightGBM|Random Forest": 0.866,
+      "LightGBM|CBES": 0.2459,
+      "LightGBM|TabPFN": 0.871,
+      "CatBoost|Logistic Regression": 0.8751,
+      "CatBoost|Random Forest": 0.8964,
+      "CatBoost|CBES": 0.2534,
+      "CatBoost|TabPFN": 0.8896,
+      "Logistic Regression|Random Forest": 0.8681,
+      "Logistic Regression|CBES": 0.233,
+      "Logistic Regression|TabPFN": 0.8579,
+      "Random Forest|CBES": 0.2138,
+      "Random Forest|TabPFN": 0.8737,
+      "CBES|TabPFN": 0.2662
+    },
+    "pearson_errors": {
+      "XGBoost|LightGBM": 0.9948,
+      "XGBoost|CatBoost": 0.9932,
+      "XGBoost|Logistic Regression": 0.9753,
+      "XGBoost|Random Forest": 0.9709,
+      "XGBoost|CBES": 0.4463,
+      "XGBoost|TabPFN": 0.9756,
+      "LightGBM|CatBoost": 0.9948,
+      "LightGBM|Logistic Regression": 0.9788,
+      "LightGBM|Random Forest": 0.9748,
+      "LightGBM|CBES": 0.4456,
+      "LightGBM|TabPFN": 0.98,
+      "CatBoost|Logistic Regression": 0.983,
+      "CatBoost|Random Forest": 0.9804,
+      "CatBoost|CBES": 0.4478,
+      "CatBoost|TabPFN": 0.984,
+      "Logistic Regression|Random Forest": 0.9836,
+      "Logistic Regression|CBES": 0.4419,
+      "Logistic Regression|TabPFN": 0.9853,
+      "Random Forest|CBES": 0.4406,
+      "Random Forest|TabPFN": 0.9901,
+      "CBES|TabPFN": 0.4506
+    },
+    "disagreement_rate_xgb_cbes_at_0.5": 0.1961,
+    "error_confusion_xgb_cbes": {
+      "threshold": 0.5,
+      "n": 8000,
+      "counts": {
+        "both_right": 5948,
+        "only_a_right": 1412,
+        "only_b_right": 157,
+        "both_wrong": 483
+      },
+      "fractions": {
+        "both_right": 0.7435,
+        "only_a_right": 0.1765,
+        "only_b_right": 0.0196,
+        "both_wrong": 0.0604
+      }
+    },
+    "note": "error_confusion is in approval space at threshold 0.5; with an 8.07% default rate a model that approves everyone is 'right' 91.9% of the time at this threshold, so read the overlap pattern, not the accuracy level."
+  },
+  "tabfm_alignment": {
+    "status": "verified",
+    "source": "tabfm_scored_rows.csv",
+    "scored_rows": 8000,
+    "label_mismatches_vs_dataset": 0,
+    "auc_on_joined_rows": 0.6911,
+    "expected_auc": 0.6911,
+    "corr_with_xgb_pd": 0.6599
+  },
+  "segments_xgb_vs_tabfm": {
+    "models": [
+      "XGBoost",
+      "TabFM"
+    ],
+    "ext_source_2_quartile": [
+      {
+        "segment": "Q1_low",
+        "n": 1997,
+        "n_default": 278,
+        "auc_XGBoost": 0.7598,
+        "auc_TabFM": 0.6975,
+        "TabFM_minus_XGBoost": -0.0623
+      },
+      {
+        "segment": "Q2",
+        "n": 1997,
+        "n_default": 150,
+        "auc_XGBoost": 0.6939,
+        "auc_TabFM": 0.6036,
+        "TabFM_minus_XGBoost": -0.0903
+      },
+      {
+        "segment": "Q3",
+        "n": 1996,
+        "n_default": 120,
+        "auc_XGBoost": 0.7198,
+        "auc_TabFM": 0.6192,
+        "TabFM_minus_XGBoost": -0.1006
+      },
+      {
+        "segment": "Q4_high",
+        "n": 1997,
+        "n_default": 97,
+        "auc_XGBoost": 0.7511,
+        "auc_TabFM": 0.6678,
+        "TabFM_minus_XGBoost": -0.0833
+      },
+      {
+        "segment": "missing",
+        "n": 13,
+        "n_default": 1,
+        "auc_XGBoost": 0.75,
+        "auc_TabFM": 1.0,
+        "TabFM_minus_XGBoost": 0.25,
+        "bootstrap_delta": {
+          "delta_mean": 0.25362,
+          "delta_ci95": [
+            0.0,
+            0.5
+          ],
+          "frac_positive": 0.9695,
+          "n_boot": 655
+        }
+      }
+    ],
+    "bureau_file": [
+      {
+        "segment": "thin_file_no_bureau",
+        "n": 1170,
+        "n_default": 122,
+        "auc_XGBoost": 0.7174,
+        "auc_TabFM": 0.6782,
+        "TabFM_minus_XGBoost": -0.0392
+      },
+      {
+        "segment": "has_bureau_record",
+        "n": 6830,
+        "n_default": 524,
+        "auc_XGBoost": 0.7644,
+        "auc_TabFM": 0.6895,
+        "TabFM_minus_XGBoost": -0.0749
+      }
+    ],
+    "income_quartile": [
+      {
+        "segment": "Q1_low",
+        "n": 2592,
+        "n_default": 236,
+        "auc_XGBoost": 0.7498,
+        "auc_TabFM": 0.6793,
+        "TabFM_minus_XGBoost": -0.0705
+      },
+      {
+        "segment": "Q2",
+        "n": 1435,
+        "n_default": 118,
+        "auc_XGBoost": 0.7732,
+        "auc_TabFM": 0.7154,
+        "TabFM_minus_XGBoost": -0.0578
+      },
+      {
+        "segment": "Q3",
+        "n": 2204,
+        "n_default": 171,
+        "auc_XGBoost": 0.762,
+        "auc_TabFM": 0.6919,
+        "TabFM_minus_XGBoost": -0.0701
+      },
+      {
+        "segment": "Q4_high",
+        "n": 1769,
+        "n_default": 121,
+        "auc_XGBoost": 0.7564,
+        "auc_TabFM": 0.6879,
+        "TabFM_minus_XGBoost": -0.0685
+      }
+    ],
+    "age_band": [
+      {
+        "segment": "<30",
+        "n": 1214,
+        "n_default": 140,
+        "auc_XGBoost": 0.7587,
+        "auc_TabFM": 0.6482,
+        "TabFM_minus_XGBoost": -0.1105
+      },
+      {
+        "segment": "30-40",
+        "n": 2138,
+        "n_default": 181,
+        "auc_XGBoost": 0.7554,
+        "auc_TabFM": 0.6722,
+        "TabFM_minus_XGBoost": -0.0832
+      },
+      {
+        "segment": "40-50",
+        "n": 1961,
+        "n_default": 162,
+        "auc_XGBoost": 0.7683,
+        "auc_TabFM": 0.7398,
+        "TabFM_minus_XGBoost": -0.0285
+      },
+      {
+        "segment": "50-60",
+        "n": 1764,
+        "n_default": 117,
+        "auc_XGBoost": 0.7491,
+        "auc_TabFM": 0.6657,
+        "TabFM_minus_XGBoost": -0.0834
+      },
+      {
+        "segment": "60+",
+        "n": 923,
+        "n_default": 46,
+        "auc_XGBoost": 0.6716,
+        "auc_TabFM": 0.6138,
+        "TabFM_minus_XGBoost": -0.0578
+      }
+    ]
+  },
+  "hybrid_xgb_tabfm": {
+    "pair": "XGBoost + TabFM",
+    "evaluation_rows": "8,000 TabFM-scored rows (id-joined, labels verified)",
+    "auc_xgboost_alone": 0.7595,
+    "auc_tabfm_alone": 0.6911,
+    "auc_simple_average": 0.7451,
+    "auc_weighted_best": {
+      "w_xgb": 1.0,
+      "auc": 0.7595,
+      "note": "weight chosen on the evaluation data itself \u2014 an optimistic upper bound, not an honest estimate"
+    },
+    "weight_sweep_curve": [
+      {
+        "w_a": 0.0,
+        "auc": 0.69108
+      },
+      {
+        "w_a": 0.05,
+        "auc": 0.69967
+      },
+      {
+        "w_a": 0.1,
+        "auc": 0.70722
+      },
+      {
+        "w_a": 0.15,
+        "auc": 0.71393
+      },
+      {
+        "w_a": 0.2,
+        "auc": 0.71999
+      },
+      {
+        "w_a": 0.25,
+        "auc": 0.72532
+      },
+      {
+        "w_a": 0.3,
+        "auc": 0.73008
+      },
+      {
+        "w_a": 0.35,
+        "auc": 0.73444
+      },
+      {
+        "w_a": 0.4,
+        "auc": 0.7384
+      },
+      {
+        "w_a": 0.45,
+        "auc": 0.74194
+      },
+      {
+        "w_a": 0.5,
+        "auc": 0.74511
+      },
+      {
+        "w_a": 0.55,
+        "auc": 0.74791
+      },
+      {
+        "w_a": 0.6,
+        "auc": 0.75044
+      },
+      {
+        "w_a": 0.65,
+        "auc": 0.75254
+      },
+      {
+        "w_a": 0.7,
+        "auc": 0.75443
+      },
+      {
+        "w_a": 0.75,
+        "auc": 0.75604
+      },
+      {
+        "w_a": 0.8,
+        "auc": 0.75728
+      },
+      {
+        "w_a": 0.85,
+        "auc": 0.75831
+      },
+      {
+        "w_a": 0.9,
+        "auc": 0.75897
+      },
+      {
+        "w_a": 0.95,
+        "auc": 0.75941
+      },
+      {
+        "w_a": 1.0,
+        "auc": 0.75952
+      }
+    ],
+    "auc_rank_average": 0.7413,
+    "auc_cv_logistic_stack": 0.7591,
+    "best_honest_hybrid": {
+      "method": "cv_logistic_stack",
+      "auc": 0.7591,
+      "gain_vs_xgb": -0.0004,
+      "fold_std_reference": 0.0036,
+      "gain_exceeds_fold_std": false
+    },
+    "paired_bootstrap_simple_avg_vs_xgb": {
+      "delta_mean": -0.01451,
+      "delta_ci95": [
+        -0.02186,
+        -0.0071
+      ],
+      "frac_positive": 0.001,
+      "n_boot": 1000
+    }
+  },
+  "correlations_tabfm_rows": {
+    "pearson_probs": {
+      "XGBoost|LightGBM": 0.9645,
+      "XGBoost|CatBoost": 0.9539,
+      "XGBoost|Logistic Regression": 0.8156,
+      "XGBoost|Random Forest": 0.8226,
+      "XGBoost|CBES": 0.1967,
+      "XGBoost|TabFM": 0.6599,
+      "LightGBM|CatBoost": 0.9624,
+      "LightGBM|Logistic Regression": 0.835,
+      "LightGBM|Random Forest": 0.8443,
+      "LightGBM|CBES": 0.1949,
+      "LightGBM|TabFM": 0.672,
+      "CatBoost|Logistic Regression": 0.856,
+      "CatBoost|Random Forest": 0.8734,
+      "CatBoost|CBES": 0.2022,
+      "CatBoost|TabFM": 0.7039,
+      "Logistic Regression|Random Forest": 0.8494,
+      "Logistic Regression|CBES": 0.1853,
+      "Logistic Regression|TabFM": 0.7176,
+      "Random Forest|CBES": 0.2061,
+      "Random Forest|TabFM": 0.7505,
+      "CBES|TabFM": 0.2385
+    },
+    "spearman_probs": {
+      "XGBoost|LightGBM": 0.9573,
+      "XGBoost|CatBoost": 0.9499,
+      "XGBoost|Logistic Regression": 0.8348,
+      "XGBoost|Random Forest": 0.8434,
+      "XGBoost|CBES": 0.2548,
+      "XGBoost|TabFM": 0.6889,
+      "LightGBM|CatBoost": 0.9606,
+      "LightGBM|Logistic Regression": 0.8595,
+      "LightGBM|Random Forest": 0.866,
+      "LightGBM|CBES": 0.2459,
+      "LightGBM|TabFM": 0.7085,
+      "CatBoost|Logistic Regression": 0.8751,
+      "CatBoost|Random Forest": 0.8964,
+      "CatBoost|CBES": 0.2534,
+      "CatBoost|TabFM": 0.7339,
+      "Logistic Regression|Random Forest": 0.8681,
+      "Logistic Regression|CBES": 0.233,
+      "Logistic Regression|TabFM": 0.7292,
+      "Random Forest|CBES": 0.2138,
+      "Random Forest|TabFM": 0.723,
+      "CBES|TabFM": 0.2737
+    },
+    "pearson_errors": {
+      "XGBoost|LightGBM": 0.9948,
+      "XGBoost|CatBoost": 0.9932,
+      "XGBoost|Logistic Regression": 0.9753,
+      "XGBoost|Random Forest": 0.9709,
+      "XGBoost|CBES": 0.4463,
+      "XGBoost|TabFM": 0.9582,
+      "LightGBM|CatBoost": 0.9948,
+      "LightGBM|Logistic Regression": 0.9788,
+      "LightGBM|Random Forest": 0.9748,
+      "LightGBM|CBES": 0.4456,
+      "LightGBM|TabFM": 0.9615,
+      "CatBoost|Logistic Regression": 0.983,
+      "CatBoost|Random Forest": 0.9804,
+      "CatBoost|CBES": 0.4478,
+      "CatBoost|TabFM": 0.9679,
+      "Logistic Regression|Random Forest": 0.9836,
+      "Logistic Regression|CBES": 0.4419,
+      "Logistic Regression|TabFM": 0.9734,
+      "Random Forest|CBES": 0.4406,
+      "Random Forest|TabFM": 0.982,
+      "CBES|TabFM": 0.4549
+    },
+    "disagreement_rate_xgb_cbes_at_0.5": 0.1961,
+    "error_confusion_xgb_cbes": {
+      "threshold": 0.5,
+      "n": 8000,
+      "counts": {
+        "both_right": 5948,
+        "only_a_right": 1412,
+        "only_b_right": 157,
+        "both_wrong": 483
+      },
+      "fractions": {
+        "both_right": 0.7435,
+        "only_a_right": 0.1765,
+        "only_b_right": 0.0196,
+        "both_wrong": 0.0604
+      }
+    },
+    "note": "error_confusion is in approval space at threshold 0.5; with an 8.07% default rate a model that approves everyone is 'right' 91.9% of the time at this threshold, so read the overlap pattern, not the accuracy level."
   },
   "correlations_full_oof": {
     "pearson_probs": {
