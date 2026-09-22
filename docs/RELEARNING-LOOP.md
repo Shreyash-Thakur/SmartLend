@@ -328,16 +328,18 @@ Covered by `test_capture_failure_does_not_break_the_decision`,
 
 Run live via `GET /api/relearning/status`, or on the command line with
 `python -m research.relearning.gate` (which exits non-zero while the loop must
-stay shut). The numbers below are the current verdict over the 25,000-row
-`backend/artifacts/prediction_outputs.csv`.
+stay shut). The numbers below are the 2026-09-22 verdict over the full
+307,511-row `backend/artifacts/prediction_outputs.csv`, **after** the blend
+regeneration (α = 0.10, 22.5% deferral) — the pre-fix snapshot (52% deferral,
+z = +38σ) is frozen in `reports/relearning_gate_before_deferral_fix.json`.
 
 ### **VERDICT: DO NOT OPEN THE LOOP** — 0 of 4 conditions pass.
 
-| # | Condition | Status | Measured |
+| # | Condition | Status | Measured (2026-09-22, current artifact) |
 |---|---|---|---|
-| 1 | Deferral rule beats random at isolating hard cases (CoDoC pattern) | **FAIL** | The deferred pile is **+10.5 sd MORE lopsided** than a random router's would be (93.71% good, vs 90.11% good in the auto-decided pile), and the model is **+12.2 sd MORE accurate** on it. The router defers the *easier* cases — the opposite of what a working referral rule does. |
-| 2 | Observed defer rate within the AUC-implied natural-rate bound (Tasche) | **FAIL** | Observed defer rate **52.38%**, which is **3.3×** the upper bound of 15.85% implied by AUC 0.768. Most referrals are cases the model already handles correctly. |
-| 3 | Exploration arm has enough un-selected labels | **FAIL** | **0** un-selected labels with observed outcomes; **1,000** required. Capture only just went live, and outcomes have not seasoned. |
+| 1 | Deferral rule beats random at isolating hard cases (CoDoC pattern) | **FAIL** | Balance z **+0.47** (deferred pile 91.98% good vs 91.91% auto — statistically indistinguishable from random), accuracy z **−2.74**. Massively improved from the pre-fix +38.1σ/+43.0σ, but "no better than random" still fails a condition that demands *harder* than random. The measured uncertainty router passes this condition (z = −99.7, `reports/deferral_fix.json`) — it is opt-in via `SMARTLEND_DEFERRAL_MODE=uncertainty`, not the production default. |
+| 2 | Observed defer rate within the AUC-implied natural-rate bound (Tasche) | **FAIL** | Observed defer rate **22.49%** (was 52.4%), which is **1.4×** the upper bound of 16.00% implied by AUC 0.765. A capacity decision made outside the model; expected to keep failing while the 20–25% underwriter band stands. |
+| 3 | Exploration arm has enough un-selected labels | **FAIL** | **0** un-selected labels with observed outcomes; **1,000** required. Capture is live; outcomes take 12–24 months to season. |
 | 4 | Retraining design models the selection mechanism and reviewer bias | **FAIL** | No retraining design document exists. Per spec §3 it should not be written until 1–3 hold. |
 
 Condition 4 is a design-artifact check, not a statistic: the gate looks for a
@@ -357,12 +359,14 @@ and no amount of additional data collected under it fixes that.
 If you are here to connect this table to a trainer, this is the required order.
 There is no innocent shortcut.
 
-1. **Fix the router first.** Condition 1 is not a data-volume problem. Diagnose
-   why the current gates (disagreement > `tau_d`, confidence < 0.18, grey zone)
-   select the easy pile, change them, and re-run
-   `python -m research.relearning.gate` until condition 1 passes on held-out
-   data. Bump `ENGINE_VERSION` in `decision_engine.py` when you do, so rows from
-   the old and new routers are separable.
+1. **Fix the router first — DIAGNOSED AND MEASURED, not yet the default.** The
+   inversion's root cause (a fixed ~0.31 calibration offset between p_ml and
+   p_cbes) is confirmed in `reports/deferral_fix.json`, and the winning signal
+   (model uncertainty) passes condition 1 at z = −99.7 on held-out data. It is
+   wired behind `SMARTLEND_DEFERRAL_MODE=uncertainty`. What remains of this
+   step: flip the flag in production and bump `ENGINE_VERSION` in
+   `decision_engine.py` at the same time, so rows from the old and new routers
+   are separable.
 2. **Bring the defer rate into the Tasche band** (condition 2). A 52% defer rate
    is not a referral mechanism, it is a queue.
 3. **Accumulate ≥1,000 exploration-arm rows with observed, non-censored
