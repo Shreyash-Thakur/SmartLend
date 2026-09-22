@@ -97,9 +97,29 @@ of caught defaulters.
 The boundary is now genuinely slanted — e.g. applicants HC305089 and HC248970
 have p_ml 0.856784 vs 0.856785 but p_cbes 0.851 vs 0.595, and get APPROVE vs
 REJECT. That is exactly what was asked for, and it is now honest to the engine's
-documented blend. But at the engine's current α = 0.25 it **costs −0.028 AUC,
+documented blend. But at the inherited α = 0.25 it **costs −0.028 AUC,
 −8.4 pp default capture, and ~849 extra auto-approved defaulters per 153k
 applications**, and it degrades the deferral router's hard-case isolation.
 If the slant is wanted mostly for legibility, α ≈ 0.05–0.10 delivers it at a
 fraction of the cost; keeping α = 0.25 should be a deliberate choice made with
 this table in view.
+
+## The decision, recorded (same commit, 8f05e10)
+
+**α = 0.10 was chosen** and set as `_BLEND_ALPHA` in
+`backend/app/services/decision_engine.py`, and the artifact was regenerated on
+it. The α=0.25 tables above are the measurement that motivated the cut; the
+live numbers are (`reports/blend_decision.json`, α = 0.1):
+
+| quantity | value |
+|---|---|
+| Youden t\* on p_blend (tune half) | 0.885269 |
+| τ_u (22.5%-rate quantile) | 0.023741 |
+| stored approval / rejection thresholds | 0.90901 / 0.861528 |
+| test-half deferral rate | 22.48% (full artifact 22.49%) |
+| AUC cost vs p_ml alone | **−0.0056** (CI [−0.0067, −0.0045]) — a fifth of α=0.25's −0.028 |
+| default capture (rejected or deferred) | 79.5% (vs 75.1% under the old policy) |
+
+Rationale in one sentence: the boundary stays visibly slanted (CBES still
+legibly participates), at a measured cost small enough to defend — and the
+whole trade is documented rather than inherited.
