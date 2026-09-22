@@ -190,6 +190,11 @@ that killed every hybrid. Source: `reports/features_vs_fusion.json`.
 
 All 20 fold deltas positive; every mean delta ≥ 4× the noise floor. Even the
 linear model gains +0.018 — the information is real, not a tree artefact.
+And it is attributable: engineered features carry **56% of the top-25 gain
+importance** — led by `APP_EXT_MEAN` (30% alone), `APP_CREDIT_TO_ANNUITY`
+(the term proxy), and the bureau debt-to-credit ratios — exactly the
+families the published solutions predicted
+(`features_vs_fusion.json → top_features_lightgbm_gain`).
 
 **Fusion claim on v2: DENIED — again.** Best honest combination (simple
 average of the three GBMs) reaches 0.7773 vs CatBoost's 0.7757: +0.0016,

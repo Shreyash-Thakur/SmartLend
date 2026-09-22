@@ -186,5 +186,136 @@
     "best_fusion_gain_on_v2": 0.0016,
     "reading": "features vs fusion: the feature gain and the fusion gain above are judged by the SAME +0.0036 rule; whichever clears it is where the headroom lives."
   },
-  "generated_seconds": 687.0
+  "generated_seconds": 687.0,
+  "top_features_lightgbm_gain": {
+    "note": "single early-stopped LightGBM on the full v2 matrix, gain importance",
+    "engineered_gain_share_within_top25": 0.5599,
+    "top_25": [
+      {
+        "feature": "APP_EXT_MEAN",
+        "gain_share": 0.3027,
+        "engineered": true
+      },
+      {
+        "feature": "APP_CREDIT_TO_ANNUITY",
+        "gain_share": 0.0486,
+        "engineered": true
+      },
+      {
+        "feature": "BURO_debt_to_credit_max",
+        "gain_share": 0.03,
+        "engineered": true
+      },
+      {
+        "feature": "APP_CREDIT_TO_GOODS",
+        "gain_share": 0.0261,
+        "engineered": true
+      },
+      {
+        "feature": "DAYS_BIRTH",
+        "gain_share": 0.0202,
+        "engineered": false
+      },
+      {
+        "feature": "APP_EXT1_TO_AGE",
+        "gain_share": 0.0191,
+        "engineered": true
+      },
+      {
+        "feature": "DAYS_EMPLOYED",
+        "gain_share": 0.0186,
+        "engineered": false
+      },
+      {
+        "feature": "APP_EXT2_X_EXT3",
+        "gain_share": 0.0181,
+        "engineered": true
+      },
+      {
+        "feature": "EXT_SOURCE_3",
+        "gain_share": 0.016,
+        "engineered": false
+      },
+      {
+        "feature": "APP_EMPLOYED_TO_AGE",
+        "gain_share": 0.0154,
+        "engineered": true
+      },
+      {
+        "feature": "AMT_ANNUITY",
+        "gain_share": 0.0142,
+        "engineered": false
+      },
+      {
+        "feature": "BURO_debt_to_credit_mean",
+        "gain_share": 0.0139,
+        "engineered": true
+      },
+      {
+        "feature": "APP_EXT_MIN",
+        "gain_share": 0.0122,
+        "engineered": true
+      },
+      {
+        "feature": "AMT_GOODS_PRICE",
+        "gain_share": 0.0119,
+        "engineered": false
+      },
+      {
+        "feature": "BURO_max_overdue_max",
+        "gain_share": 0.0118,
+        "engineered": true
+      },
+      {
+        "feature": "APP_EXT_MAX",
+        "gain_share": 0.0106,
+        "engineered": true
+      },
+      {
+        "feature": "APP_ANNUITY_TO_INCOME",
+        "gain_share": 0.0097,
+        "engineered": true
+      },
+      {
+        "feature": "DAYS_ID_PUBLISH",
+        "gain_share": 0.0087,
+        "engineered": false
+      },
+      {
+        "feature": "BURO_total_debt_to_credit",
+        "gain_share": 0.0086,
+        "engineered": true
+      },
+      {
+        "feature": "APP_EXT_STD",
+        "gain_share": 0.0086,
+        "engineered": true
+      },
+      {
+        "feature": "BURO_active_credit_sum",
+        "gain_share": 0.0084,
+        "engineered": true
+      },
+      {
+        "feature": "EXT_SOURCE_2",
+        "gain_share": 0.0083,
+        "engineered": false
+      },
+      {
+        "feature": "APP_CAR_TO_AGE",
+        "gain_share": 0.0081,
+        "engineered": true
+      },
+      {
+        "feature": "AMT_CREDIT",
+        "gain_share": 0.0081,
+        "engineered": false
+      },
+      {
+        "feature": "BURO_credit_sum_mean",
+        "gain_share": 0.008,
+        "engineered": true
+      }
+    ]
+  }
 }
