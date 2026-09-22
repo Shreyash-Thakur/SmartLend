@@ -1237,6 +1237,8 @@ function DecisionResult({
                 ['ML probability', formatPercent(application.ml_prob)],
                 ['CBES probability', formatPercent(application.cbes_prob)],
                 ['Confidence', formatPercent(application.confidence)],
+                ['Model version', application.decision?.modelVersion ?? '—'],
+                ['Model artifact', application.decision?.modelArtifact ?? '—'],
               ]}
             />
             <ProfileBlock

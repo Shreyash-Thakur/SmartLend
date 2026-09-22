@@ -53,6 +53,8 @@ export interface ApplicationDecision {
   analystId?: string
   analystNotes?: string
   modelVersion?: string
+  /** Artifact file the score came from, e.g. "pipeline_v3_real.joblib". */
+  modelArtifact?: string
   allModelPredictions?: Record<string, number>
 }
 

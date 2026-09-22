@@ -15,7 +15,8 @@ import {
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, KPICard } from '@/components/common'
-import { getModelAnalysis, getStats, getActiveModel, setActiveModel } from '@/services/applications'
+import { getModelAnalysis, getStats, getActiveModel, getServingModelInfo, setActiveModel } from '@/services/applications'
+import type { ServingModelInfo } from '@/services/applications'
 import type { ModelAnalysisResponse, ModelCaseItem, ModelMetricItem, StatsResponse } from '@/types/api'
 
 const DECISION_COLORS: Record<string, string> = {
@@ -146,6 +147,7 @@ export const ModelAnalysisDashboard: React.FC = () => {
   const [analysis, setAnalysis] = useState<ModelAnalysisResponse | null>(null)
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [activeModel, setActiveModelState] = useState<string>('LogisticRegression')
+  const [servingInfo, setServingInfo] = useState<ServingModelInfo | null>(null)
   const [isChangingModel, setIsChangingModel] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -159,14 +161,16 @@ export const ModelAnalysisDashboard: React.FC = () => {
       setIsLoading(true)
       setError(null)
       try {
-        const [analysisResponse, statsResponse, currentActiveModel] = await Promise.all([
+        const [analysisResponse, statsResponse, currentActiveModel, serving] = await Promise.all([
           getModelAnalysis(CASE_LIMIT),
           getStats(),
           getActiveModel(),
+          getServingModelInfo(),
         ])
         setAnalysis(analysisResponse)
         setStats(statsResponse)
         setActiveModelState(currentActiveModel)
+        setServingInfo(serving)
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : 'Failed to load model analysis')
       } finally {
@@ -406,6 +410,19 @@ export const ModelAnalysisDashboard: React.FC = () => {
               </select>
               {isChangingModel && <p className="text-xs text-primary-600 animate-pulse">Switching active model...</p>}
             </div>
+            {servingInfo && (
+              <div className="rounded-lg border border-primary-200 bg-white p-3 text-xs text-neutral-600">
+                <p className="font-semibold text-primary-900">Currently serving</p>
+                <p>
+                  {servingInfo.model_name}
+                  {servingInfo.artifact ? ` · ${servingInfo.artifact}` : ''}
+                  {servingInfo.feature_count != null ? ` · ${servingInfo.feature_count} features` : ''}
+                </p>
+                <p className="mt-1 break-all font-mono text-[11px] text-neutral-500">
+                  {servingInfo.engine_version}
+                </p>
+              </div>
+            )}
             {models.length > 0 && (
               <div className="mt-2 rounded-lg bg-white p-3 text-sm shadow-sm">
                 <span className="font-semibold text-primary-900">Business Impact:</span>{' '}

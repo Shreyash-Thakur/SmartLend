@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/common'
 import { PageTransition } from '@/components/layouts/PageTransition'
 import { useAuth } from '@/hooks/useAuth'
+import { getServingModelInfo } from '@/services/applications'
+import type { ServingModelInfo } from '@/services/applications'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -18,6 +20,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const navigate = useNavigate()
   const { logout } = useAuth()
+
+  // Always-visible serving-model identity for org users. Null (badge hidden)
+  // when the backend is unreachable — never a stale placeholder value.
+  const [servingInfo, setServingInfo] = useState<ServingModelInfo | null>(null)
+  useEffect(() => {
+    if (role === 'customer') return
+    let cancelled = false
+    void getServingModelInfo().then((info) => {
+      if (!cancelled) setServingInfo(info)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [role])
 
   const handleLogout = async () => {
     await logout()
@@ -64,6 +80,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   </>
                 )}
               </nav>
+              {role !== 'customer' && servingInfo && servingInfo.artifact && (
+                <span
+                  title={servingInfo.engine_version}
+                  className="hidden items-center gap-1 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-800 lg:inline-flex"
+                >
+                  Model: {servingInfo.model_name} · {servingInfo.artifact}
+                </span>
+              )}
               {role !== 'customer' && (
                 <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
                   Back to Home

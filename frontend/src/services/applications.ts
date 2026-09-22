@@ -411,6 +411,42 @@ export async function bulkDecision(
   )
 }
 
+export interface AgentBriefing {
+  summary: string
+  riskFactors: string[]
+  mitigants: string[]
+  dataQualityFlags: string[]
+  suggestedChecks: string[]
+  suggestedReasonCodes: string[]
+  model?: string
+  generatedAt?: string
+  advisoryOnly?: boolean
+}
+
+/**
+ * Ask the underwriting agent (Claude) to brief the reviewer on one application.
+ * 503 means the agent is not configured — surface the message, don't retry.
+ */
+export async function generateAgentBriefing(applicationId: string): Promise<AgentBriefing> {
+  try {
+    const response = await apiClient.post<{ briefing: AgentBriefing }>(
+      `/applications/${applicationId}/agent-briefing`,
+    )
+    return response.data.briefing
+  } catch (error) {
+    throw extractApiError(error)
+  }
+}
+
+export interface ServingModelInfo {
+  model_name: string
+  artifact: string | null
+  engine_version: string
+  t_base: number | null
+  feature_count: number | null
+  held_out_roc_auc: number | null
+}
+
 export async function getActiveModel(): Promise<string> {
   try {
     const response = await apiClient.get<{ active_model: string }>('/model-analysis/active')
@@ -418,6 +454,23 @@ export async function getActiveModel(): Promise<string> {
   } catch (error) {
     console.error('Failed to get active model:', error)
     return 'LogisticRegression'
+  }
+}
+
+/**
+ * What is actually serving: model name, artifact file and engine version, read
+ * from the loaded artifact (never a hardcoded constant). Null when the backend
+ * is unreachable so callers hide the badge instead of showing a stale value.
+ */
+export async function getServingModelInfo(): Promise<ServingModelInfo | null> {
+  try {
+    const response = await apiClient.get<{ active_model: string; serving?: ServingModelInfo }>(
+      '/model-analysis/active',
+    )
+    return response.data.serving ?? null
+  } catch (error) {
+    console.error('Failed to get serving model info:', error)
+    return null
   }
 }
 

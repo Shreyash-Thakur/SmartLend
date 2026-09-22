@@ -102,6 +102,8 @@ export interface DecisionReportEngine {
   decisionReason: string
   selectedModel: string
   engineVersion: string | null
+  /** Artifact file the score came from, e.g. "pipeline_v3_real.joblib". */
+  modelArtifact?: string | null
   thresholdArtifactHash: string | null
   pMl: number | null
   pCbes: number | null

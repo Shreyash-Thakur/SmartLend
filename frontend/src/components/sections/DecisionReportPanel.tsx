@@ -112,6 +112,7 @@ export const DecisionReportPanel: React.FC<DecisionReportPanelProps> = ({ applic
             <Stat label="Risk score" value={fmt(engine.riskScore)} />
             <Stat label="Reason" value={engine.decisionReason || '—'} mono={false} />
             <Stat label="Engine version" value={engine.engineVersion ?? '—'} mono={false} />
+            <Stat label="Model artifact" value={engine.modelArtifact ?? '—'} mono={false} />
           </div>
           {engine.explorationFlag && (
             <p className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
