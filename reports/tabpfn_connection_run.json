@@ -1,0 +1,6 @@
+{
+  "started_at": "2026-09-22T17:19:20.395121+00:00",
+  "requested_rows": 400,
+  "verdict": "FAIL",
+  "reason": "SMARTLEND_TABPFN_URL is not set. Start the Colab notebook and copy its URL/token into .env."
+}
