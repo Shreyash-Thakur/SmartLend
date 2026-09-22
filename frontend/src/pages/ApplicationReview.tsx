@@ -4,12 +4,14 @@ import { FileText, Trash2, Eye, ChevronLeft, CheckCircle2, XCircle, Clock } from
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, Button } from '@/components/common'
 import {
+  AgentBriefingPanel,
   DecisionBanner,
   DecisionReportPanel,
   FeatureContributionChart,
   DecisionExplanation,
   ReviewerFeedbackForm,
 } from '@/components/sections'
+import type { AgentBriefing } from '@/services/applications'
 import type { ReviewerFeedback } from '@/components/sections/ReviewerFeedbackForm'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { formatCurrency } from '@/lib/utils'
@@ -268,6 +270,20 @@ export const ApplicationReview: React.FC = () => {
                 </Card>
               )}
             </>
+          )}
+
+          {/* Agent briefing — advisory prep for the reviewer, org only. It
+              renders above the decision form but writes nothing into it: the
+              reviewer's verdict and reason codes stay entirely human. */}
+          {role !== 'customer' && (
+            <AgentBriefingPanel
+              applicationId={application.id}
+              initialBriefing={
+                ((application.applicationData as Record<string, unknown> | undefined)
+                  ?.['_decision_meta'] as { agent_briefing?: AgentBriefing } | undefined)
+                  ?.agent_briefing ?? null
+              }
+            />
           )}
 
           {/* Analyst Decision Section — always visible for org.

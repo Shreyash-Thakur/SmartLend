@@ -1,3 +1,4 @@
+export { AgentBriefingPanel } from './AgentBriefingPanel'
 export { DecisionBanner } from './DecisionBanner'
 export { FeatureContributionChart } from './FeatureContributionChart'
 export { ApplicationTable } from './ApplicationTable'
