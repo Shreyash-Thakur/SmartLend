@@ -261,7 +261,12 @@ class DecisionPayload(BaseModel):
     positiveFactors: list[str]
     negativeFactors: list[str]
     featureImportance: list[dict[str, Any]]
+    #: Human-readable "which model decided this": engine gate version + the
+    #: serving model name (e.g. "hybrid-2stage-5gate/2026-04-27+cbes-v2+model=
+    #: LogisticRegression"). Old rows fall back to the legacy "cbes-v2" stamp.
     modelVersion: str
+    #: The artifact file the score came from (e.g. "pipeline_v3_real.joblib").
+    modelArtifact: str | None = None
     analystId: str | None = None
     analystNotes: str | None = None
 

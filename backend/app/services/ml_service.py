@@ -242,6 +242,8 @@ class MLPredictor:
         # v3 (real data, leak removed) first, falling back to v2/v1 if absent.
         artifact_path = _active_artifact_path()
         payload = joblib.load(artifact_path)
+        self.artifact_name = artifact_path.name
+        self.artifact_test_metrics = dict(payload.get("test_metrics") or {})
         self.pipeline = payload["pipeline"]
         self.calibrator = payload["calibrator"]
         self.feature_names = payload["feature_names"]
@@ -409,8 +411,9 @@ class MLPredictor:
         decision_result.t_base = float(t_base)
         decision_result.tau_d = float(tau_d)
         decision_result.engine_version = f"{ENGINE_VERSION}+model={used_model_name}"
+        decision_result.model_artifact = _active_artifact_path().name
         decision_result.threshold_artifact_hash = _threshold_artifact_hash(
-            _active_artifact_path().name,  # v3-first, v2/v1 fallback
+            decision_result.model_artifact,
             float(t_base),
             float(tau_d),
         )
@@ -425,6 +428,41 @@ def get_predictor() -> MLPredictor:
     if _predictor is None:
         _predictor = MLPredictor()
     return _predictor
+
+
+def serving_model_info() -> Dict[str, Any]:
+    """One honest snapshot of what is serving right now.
+
+    Backs `/health` and `GET /api/model-analysis/active` so the model version
+    the reviewer asked to see everywhere comes from the loaded artifact, never
+    from a constant that can go stale (the old `/health` reported the retired
+    April synthetic AUC of 0.710 for weeks). Never raises: health checks must
+    not go down with the artifact.
+    """
+    try:
+        predictor = get_predictor()
+        test_metrics = predictor.artifact_test_metrics
+        return {
+            "model_name": str(predictor.model_name),
+            "artifact": str(predictor.artifact_name),
+            "engine_version": f"{ENGINE_VERSION}+model={predictor.model_name}",
+            "t_base": float(predictor.t_base),
+            "feature_count": len(predictor.feature_names),
+            # v3 stores its held-out metrics; v1/v2 predate the field.
+            "held_out_roc_auc": (
+                float(test_metrics["roc_auc"]) if "roc_auc" in test_metrics else None
+            ),
+        }
+    except Exception:
+        logger.warning("serving_model_info failed; artifact not loadable", exc_info=True)
+        return {
+            "model_name": "unavailable",
+            "artifact": None,
+            "engine_version": ENGINE_VERSION,
+            "t_base": None,
+            "feature_count": None,
+            "held_out_roc_auc": None,
+        }
 
 
 # ---------------------------------------------------------------------------

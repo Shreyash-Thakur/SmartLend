@@ -434,6 +434,14 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
         "cbes_weights": prediction.cbes_weights,
         "engineered_features": prediction.engineered_features,
         "shap_explanation": prediction.shap_explanation,
+        # Model-version provenance on EVERY decision, not only captured ones.
+        # Until now these lived solely on deferred_reviews rows, so an
+        # auto-decided application could not say which artifact scored it.
+        "engine_version": str(getattr(prediction, "engine_version", "unknown")),
+        "model_artifact": str(getattr(prediction, "model_artifact", "unknown")),
+        "threshold_artifact_hash": str(getattr(prediction, "threshold_artifact_hash", "unknown")),
+        "t_base": float(getattr(prediction, "t_base", 0.50)),
+        "tau_d": float(getattr(prediction, "tau_d", 0.30)),
     }
 
     # --- relearning loop: decide routing BEFORE persisting -----------------
@@ -1155,9 +1163,14 @@ def set_active_model(request: ActiveModelRequest) -> dict[str, Any]:
 
 @router.get("/model-analysis/active")
 def get_active_model() -> dict[str, Any]:
-    from backend.app.services.ml_service import ARTIFACTS_DIR
+    from backend.app.services.ml_service import ARTIFACTS_DIR, serving_model_info
+
     active_model_file = ARTIFACTS_DIR / "active_model.txt"
-    if active_model_file.exists():
-        return {"active_model": active_model_file.read_text().strip()}
-    return {"active_model": "LogisticRegression"}
+    active_model = (
+        active_model_file.read_text().strip() if active_model_file.exists() else "LogisticRegression"
+    )
+    # `serving` is what actually scores requests (from the loaded artifact);
+    # `active_model` is the requested name, which falls back to the serving
+    # model when the artifact does not carry the requested pipeline.
+    return {"active_model": active_model, "serving": serving_model_info()}
 
