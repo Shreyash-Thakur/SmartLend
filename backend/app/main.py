@@ -8,10 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.database import init_db
+from backend.app.routers.agent import router as agent_router
 from backend.app.routers.applications import router as applications_router
 from backend.app.routers.customers import router as customers_router
 from backend.app.routers.public import router as public_router
 from backend.app.routers.relearning import router as relearning_router
+from backend.app.routers.tabpfn import router as tabpfn_router
 from backend.app.routers.voice import router as voice_router
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.public_api_service import seed_recent_applications
@@ -39,9 +41,11 @@ app.add_middleware(
 )
 
 app.include_router(public_router)
+app.include_router(agent_router, prefix="/api")
 app.include_router(applications_router, prefix="/api")
 app.include_router(customers_router, prefix="/api")
 app.include_router(relearning_router, prefix="/api")
+app.include_router(tabpfn_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
 
 
@@ -81,7 +85,12 @@ def api_health() -> dict[str, object]:
 
 @app.get("/health")
 def health() -> dict[str, object]:
-    return {"status": "ok", "model": "LogisticRegression", "auc": 0.710, "t_base": 0.55, "tau_d": 0.43}
+    # Same live payload as the public router's /health (which shadows this
+    # route in practice): the serving artifact's real identity, never the old
+    # hardcoded synthetic-era numbers.
+    from backend.app.services.public_api_service import get_health_payload
+
+    return get_health_payload()
 
 
 @app.get("/", include_in_schema=False)
