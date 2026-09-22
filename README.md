@@ -1,8 +1,8 @@
 # SmartLend
 
-Loan decisioning system with a human-in-the-loop deferral layer, built on **307,511 real loan applications** (Home Credit Default Risk + credit-bureau aggregates).
+Loan decisioning system with a human-in-the-loop deferral layer, built on **307,511 real loan applications** (Home Credit Default Risk + credit-bureau aggregates). Final-year research project; the research contribution is a measured diagnosis — and fix — of an inverted deferral rule.
 
-New here? Read **[`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md)** first.
+New here? Read **[`docs/PROJECT-OVERVIEW.md`](docs/PROJECT-OVERVIEW.md)** (what this is) and **[`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md)** (how to work on it).
 
 ---
 
@@ -22,59 +22,61 @@ cd frontend && npm run dev
 python -m pytest backend/tests research/tests -q
 ```
 
----
-
-## Model performance
-
-Trained on 246,008 rows, evaluated on a held-out **61,503 rows**. Stratified, seed 42.
-
-| Model | ROC-AUC | PR-AUC | Training rows |
-|---|---|---|---|
-| **XGBoost** | **0.7670** | 0.2624 | 246,008 |
-| LightGBM | 0.7667 | 0.2632 | 246,008 |
-| CatBoost | 0.7666 | 0.2638 | 246,008 |
-| **TabPFN-2.5** | **0.7446** | 0.2291 | **5,000** |
-| Logistic Regression | 0.7405 | 0.2226 | 246,008 |
-| Random Forest | 0.7388 | 0.2204 | 246,008 |
-| CBES *(rule-based)* | 0.5638 | 0.0997 | — |
-
-**Read AUC, not accuracy.** Only 8.07% of applicants default, so approving everyone scores 92% accuracy while catching no defaults. Accuracy on this dataset is not evidence.
-
-**TabPFN-2.5 is worth noting**: a training-free tabular foundation model given 5,000 rows — 2% of the data — outranks Logistic Regression and Random Forest, both trained on all 246,008. Constrained to 5,000 by 8 GB of VRAM; Prior Labs recommend A100/H100-class hardware. Its licence is **non-commercial and covers outputs**, so it is a research baseline, not a deployable model.
+Optional services (both degrade to a calm 503 when unconfigured):
+- **Remote TabPFN** — run `colab/tabpfn_colab_server.ipynb` on a Colab GPU, set `SMARTLEND_TABPFN_URL`/`SMARTLEND_TABPFN_TOKEN`, verify with `python -m backend.run_tabpfn_connection_check`.
+- **Reviewer-briefing agent** (Claude) — set `ANTHROPIC_API_KEY`.
 
 ---
 
-## What we found
+## Model leaderboard (out-of-fold cross-validation, live on the dashboard)
 
-The system defers uncertain applications to a human reviewer. **That mechanism is inverted**, and this is the project's main finding rather than an outstanding bug.
+Numbers from `backend/artifacts/model_metrics.csv` — 5-fold out-of-fold CV over all 307,511 rows (foundation models: smaller id-indexed samples, stated per row). Each model is scored at its own Youden-selected operating threshold.
 
-| Model confidence | Applicants | Deferred |
+| Model | ROC-AUC | Notes |
 |---|---|---|
-| 0.4–0.6 — genuinely uncertain | 280 | **4.3%** |
-| 0.8–1.0 — highly confident | 22,942 | **54.8%** |
+| **XGBoost** | **0.7651 ± 0.0036** | reference model for all research analyses |
+| CatBoost | 0.7643 | |
+| LightGBM | 0.7631 | |
+| Logistic Regression | 0.7378 | same class as the serving model |
+| Random Forest | 0.7376 | |
+| **TabPFN-2.5** | 0.7284 ± 0.0127 | zero-training foundation model, **5,000-row context**, 8,000 scored rows with saved `SK_ID_CURR` |
+| **TabFM 1.0** (Google) | see `reports/tabfm_quick_run.json` | second foundation-model baseline, scored on the same 8,000 rows |
+| CBES *(rule-based)* | 0.5650 | 8 fields, untrained — kept for interpretability, not accuracy |
 
-It defers the cases the model is *sure* about and keeps the ones it is unsure about. Measured against a random-router baseline, it sits **10.5σ** the wrong way on class balance and **12.2σ** on accuracy. It also defers **52%** of applications against an AUC-implied ceiling of **15.9%**.
+**Read AUC, not accuracy.** Only 8.07% of applicants default, so approving everyone scores 92% accuracy while catching no defaults. Where accuracy is shown, it is computed at each model's own operating threshold — see `docs/PRESENTATION-GUIDE.md` for the defence of this.
 
-**Mechanism:** deferral triggers on `|p_ml − p_cbes| > 0.43`, but CBES scores 0.5638 AUC (random = 0.5) and sits ~0.31 below the ML score population-wide. That difference measures a *scale mismatch* between two differently-calibrated scores, not genuine disagreement. It fires where the offset is widest — which tracks confidence, not difficulty.
+**Foundation models are research baselines only**: TabPFN-2.5's licence is non-commercial *including outputs*; Google TabFM's weights are `tabfm-non-commercial-v1.0`. Neither may serve commercial decisions.
 
-This is why three earlier fixes failed: each tuned a threshold on a signal pointing the wrong way.
+**Serving model** (what scores a live application): `pipeline_v3_real.joblib` — a calibrated LogisticRegression on 15 leak-free features, held-out ROC-AUC 0.6919 in P(default) framing (`reports/serving_model_retrain.json`). It trades AUC for calibration, simplicity and an exact train/serve feature contract. `/health` and the dashboard header always show the live model + artifact version.
+
+---
+
+## The finding (the research contribution)
+
+The original deferral rule — send a human the cases where ML and CBES disagree by more than τ_D — was **inverted**: it deferred the cases the model was *most confident* about (gate z = +38σ balance / +43σ accuracy against a random-router null, at a 52% deferral rate).
+
+**Root cause, confirmed by measurement:** ~65% of the "disagreement" signal is a fixed calibration offset (mean p_ml 0.92 vs mean p_cbes 0.61) that widens with model confidence. The defect is the signal, not the threshold — the incumbent stays inverted even at a matched 22.6% rate.
+
+**The fix, measured:** at the required 20–25% deferral rate, plain **model uncertainty** (Chow's rule, `|p_ml − t_approve| < τ_U`) scores z = **−99.7** — humans finally get the hard cases. Notably, every *repaired* disagreement signal (rank, z-score, isotonic) also fixes the inversion but **loses to plain uncertainty** — the publishable negative result. Details: [`docs/DEFERRAL-FIX.md`](docs/DEFERRAL-FIX.md).
+
+The production default is still the legacy router (deliberate demo-stability choice); the fix is wired behind `SMARTLEND_DEFERRAL_MODE=uncertainty`. The decision artifact was regenerated on the α=0.10 blend at a **22.5% deferral rate** (was 52%).
+
+Two companion measurements close the loop:
+- **No roster hybrid helps.** Every honest XGBoost+CBES combination is ≤ XGBoost alone; the best tree-family blend (+0.0021) is inside the ±0.0036 fold noise. See [`docs/FUTURE-SCOPE.md`](docs/FUTURE-SCOPE.md) and `reports/complementarity.json`.
+- **Convergence measured.** Learning curve (AUC vs training rows, capacity-adaptive) and boosting-convergence curves in `reports/convergence.json` + `backend/artifacts/plots/`.
 
 ---
 
 ## Relearning loop
 
-Reviewer decisions on deferred cases are captured live. **Retraining on them is deliberately gated.**
+Reviewer decisions on deferred cases are captured live (verdict, mandatory reason codes, confidence, measured time-on-case). **Retraining on them is deliberately gated** and all four gate conditions currently fail — verdict **DO NOT OPEN THE LOOP**:
 
 ```bash
 python -m research.relearning.gate     # exits non-zero while the loop must stay shut
 curl localhost:8000/api/relearning/status
 ```
 
-All four gate conditions currently fail. The load-bearing one is the router itself: it selects which cases get human labels, so retraining on its output means learning from a sample its own broken policy chose — the bias compounds each cycle while metrics look healthy.
-
-A **3% exploration arm** randomly routes would-be-auto-decided applications to human review. Those are the only labels the router did not select, and they are what will eventually prove it is fixed.
-
-See [`docs/RELEARNING-LOOP.md`](docs/RELEARNING-LOOP.md).
+On the regenerated 22.5%-deferral artifact, condition 1 improved from +38σ to **+0.5σ** (near-random, still not *better* than random — the uncertainty router passes it, but only behind its opt-in flag). Conditions 2–4 fail for stated reasons (capacity above the AUC-implied bound; 0 of 1,000 exploration labels; no retraining design). A **3% exploration arm** collects the only labels the router did not select. See [`docs/RELEARNING-LOOP.md`](docs/RELEARNING-LOOP.md).
 
 ---
 
@@ -82,14 +84,18 @@ See [`docs/RELEARNING-LOOP.md`](docs/RELEARNING-LOOP.md).
 
 ```
 backend/app/       FastAPI — serves, never trains
-research/          experiments — never imported by the API
+research/          experiments — may import backend; never imported by the API
 frontend/src/      React + TypeScript
 backend/artifacts/ trained outputs the API reads
+colab/             Colab notebook hosting TabPFN as a live GPU endpoint
+reports/           machine-readable experiment results (one JSON per study)
 ```
 
-- **ML model** consumes all 129 native features
-- **CBES** consumes 8 portable fields across five weighted pillars, thresholds calibrated from real percentiles
-- **Deferral layer** routes on disagreement between them
+- **ML model** — serving artifact on 15 features; research reference (XGBoost) on the full numeric frame
+- **CBES** — 8 portable fields, five weighted pillars, percentile-calibrated thresholds; blend weight α = 0.10 (measured choice, `docs/BLEND-DECISION.md`)
+- **Deferral layer** — legacy disagreement router by default; measured uncertainty router opt-in
+- **Provenance** — every decision records `engine_version`, serving artifact and threshold hash; shown in the UI header, decision panels and audit report
+- **Agent briefing** — optional Claude-generated reviewer briefing (advisory only, never a verdict)
 
 ---
 
@@ -97,19 +103,25 @@ backend/artifacts/ trained outputs the API reads
 
 | Document | Contents |
 |---|---|
-| [`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md) | **start here** — setup, layout, pitfalls |
-| [`docs/STATUS.md`](docs/STATUS.md) | current state, results, plan |
+| [`docs/PROJECT-OVERVIEW.md`](docs/PROJECT-OVERVIEW.md) | **start here** — what the project is, findings, file map |
+| [`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md) | setup, layout, working agreements, pitfalls |
+| [`docs/STATUS.md`](docs/STATUS.md) | current state, results, plan to the November defense |
+| [`docs/REVIEW-FEEDBACK-2026-09.md`](docs/REVIEW-FEEDBACK-2026-09.md) | reviewer feedback → what was done about each item |
+| [`docs/PRESENTATION-GUIDE.md`](docs/PRESENTATION-GUIDE.md) | slide order (CBES early), accuracy defence, model-version rule |
+| [`docs/RBI-COMPLIANCE.md`](docs/RBI-COMPLIANCE.md) | mapping to RBI Digital Lending Directions 2025 + FREE-AI |
 | [`docs/REFERENCE.md`](docs/REFERENCE.md) | CBES logic, citations, likely review questions |
+| [`docs/DEFERRAL-FIX.md`](docs/DEFERRAL-FIX.md) · [`docs/BLEND-DECISION.md`](docs/BLEND-DECISION.md) | the two measured fixes |
+| [`docs/DEFENCE-DECISION-HYBRID.md`](docs/DEFENCE-DECISION-HYBRID.md) · [`docs/DEFENCE-SHAP-CBES.md`](docs/DEFENCE-SHAP-CBES.md) | viva speaking scripts |
 | [`docs/RELEARNING-LOOP.md`](docs/RELEARNING-LOOP.md) | capture flow and gate conditions |
-| [`docs/FORM-IMPLEMENTATION.md`](docs/FORM-IMPLEMENTATION.md) | the shortened application form |
-| [`docs/VOICE-MODULE.md`](docs/VOICE-MODULE.md) | voice setup, provider swapping |
 | [`models/README.md`](models/README.md) | model weights, licence and citation traps |
+| [`docs/archive/`](docs/archive/README.md) | superseded documents — history, not current facts |
 
 ---
 
 ## Known limitations
 
-- **Live scoring still uses an April artifact trained on synthetic data.** The dashboard is real; scoring a *newly submitted* application is not. Retraining the serving artifact is outstanding work.
-- The deferral rule is inverted (above) and should not be trusted for decisions.
-- Accuracy/precision/recall on the dashboard are computed in approval framing and mostly measure the easy direction. Use AUC.
-- CBES at 0.5638 AUC is close to uninformative as a predictor; it exists for interpretability.
+- The **legacy (inverted) deferral router is still the production default**; the measured fix is opt-in via `SMARTLEND_DEFERRAL_MODE=uncertainty`. Flipping it must bump `ENGINE_VERSION`.
+- The serving model (calibrated LogisticRegression, 0.6919 AUC) is deliberately weaker than the research reference (XGBoost 0.7651) — a calibration/simplicity trade-off, stated, not hidden.
+- CBES at ~0.565 AUC is close to uninformative as a predictor; it exists for interpretability and its blend weight is capped at α = 0.10 for a measured cost.
+- TabPFN-2.5 and Google TabFM are non-commercial-licensed research baselines, not deployable models.
+- Real repayment outcomes take 12–24 months to season; the relearning gate stays shut until its four conditions pass.
