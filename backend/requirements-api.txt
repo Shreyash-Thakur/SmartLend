@@ -11,6 +11,8 @@ uvicorn==0.34.0
 pydantic==2.13.3
 python-multipart
 python-dotenv==1.0.1
+httpx==0.28.1
+anthropic==1.8.0
 
 # --- Data / persistence ---
 pandas==2.2.3
