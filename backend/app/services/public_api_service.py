@@ -31,10 +31,11 @@ from backend.app.services.model_analysis_service import get_model_analysis_paylo
 ARTIFACTS_DIR = Path(__file__).resolve().parents[2] / "artifacts"
 MODEL_METRICS_PATH = ARTIFACTS_DIR / "model_metrics.csv"
 
+# Last-resort fallbacks only, used when model_metrics.csv is missing entirely.
+# Live serving identity comes from ml_service.serving_model_info(); do not add
+# new call sites for these — a stale constant is worse than no number.
 PUBLIC_MODEL_NAME = "LogisticRegression"
 PUBLIC_AUC = 0.710
-PUBLIC_T_BASE = 0.55
-PUBLIC_TAU_D = 0.43
 
 _RECENT_APPLICATIONS: deque[dict[str, Any]] = deque(maxlen=50)
 _STORE_LOCK = Lock()
@@ -137,12 +138,26 @@ def _compute_model_rows() -> list[dict[str, Any]]:
 
 
 def get_health_payload() -> dict[str, Any]:
+    """Live serving-model identity, read from the loaded artifact.
+
+    The old version returned the PUBLIC_* constants above — including the
+    retired April synthetic AUC of 0.710 — long after the real-data retrain.
+    A stale number is worse than no number; these values now come from
+    ml_service.serving_model_info(), which never raises.
+    """
+    from backend.app.services.ml_service import serving_model_info
+
+    info = serving_model_info()
     return {
         "status": "ok",
-        "model": PUBLIC_MODEL_NAME,
-        "auc": PUBLIC_AUC,
-        "t_base": PUBLIC_T_BASE,
-        "tau_d": PUBLIC_TAU_D,
+        "model": info["model_name"],
+        "artifact": info["artifact"],
+        "engineVersion": info["engine_version"],
+        # The serving artifact's own held-out ROC-AUC (P(default) framing),
+        # stored inside the artifact at retrain time. None for pre-v3 artifacts.
+        "auc": info["held_out_roc_auc"],
+        "t_base": info["t_base"],
+        "featureCount": info["feature_count"],
     }
 
 
@@ -261,16 +276,28 @@ def get_dashboard_metrics_payload() -> dict[str, Any]:
     non_deferred_accuracy = correct_automated / max(automated_cases, 1)
     non_deferred_f1 = (2 * approve_precision * approve_recall / (approve_precision + approve_recall)) if (approve_precision + approve_recall) else 0.0
 
+    # Live serving identity — the old PUBLIC_* constants here reported the
+    # retired April synthetic numbers (AUC 0.710, t_base 0.55, tau_d 0.43)
+    # long after the real-data retrain.
+    from backend.app.services.ml_service import serving_model_info
+
+    info = serving_model_info()
+    baseline_auc = float(baseline.get("auc", 0.0) or 0.0)
+    serving_auc = info["held_out_roc_auc"]
+
     return {
         "baseline": {
             "model": baseline.get("model", PUBLIC_MODEL_NAME),
-            "auc": float(baseline.get("auc", PUBLIC_AUC)),
+            "auc": baseline_auc,
             "accuracy": float(baseline.get("accuracy", 0.0)),
             "f1": float(baseline.get("f1", 0.0)),
             "recall": float(baseline.get("recall", 0.0)),
         },
         "hybrid": {
-            "auc": PUBLIC_AUC,
+            "model": info["model_name"],
+            "artifact": info["artifact"],
+            "engine_version": info["engine_version"],
+            "auc": serving_auc,
             "deferral_rate": round(deferred_cases / max(total_cases, 1), 3),
             "coverage": round(automated_cases / max(total_cases, 1), 3),
             "non_deferred_accuracy": round(non_deferred_accuracy, 3),
@@ -279,11 +306,12 @@ def get_dashboard_metrics_payload() -> dict[str, Any]:
             "approve_recall": round(approve_recall, 3),
             "reject_precision": round(reject_precision, 3),
             "reject_recall": round(reject_recall, 3),
-            "t_base": PUBLIC_T_BASE,
-            "tau_d": PUBLIC_TAU_D,
+            "t_base": info["t_base"],
         },
         "improvement": {
-            "auc_delta": round(PUBLIC_AUC - float(baseline.get("auc", PUBLIC_AUC)), 3),
+            "auc_delta": (
+                round(serving_auc - baseline_auc, 3) if serving_auc is not None else None
+            ),
             "accuracy_delta": round(non_deferred_accuracy - float(baseline.get("accuracy", 0.0)), 3),
         },
     }

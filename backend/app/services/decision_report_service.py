@@ -90,7 +90,7 @@ def build_engine_section(
     thresholds = {
         "approve": _as_float(review.t_approve if review is not None else meta.get("approval_threshold")),
         "reject": _as_float(review.t_reject if review is not None else meta.get("rejection_threshold")),
-        "base": _as_float(review.t_base) if review is not None else None,
+        "base": _as_float(review.t_base if review is not None else meta.get("t_base")),
     }
 
     cbes_breakdown = (
@@ -105,8 +105,18 @@ def build_engine_section(
             review.decision_reason if review is not None else meta.get("decision_reason", "model_ensemble")
         ),
         "selectedModel": str(meta.get("selected_model", "unknown")),
-        "engineVersion": str(review.engine_version) if review is not None else None,
-        "thresholdArtifactHash": str(review.threshold_artifact_hash) if review is not None else None,
+        # Capture row first (written from the live DecisionResult); since
+        # 2026-09 the same provenance is also stamped into _decision_meta, so
+        # auto-decided applications report a version too instead of null.
+        "engineVersion": (
+            str(review.engine_version) if review is not None else meta.get("engine_version")
+        ),
+        "modelArtifact": meta.get("model_artifact"),
+        "thresholdArtifactHash": (
+            str(review.threshold_artifact_hash)
+            if review is not None
+            else meta.get("threshold_artifact_hash")
+        ),
         "pMl": p_ml,
         "pCbes": p_cbes,
         "pBlend": p_blend,

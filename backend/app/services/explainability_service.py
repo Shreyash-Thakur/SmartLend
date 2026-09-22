@@ -421,7 +421,10 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
         "confidence": round(app_item.confidence, 4),
         "riskScore": round(1 - app_item.ml_prob, 4),
         "explanation": explanation_text,
-        "modelVersion": "cbes-v2",
+        # Real provenance stamped at decision time; "cbes-v2" only for rows
+        # written before engine_version reached _decision_meta.
+        "modelVersion": str(meta.get("engine_version") or "cbes-v2"),
+        "modelArtifact": meta.get("model_artifact"),
         "thresholds": {
             "approval": round(float(meta.get("approval_threshold", 0.5)), 4),
             "rejection": round(float(meta.get("rejection_threshold", 0.5)), 4),

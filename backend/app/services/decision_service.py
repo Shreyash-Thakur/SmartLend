@@ -120,7 +120,10 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
             "negativeFactors": list(explain_payload.get("negativeFactors", [])),
             "featureImportance": feature_importance,
             "explanationSource": explanation_source,
-            "modelVersion": "cbes-v2",
+            # Real provenance stamped at decision time; "cbes-v2" only for rows
+            # written before engine_version reached _decision_meta.
+            "modelVersion": str(meta.get("engine_version") or "cbes-v2"),
+            "modelArtifact": meta.get("model_artifact"),
             "analystNotes": analyst_notes,
             "allModelPredictions": meta.get("all_model_predictions", {}),
         },
