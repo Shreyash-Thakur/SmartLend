@@ -30,6 +30,12 @@ models/**/*.ckpt
 models/**/*.safetensors
 models/**/*.bin
 
+# TabPFN Colab exports - derived from Home Credit data, which may not be
+# redistributed. Regenerate with `python -m backend.export_tabpfn_context`.
+models/tabpfn/tabpfn_context.csv
+models/tabpfn/tabpfn_eval_rows.csv
+models/tabpfn/tabpfn_export_manifest.json
+
 # CatBoost training logs (regenerated on every run)
 catboost_info/
 
