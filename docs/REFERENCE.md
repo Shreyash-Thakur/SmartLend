@@ -1,7 +1,12 @@
 # SmartLend — Reference Sheet
 
-**For:** mid-evaluation, 31 August 2026 · *dashboard live on real data*
+**Updated:** 22 September 2026 · *dashboard live on real data*
 **Purpose:** everything you may be asked to justify, in one place.
+
+> **Canonical CBES AUC statement** (four similar numbers exist; know which is which):
+> **0.5650** on all 307,511 out-of-fold rows (`reports/complementarity.json`) — quote this one.
+> 0.5636 = single 20% holdout (`real_data_baselines.json`); 0.5621 = blend-study test half;
+> 0.5638 = an earlier artifact era. All the same engine, different evaluation slices.
 
 ---
 
@@ -102,53 +107,44 @@ Each pillar passes through `component_sigmoid(x) = 1/(1+e^(−4(x−0.5)))`, whi
 
 ---
 
-## 3. The hybrid system and its known flaw
+## 3. The hybrid system: the flaw, the diagnosis, and the fix
 
 ```
-Stage A — blend:     p_blend = 0.75·p_ml + 0.25·p_cbes
-Stage B — disagree:  D = |p_ml − p_cbes|
-                     if D > TAU_D (0.43) → defer to a human
+Stage A — blend:     p_blend = 0.90·p_ml + 0.10·p_cbes     (α = 0.10, measured choice)
+Stage B — routing:   legacy default:  D = |p_ml − p_cbes| > TAU_D  → defer
+                     measured fix (opt-in): |p_ml − t_approve| < TAU_U (0.2458) → defer
 ```
 
-### The honest result
+### The finding, told in order
 
-| System | Decides | Accuracy |
-|---|---|---|
-| Plain LogisticRegression | 100% | **70.5%** |
-| Hybrid (after 3 fixes) | 74.5% | **62.7%** |
-
-Abstaining on 25.5% of cases made accuracy **7.8 points worse**. A selective classifier should be *more* accurate on what it keeps.
-
-### The diagnosis — now measured, not inferred
-
-**On real data the hybrid defers 52.38% of applications** (up from 25.5% on synthetic) and is 60.61% accurate on what it keeps, against 70.5% for plain logistic regression deciding everything.
-
-**Direct evidence of the inversion.** Group applicants by model confidence, then ask who gets deferred:
-
-| Model confidence | Applicants | Deferred | % deferred |
-|---|---|---|---|
-| 0.4–0.6 — **genuinely uncertain** | 280 | 12 | **4.3%** |
-| 0.8–1.0 — **highly confident** | 22,942 | 12,580 | **54.8%** |
-
-**The rule defers 55% of the cases the model is sure about, and 4% of the cases it is unsure about.** This is visible live on the dashboard's probability-band chart.
-
-**The mechanism.** Deferral triggers on `|p_ml − p_cbes| > 0.43`. But CBES scores **0.5638 AUC** (random = 0.5) and sits systematically **~0.31 below** the ML score population-wide:
-
-| | Mean |
-|---|---|
-| `p_ml` | 0.6722 |
-| `p_cbes` | 0.3646 |
-| `D` | 0.3105 |
-
-So `D` is dominated by a **fixed offset between two differently-scaled scores**, not by genuine case-by-case disagreement. It fires where the offset is widest, which tracks model confidence rather than difficulty.
-
-**This is why three previous fixes failed** — they tuned a threshold on an inverted signal.
-
-**The fix:** rank-normalise or z-score both signals before differencing, then re-tune `TAU_D`.
+1. **Measured on real data, the disagreement router was inverted**: 52% deferral
+   (AUC-implied ceiling 16%), and it deferred the cases the model was MOST
+   confident about — gate z = +38.1σ balance / +43.0σ accuracy against a
+   random-router null (`reports/relearning_gate_before_deferral_fix.json`).
+2. **Root cause, confirmed**: CBES scores 0.5650 AUC and sits ~0.31 below p_ml
+   population-wide (mean p_ml 0.9207 vs p_cbes 0.6133), so D mostly measures a
+   fixed scale offset that WIDENS with confidence (corr +0.38). The decisive
+   control: at a matched 22.6% rate the incumbent signal is still inverted
+   (z = +18.3) — the defect is the signal, not the threshold
+   (`reports/deferral_fix.json`).
+3. **The fix, measured at the required 20–25% rate**: plain model uncertainty
+   (Chow's rule) scores z = **−99.7** — humans finally get the hard cases.
+   Every *repaired* disagreement variant (rank, z-score, isotonic) also fixes
+   the inversion but **loses to plain uncertainty** — the publishable negative
+   result. (An earlier draft of this sheet recommended "rank-normalise and
+   re-tune"; that idea was implemented, measured at z = −13.4, and rejected.)
+4. **Wired in**: `SMARTLEND_DEFERRAL_MODE=uncertainty` with TAU_U = 0.2458.
+   The demo default remains the legacy router (deliberate stability choice);
+   the regenerated artifact runs at **22.5% deferral** on the α = 0.10 blend.
 
 ### Say this if challenged
 
-> "The hybrid underperforms, and we can now show exactly why. It defers 55% of the cases the model is most confident about and only 4% of the genuinely uncertain ones — the deferral signal is inverted. The cause is that CBES is nearly uninformative at 0.5638 AUC and sits on a different scale to the ML score, so their difference measures scale mismatch rather than disagreement. That diagnosis is our contribution; the fix is to normalise both signals before comparing them."
+> "We built a deferral rule on a plausible premise, measured it on real data,
+> found it inverted, confirmed the mechanism — a fixed calibration offset
+> between two differently-scaled scores — fixed it, and re-measured. The fix
+> is standard model uncertainty; the interesting part is that even perfectly
+> calibrated ML-vs-rule disagreement loses to it, because CBES at 0.565 AUC
+> carries too little signal to disagree *informatively*."
 
 ## 4. Research positioning — what is ours vs cited
 
@@ -181,23 +177,29 @@ So `D` is dominated by a **fixed offset between two differently-scaled scores**,
 
 ## 5. Model results on real data ⭐
 
-**Headline: 0.71 (synthetic, meaningless) → 0.7670 (real data, XGBoost).**
+**Headline: 0.71 (synthetic, meaningless) → 0.7651 ± 0.0036 (real data, XGBoost, out-of-fold CV).**
 
-| Model | ROC-AUC | PR-AUC |
+Current dashboard numbers (`backend/artifacts/model_metrics.csv`, 5-fold OOF CV
+over all 307,511 rows; foundation models on 8,000 id-indexed rows):
+
+| Model | ROC-AUC | Sample |
 |---|---|---|
-| **XGBoost** | **0.7670** | 0.2624 |
-| **LightGBM** | **0.7667** | 0.2632 |
-| **CatBoost** | **0.7666** | 0.2638 |
-| LogisticRegression | 0.7405 | 0.2226 |
-| RandomForest | 0.7388 | 0.2204 |
-| **CBES standalone** | **0.5636** | rule-based, 8 fields, untrained |
+| **XGBoost** | **0.7651 ± 0.0036** | 307,511 OOF |
+| CatBoost | 0.7643 | 307,511 OOF |
+| LightGBM | 0.7631 | 307,511 OOF |
+| LogisticRegression | 0.7378 | 307,511 OOF |
+| RandomForest | 0.7376 | 307,511 OOF |
+| TabPFN-2.5 | 0.7284 ± 0.0127 | 8,000 rows, 5,000-row context |
+| TabFM 1.0 (Google) | 0.6911 ± 0.0113 | same 8,000 rows, 15-feature serving frame |
+| **CBES standalone** | **0.5650** | 307,511 OOF — rule-based, 8 fields, untrained |
 
-Held-out test set: 61,503 rows (20%), stratified, seed 42.
-Full output: `reports/real_data_baselines.json`.
+(The earlier single-holdout table — XGB 0.7670 on 61,503 rows, seed 42 — is in
+`reports/real_data_baselines.json`; real numbers, superseded by CV. Quote the
+interval, not the point.)
 
-### ⭐ The most important number here: CBES = 0.5636
+### ⭐ The most important number here: CBES = 0.5650
 
-Random guessing scores 0.5. **CBES scores 0.5636 — it is only marginally better than a coin flip**, while the ML models reach 0.767.
+Random guessing scores 0.5. **CBES scores 0.5650 — it is only marginally better than a coin flip**, while the ML models reach ~0.765.
 
 This explains the hybrid's failure completely, and it is a much stronger answer than "we don't know":
 
@@ -205,13 +207,13 @@ This explains the hybrid's failure completely, and it is a much stronger answer 
 2. The blend mixes **25% of that near-noise** into a 0.767 model → drags it down.
 3. `D = |p_ml − p_cbes|` is therefore mostly *"how far is the ML score from a nearly-uninformative number"* → deferring on it is close to deferring at random, or worse.
 
-**So the 62.7% is not a mystery. It is the predictable consequence of blending and deferring on a weak signal.**
+**So the old hybrid's underperformance was never a mystery. It was the predictable consequence of blending and deferring on a weak signal — and both have since been fixed and measured (α cut to 0.10, deferral switched to model uncertainty).**
 
-Be ready to say: *"We now have the number that explains it. CBES is 0.5636 AUC — too weak to blend at 25% and too weak to defer on. Our next step is to either strengthen CBES or change how the two signals are combined."*
+Be ready to say: *"We have the number that explains it: CBES is 0.5650 AUC — too weak to blend at 25% and too weak to defer on. We measured both consequences, cut the blend weight to 0.10, and replaced disagreement-routing with model uncertainty."*
 
 **In fairness to CBES:** it uses **8 fields**, the ML models use **129**. It is untrained — pure domain rules. It exists for *interpretability*, so a human reviewer can see why a decision was made. Judged as an explanation tool it is reasonable; judged as a predictor it is weak, and the system currently treats it as a predictor.
 
-### Two framing points### Two framing points
+### Two framing points
 
 **Why PR-AUC is also reported.** Only 8.07% of applicants default. A model predicting "never defaults" scores 92% accuracy and is useless. ROC-AUC alone flatters imbalanced problems, so PR-AUC is the honest companion metric.
 
@@ -237,21 +239,32 @@ Same five models, shared 10,000-row holdout, four metrics:
 
 Random Forest being ~9× worse calibrated matches theory for vote-averaging ensembles — a useful check that the metric behaves.
 
-## 5c. TabPFN-2.5 — evaluated, hardware-blocked
+## 5c. Foundation models — TabPFN-2.5 and Google TabFM, both honestly scored
 
-Assessed as a candidate. A tabular foundation model from Prior Labs.
+**TabPFN-2.5 (Prior Labs).** Initially hardware-blocked (8 GB VRAM caps the
+in-context training set), then scored twice: 0.7446 on the full 61,503-row
+holdout from a 5,000-row context (77 GPU-minutes), and re-scored at 8,000 rows
+**with `SK_ID_CURR` saved per probability** (0.7284 ± 0.0127 — same model,
+smaller sample, overlapping intervals; quote the interval). The row IDs are
+what unblocked the fusion analysis (§"hybrid" in `docs/FUTURE-SCOPE.md`:
+verdict KILL). To lift the context cap, `colab/tabpfn_colab_server.ipynb`
+hosts it on a Colab GPU as a live endpoint the backend can call.
 
-**Outcome: could not be fairly scored.** It exhausted 8 GB of VRAM at every configuration tried, including a 500-row prediction batch. The binding constraint is the **training context** — TabPFN holds it in memory for each forward pass at cost quadratic in rows — not the batch size. Prior Labs recommend A100/H100-class hardware. Fitting our data on this GPU would mean subsampling to ~5%, which is not a comparison worth reporting.
+**Google TabFM 1.0** (github.com/google-research/tabfm, June 2026) — added on
+reviewer request. Zero-shot in-context model, same class as TabPFN, different
+lineage. Scored on the exact same 8,000 rows (committed script:
+`research/analysis/score_tabfm.py`): **0.6911 ± 0.0113** — matching the
+*trained* serving LogisticRegression on the same 15-field vocabulary with no
+training at all.
 
-Three verified corrections worth carrying:
+Verified corrections worth carrying:
 
 | Claim often repeated | Reality |
 |---|---|
-| "Published in *Nature*" | The *Nature* paper describes **TabPFN v2** (10k×500), **not v2.5** (50k×2000). Cite **arXiv:2511.08667** for v2.5 — a **preprint**. |
-| "Calibration is baked in" | Prior Labs' own report: results are *"computed using uncalibrated, default scores."* **No published ECE/Brier exists.** |
-| "Fine to use, it's open" | Licence is **non-commercial and covers outputs**, not just weights. Academic use is explicitly allowed; commercial deployment is not. |
-
-Also: `pip install tabpfn` installs **TabPFN-3**, not v2.5. The version must be pinned or you benchmark a different model than you report.
+| "TabPFN published in *Nature*" | The *Nature* paper describes **TabPFN v2**, **not v2.5**. Cite **arXiv:2511.08667** for v2.5 — a **preprint**. |
+| "Calibration is baked in" | Prior Labs' own report: results are *"computed using uncalibrated, default scores."* |
+| "Fine to use, it's open" | TabPFN-2.5's licence is **non-commercial and covers outputs**. TabFM's **code** is Apache-2.0 but its **weights** are `tabfm-non-commercial-v1.0`. Both are research baselines, neither is deployable commercially. |
+| "`pip install tabpfn` gives v2.5" | It installs **TabPFN-3**; v2.5 must be pinned via the checkpoint path (`models/README.md`). |
 
 ## 5d. Running the dashboard
 
@@ -265,15 +278,15 @@ cd frontend && npm run dev
 
 Open **http://localhost:5173** → Model Analysis. Vite proxies `/api` to port 8000.
 
-The page shows: sortable leaderboard (best value per metric highlighted), AUC bar chart, 2×2 confusion matrix with derived rates, false-positive vs false-negative error profile, decision mix by probability band (**this is where the inversion is visible**), and a paginated 25,000-case drill-down.
+The page shows: the active/serving model card (with artifact + engine version — the version is also a permanent badge in the org header), sortable leaderboard (each model at its own operating threshold), AUC bar chart, error-profile table, ML-vs-CBES decision-landscape scatter, decision mix by probability band, and a paginated case drill-down. (The old 2×2 confusion-matrix card was removed in commit c3b6628 after the matrices were re-scored at real thresholds.)
 
 ## 6. Quick answers to likely questions
 
 **"Why did you move off your own dataset?"**
 It was synthetic — labels came from a formula we wrote, so any accuracy measured on it was circular. We now use 307,511 real applications, and accuracy went *up* to 0.767.
 
-**"Why is your hybrid worse than a simple model?"**
-It is, and we measured why: the disagreement signal is dominated by a scale offset between the two scores rather than real disagreement. That diagnosis is our contribution — the fix is to rank-normalise both signals before comparing.
+**"Why was your hybrid worse than a simple model?"**
+It was, and we measured why: the disagreement signal is dominated by a scale offset between the two scores rather than real disagreement. That diagnosis is our contribution — and the measured fix is plain model uncertainty, which beats every repaired version of the disagreement signal (z = −99.7 vs −13 to −71; `reports/deferral_fix.json`).
 
 **"Is CBES just made-up weights?"**
 The pillar weights are a domain prior. The *thresholds* inside each pillar are calibrated from the real training distribution, not invented. CBES is deliberately restricted to 8 portable fields so it stays interpretable and comparable across datasets.
@@ -291,10 +304,10 @@ Home Credit carries `CODE_GENDER`, age and region. Missing data concentrates in 
 XGBoost has the best AUC at 0.7670, but LightGBM is better calibrated (ECE 0.0023 vs 0.0038) and our deferral layer consumes probabilities rather than rankings — so LightGBM is arguably the better production choice. The three boosters are within 0.0004 AUC of each other, so the decision rests on calibration, not accuracy.
 
 **"Did you try a foundation model?"**
-Yes — TabPFN-2.5. It needs A100/H100-class memory for our data volume; our 8 GB GPU fits about 5% of the dataset, which would not be a fair comparison. We also found its licence is non-commercial and restricts outputs, so it could not be deployed even if it won.
+Two. TabPFN-2.5 (0.7284 ± 0.0127 on 8,000 id-indexed rows from a 5,000-row context; 0.7446 on the earlier full holdout) and Google TabFM (0.6911 ± 0.0113 zero-shot on the same rows). Both beat or match trained linear baselines with a fraction of the data, both lose to the tree ensembles, both carry non-commercial licences, and the pre-registered fusion experiment returned KILL — neither adds anything an honest evaluation can claim on top of XGBoost. We also host TabPFN on a Colab GPU as a live endpoint to lift the local 8 GB context cap.
 
-**"Why is your deferral rate so high?"**
-52.38% on real data, up from 25.5% on synthetic — and that is the finding, not an embarrassment. The rule defers 55% of the cases the model is most confident about and 4% of the uncertain ones. The signal is inverted, we know the mechanism, and we know the fix.
+**"Why was your deferral rate so high?"**
+It was 52% on real data under the original rule — and that was the finding, not an embarrassment: the signal was inverted (it deferred the model's most confident cases), we confirmed the mechanism, and we fixed it. The regenerated artifact defers **22.5%**, inside the 20–25% underwriter-capacity band; the remaining gap to the AUC-implied 16% ceiling is a capacity decision we state rather than hide.
 
 ## 7. File map
 
