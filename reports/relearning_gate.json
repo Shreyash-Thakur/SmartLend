@@ -4,71 +4,71 @@
     "y_true==1": "GOOD customer (approve-worthy, did not default)",
     "best_model_prob": "approval probability, P(good)"
   },
-  "n_rows": 25000,
+  "n_rows": 307511,
   "conditions": [
     {
       "condition": 1,
       "name": "Deferral rule beats random at isolating hard cases",
       "status": "FAIL",
-      "reason": "deferred pile is +10.5 sd MORE lopsided than random (93.71% good vs 90.11% good in the auto-decided pile) - the router defers EASIER cases; the model is +12.2 sd MORE accurate on the deferred pile than random selection would give",
+      "reason": "deferred pile is +0.5 sd MORE lopsided than random (91.98% good vs 91.91% good in the auto-decided pile) - the router defers EASIER cases",
       "metrics": {
         "auto_decided": {
-          "n": 11906,
-          "good_share": 0.901142281202755,
-          "balance_distance": 0.40114228120275497,
-          "accuracy": 0.8919872333277339,
-          "auc": 0.7731800352438103
+          "n": 238344,
+          "good_share": 0.9191169066559259,
+          "balance_distance": 0.41911690665592594,
+          "accuracy": 0.744814218104924,
+          "auc": 0.7956807809052401
         },
         "deferred": {
-          "n": 13094,
-          "good_share": 0.9370704139300443,
-          "balance_distance": 0.4370704139300443,
-          "accuracy": 0.9367649305025202,
-          "auc": 0.7470011809528331
+          "n": 69167,
+          "good_share": 0.9198027961311029,
+          "balance_distance": 0.41980279613110294,
+          "accuracy": 0.7396446282186592,
+          "auc": 0.5799411810944592
         },
         "overall_no_deferral_baseline": {
-          "n": 25000,
-          "good_share": 0.91996,
-          "balance_distance": 0.41996,
-          "accuracy": 0.91544,
-          "auc": 0.7683860795807583
+          "n": 307511,
+          "good_share": 0.9192711805431351,
+          "balance_distance": 0.41927118054313506,
+          "accuracy": 0.7436514466149179,
+          "auc": 0.7650550422294479
         },
-        "defer_rate": 0.52376,
+        "defer_rate": 0.22492528722549762,
         "random_router_baseline": {
           "trials": 200,
           "seed": 20260830,
           "good_share": {
-            "mean": 0.9199644875515502,
-            "std": 0.0016277857504974388,
-            "p05": 0.9171338017412556,
-            "p95": 0.9223384756376967
+            "mean": 0.919384099353738,
+            "std": 0.0008980773791642623,
+            "p05": 0.9177208784535978,
+            "p95": 0.92080110457299
           },
           "balance_distance": {
-            "mean": 0.4199644875515503,
-            "std": 0.0016277857504974388,
-            "p05": 0.4171338017412556,
-            "p95": 0.42233847563769666
+            "mean": 0.41938409935373805,
+            "std": 0.0008980773791642623,
+            "p05": 0.41772087845359784,
+            "p95": 0.42080110457298997
           },
           "accuracy": {
-            "mean": 0.9154987016954331,
-            "std": 0.0017461427958379973,
-            "p05": 0.9127004734993127,
-            "p95": 0.9179815182526347
+            "mean": 0.7435713562826203,
+            "std": 0.0014353398068490586,
+            "p05": 0.7411590787514277,
+            "p95": 0.7461101392282448
           },
           "auc": {
-            "mean": 0.7685757261537851,
-            "std": 0.005012347000385312,
-            "p05": 0.7605274622788906,
-            "p95": 0.776636398054048
+            "mean": 0.7648673731401823,
+            "std": 0.0029904059197100115,
+            "p05": 0.7601218527432116,
+            "p95": 0.7694518295597566
           }
         },
-        "balance_distance_z": 10.508708761743717,
-        "accuracy_z": 12.178974627834554,
+        "balance_distance_z": 0.4662145902778711,
+        "accuracy_z": -2.735748040445758,
         "z_threshold": -2.0,
-        "deferred_minus_auto_good_share": 0.03592813272728934,
-        "deferred_minus_auto_accuracy": 0.0447776971747863,
+        "deferred_minus_auto_good_share": 0.0006858894751770039,
+        "deferred_minus_auto_accuracy": -0.005169589886264814,
         "harder_mix_than_random": false,
-        "harder_for_model_than_random": false
+        "harder_for_model_than_random": true
       },
       "notes": [
         "y_true == 1 means GOOD (approve-worthy, did not default).",
@@ -82,20 +82,20 @@
       "condition": 2,
       "name": "Observed defer/override rate within the AUC-implied natural-rate bound",
       "status": "FAIL",
-      "reason": "observed defer rate 52.38% is 3.3x the upper bound 15.85% implied by AUC 0.768 - the router is referring far more cases than the model actually gets wrong, so most referrals are cases the model already handles",
+      "reason": "observed defer rate 22.49% is 1.4x the upper bound 16.00% implied by AUC 0.765 - the router is referring far more cases than the model actually gets wrong, so most referrals are cases the model already handles",
       "metrics": {
-        "observed_defer_rate": 0.52376,
-        "n_deferred": 13094,
-        "n_total": 25000,
-        "model_auc": 0.7683860795807583,
-        "empirical_error_rate_no_deferral": 0.08456,
+        "observed_defer_rate": 0.22492528722549762,
+        "n_deferred": 69167,
+        "n_total": 307511,
+        "model_auc": 0.7650550422294479,
+        "empirical_error_rate_no_deferral": 0.25634855338508217,
         "bound": {
-          "auc": 0.7683860795807583,
-          "good_rate": 0.91996,
-          "binormal_separation_delta": 1.0373852313720393,
-          "bayes_error_rate": 0.07925233649690043,
-          "lower_bound": 0.07925233649690043,
-          "upper_bound": 0.15850467299380086,
+          "auc": 0.7650550422294479,
+          "good_rate": 0.9192711805431351,
+          "binormal_separation_delta": 1.0219929968102823,
+          "bayes_error_rate": 0.08000657415808834,
+          "lower_bound": 0.08000657415808834,
+          "upper_bound": 0.1600131483161767,
           "assumptions": [
             "binormal equal-variance scores; delta = sqrt(2) * Phi^-1(AUC)",
             "natural ambiguous-case rate == Bayes error rate at the observed prior",
