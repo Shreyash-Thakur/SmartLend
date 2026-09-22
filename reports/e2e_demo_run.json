@@ -1,0 +1,46 @@
+{
+  "purpose": "Reviewer feedback item: 'try applying for a loan on your own so it gets included in your system'. A demo-persona application was submitted through the live API end to end; the record below is what the system captured. Submit your own real application the same way through the UI (Customer Dashboard -> New Application) - it will land in the same tables.",
+  "run_at": "2026-09-22T23:29:00+05:30",
+  "backend": "uvicorn backend.app.main:app, live pipeline_v3_real.joblib",
+  "health_check": {
+    "model": "LogisticRegression",
+    "artifact": "pipeline_v3_real.joblib",
+    "engineVersion": "hybrid-2stage-5gate/2026-04-27+cbes-v2+model=LogisticRegression",
+    "held_out_auc_p_default": 0.6919,
+    "t_base": 0.65,
+    "featureCount": 15,
+    "note": "/health previously returned hardcoded April synthetic values (auc 0.710, t_base 0.55); it now reads the loaded artifact."
+  },
+  "submission": {
+    "endpoint": "POST /api/applications",
+    "customer_id": "101672",
+    "persona": "Demo Persona, loan 750000 INR, 48 months, home renovation, Pune",
+    "application_id": "app-d47fe8a111f8"
+  },
+  "decision": {
+    "final_decision": "DEFER",
+    "p_ml": 0.9487,
+    "p_cbes": 0.4411,
+    "decision_reason": "disagreement (legacy router default; |p_ml - p_cbes| = 0.51 > tau_d 0.30)",
+    "routed_to_human_review": true,
+    "exploration_flag": false
+  },
+  "provenance_verified": {
+    "response.decision.modelVersion": "hybrid-2stage-5gate/2026-04-27+cbes-v2+model=LogisticRegression",
+    "response.decision.modelArtifact": "pipeline_v3_real.joblib",
+    "decision_meta.threshold_artifact_hash": "77ec206b137c09f7",
+    "decision_meta.t_base": 0.65,
+    "report.engine.engineVersion": "present without a capture row too (new _decision_meta fallback)",
+    "report.engine.thresholds": {"approve": 0.652947, "reject": 0.647053, "base": 0.65}
+  },
+  "relearning_capture": {
+    "rows_captured_after_submit": 4,
+    "retraining_permitted": false,
+    "verdict": "DO NOT OPEN THE LOOP",
+    "note": "The deferred application wrote exactly one deferred_reviews row and awaits a human verdict in /review - use it to demo the reviewer feedback form."
+  },
+  "optional_services_degrade_calmly": {
+    "GET /api/tabpfn/status": "configured=false with setup instructions (start the Colab notebook)",
+    "GET /api/agent/status": "configured=false with setup instructions (set ANTHROPIC_API_KEY)"
+  }
+}
