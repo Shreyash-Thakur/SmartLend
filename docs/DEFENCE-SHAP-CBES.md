@@ -415,10 +415,10 @@ Four independent places in the code establish this:
 3. **The tiebreak gates.** `elif p_cbes >= 0.60: decision = "APPROVE"` and
    `elif p_cbes <= 0.40: decision = "REJECT"` (`decision_engine.py:261-268`).
    High ⇒ approve. This is unambiguous.
-4. **The blend and the tilt.** `p_blend = 0.75·p_ml + 0.25·p_cbes` with
-   `_BLEND_ALPHA = 0.25` (`decision_engine.py:81, 205`), and `tilt = p_cbes − 0.5` lowers
-   the approval bar when CBES is high (`decision_engine.py:211-213`). Both only make sense
-   if higher is better.
+4. **The blend and the tilt.** `p_blend = 0.90·p_ml + 0.10·p_cbes` with
+   `_BLEND_ALPHA = 0.10` (`decision_engine.py` — cut from the inherited 0.25 on the
+   measured cost table in `docs/BLEND-DECISION.md`), and `tilt = p_cbes − 0.5` lowers
+   the approval bar when CBES is high. Both only make sense if higher is better.
 
 **Empirically:** all-best applicant → 0.87034; all-worst → 0.12966.
 
@@ -477,8 +477,10 @@ segments**, by 0.14–0.26 AUC. There is no niche where CBES wins.
 `reports/complementarity.json` records that the best XGBoost+CBES blend weight is
 `w_xgb = 1.0`, i.e. **the optimal amount of CBES in the ensemble is zero**, and the report
 itself annotates that weight as *"chosen on the evaluation data itself — an optimistic
-upper bound, not an honest estimate."* Blending CBES at 25% (`_BLEND_ALPHA`) **costs**
-predictive performance. Present CBES as an interpretability and deployability artifact.
+upper bound, not an honest estimate."* Blending CBES **costs** predictive performance at
+any weight, which is why `_BLEND_ALPHA` was cut from the inherited 0.25 to 0.10
+(−0.0056 AUC vs −0.028 — `reports/blend_decision.json`).
+Present CBES as an interpretability and deployability artifact.
 Do not present it as an accuracy contribution.
 
 ---

@@ -15,8 +15,9 @@ its own `meta.label_convention` field.
 
 ## The direct answers first
 
-1. **How is a decision made?** ML approval probability (75%) is blended with a rule-based
-   score, CBES (25%); calibrated thresholds with a small CBES tilt (±0.0075 max) produce
+1. **How is a decision made?** ML approval probability (90%) is blended with a rule-based
+   score, CBES (10% — the measured choice, see `docs/BLEND-DECISION.md`); calibrated
+   thresholds with a small CBES tilt (±0.0075 max) produce
    APPROVE / REJECT / DEFER through an ordered gate sequence
    (`backend/app/services/decision_engine.py`).
 
@@ -33,11 +34,15 @@ its own `meta.label_convention` field.
    ignore CBES (0.7650 vs 0.7651). No hybrid in the current roster beats XGBoost by more
    than the ±0.0036 fold-to-fold noise floor (`reports/complementarity.json`).
 
-4. **So what hybrid should be built next?** None, yet. The one defensible next step is a
-   ~13-GPU-minute TabPFN re-score with row IDs, evaluated against a decision rule stated
-   *in advance* (§4.4). TabPFN is the only untested candidate with a plausible mechanism
-   for helping; whether it does is currently **unanswerable** because the stored TabPFN
-   probabilities cannot be aligned to rows.
+4. **So what hybrid should be built next?** **None — and now that is measured, not
+   provisional.** The row-ID re-score (commit 12bbf4f) unblocked the pre-registered §4.4
+   experiment; the alignment gate VERIFIED (corr with XGBoost 0.83), and the decision rule
+   returned **KILL**: best honest XGB+TabPFN hybrid −0.0008 AUC, weight-sweep optimum
+   w_XGB = 1.0, and TabPFN loses in all 16 segments including the four pre-named weak ones
+   (`reports/complementarity.json`). Google TabFM (scored 2026-09-22 on the same 8,000
+   rows, AUC 0.6911) goes through the same gate — see `reports/complementarity.json →
+   tabfm_*`. The roster is exhausted; the hybrid line ends with a documented negative
+   result.
 
 ---
 
@@ -50,7 +55,7 @@ flowchart TD
     A[Application arrives<br/>POST /applications] --> B[Validate + resolve customer profile<br/>routers/applications.py]
     B --> C[ML pipeline: calibrated classifier<br/>p_ml = 1 - P_default<br/>ml_service.py]
     B --> D[CBES: 5 weighted components on<br/>percentile-calibrated breakpoints<br/>p_cbes, cbes_engine.py]
-    C --> E[Stage A: blend<br/>p_blend = 0.75 p_ml + 0.25 p_cbes]
+    C --> E[Stage A: blend<br/>p_blend = 0.90 p_ml + 0.10 p_cbes]
     D --> E
     C --> F[D = abs p_ml - p_cbes<br/>confidence formula]
     D --> F
@@ -89,8 +94,9 @@ All step references: `backend/app/services/decision_engine.py` (`hybrid_decision
    region 0.05. The weighted sum passes a final k=5 sigmoid to give `p_cbes`
    (`cbes_engine.py::compute_cbes`).
 
-4. **Stage A — blend.** `p_blend = 0.75·p_ml + 0.25·p_cbes` (`_BLEND_ALPHA = 0.25`,
-   `decision_engine.py` line 81, formula line 193).
+4. **Stage A — blend.** `p_blend = 0.90·p_ml + 0.10·p_cbes` (`_BLEND_ALPHA = 0.10`,
+   `decision_engine.py` — chosen over the inherited 0.25 with the measured cost table in
+   `docs/BLEND-DECISION.md`; 0.25 cost −0.028 AUC and ~849 extra auto-approved defaulters).
 
 5. **Disagreement and confidence.** `D = |p_ml − p_cbes|` on the *raw* signals (not the
    blend). Confidence is
@@ -238,7 +244,7 @@ design) also fail, so the overall verdict remains **do not open the retraining l
 
 - **ML (`p_ml`)** carries essentially all discriminative power: XGBoost 0.7651 AUC on all
   307,511 out-of-fold rows (`reports/complementarity.json`).
-- **CBES (`p_cbes`)** contributes 25% of the blend, tilts thresholds by at most ±0.0075,
+- **CBES (`p_cbes`)** contributes 10% of the blend (α = 0.10, measured choice), tilts thresholds by at most ±0.0075,
   breaks grey-zone ties, and produces a five-component human-readable breakdown returned
   with every decision.
 
@@ -306,17 +312,16 @@ there is almost no independent error left for averaging to cancel.
 **The honest position: no hybrid in the current roster beats XGBoost alone by more than
 noise.**
 
-### 4.2 The TabPFN question is open, not answered
+### 4.2 The TabPFN question — was open, now ANSWERED (2026-09-22)
 
-The stored TabPFN probabilities (`reports/_tabpfn_probs_5000.npy`) carried no row index.
-The alignment gate failed: TabPFN's AUC on every attempted row reconstruction is
-0.47–0.53 (expected ~0.7446), correlation with XGBoost 0.0109 (expected ~0.6), across 30
-alternative reconstructions and a batch-of-500 permutation search. Every XGBoost+TabPFN
-comparison was therefore **skipped** — this is a claim about *artifact provenance*, not
-about TabPFN's quality. Its own holdout AUC of **0.7446, trained on 5,000 rows (~2% of
-the training data)**, stands. A re-score saving `SK_ID_CURR` alongside each probability
-is the fix (in progress; the original full scoring took 77 GPU-minutes for 61,503 rows, a
-10,000-row re-score is ~13 minutes).
+The original artifact (`reports/_tabpfn_probs_5000.npy`) carried no row index and its
+alignment gate failed (AUC 0.47–0.53 on 30 reconstructions, corr with XGBoost 0.01), so
+every comparison was skipped rather than reported on misaligned rows. The re-score with
+`SK_ID_CURR` (commit 12bbf4f, `reports/tabpfn_scored_rows.csv`, 8,000 rows) fixed the
+provenance: the gate now **verifies** — 8,000/8,000 rows join, zero label mismatches, the
+recomputed AUC reproduces 0.7284 exactly, and corr(TabPFN, XGBoost) = **0.83**, exactly
+what two informative models on the same rows should show. The §4.4 experiment then ran,
+and the pre-registered rule returned **KILL** (see §4.4).
 
 ### 4.3 Where a partner would actually have to win
 
@@ -352,7 +357,7 @@ AUCs, with paired bootstrap.
 sampling error of roughly ±0.01, so only *paired* statistics (paired bootstrap on the same
 rows, as implemented) can resolve anything near the noise floor.
 
-**Decision rule — fixed now, before the data exist:**
+**Decision rule — fixed IN ADVANCE (before the data existed), now executed with the row-ID artifact:**
 
 - **BUILD** a hybrid (segment-routed or stacked) if BOTH hold:
   1. TabPFN beats XGBoost in at least one pre-named weak segment (age 60+, thin-file,
@@ -371,6 +376,16 @@ rows, as implemented) can resolve anything near the noise floor.
 Pre-registering the rule is what makes this science rather than post-hoc justification:
 the same criterion that would let us claim a TabPFN gain is the one that already forced us
 to refuse the CatBoost gain.
+
+**OUTCOME (2026-09-22): KILL.** Measured on the verified 8,000 id-joined rows
+(`reports/complementarity.json`): TabPFN loses to XGBoost in **all four pre-named weak
+segments** (age 60+ −0.033, thin-file −0.043, under-30 −0.025, EXT_SOURCE_2 Q2 −0.015)
+and in all 12 other segments; best honest combination (CV stack) is −0.0008 vs XGBoost;
+the weight sweep's optimum is w_XGB = 1.0; the simple average is significantly WORSE
+(paired bootstrap CI [−0.0098, −0.0010]). Both BUILD conditions fail → the roster is
+exhausted, XGBoost alone is the system, and the hybrid line of work ends with a documented
+negative result. Notably TabPFN DID break the 0.99 error-correlation wall (corr 0.83) —
+diversity without segment-local competence buys nothing, the same lesson CBES taught.
 
 ---
 
@@ -411,8 +426,9 @@ the defensible part is knowing, with measurements, when not to.
 **"You said the hybrid helps — does it?"**
 No, and we no longer say it. The ML+CBES blend does not improve ranking accuracy: simple
 average −0.0801, honest stack −0.0001, optimal weight w_XGB = 1.0. The blend survives in
-the live path as a bounded interpretability mechanism, not an accuracy mechanism, and the
-25%-CBES demo default predates the complementarity measurement. No roster hybrid beats
+the live path as a bounded interpretability mechanism, not an accuracy mechanism; after
+the complementarity measurement its weight was cut from the inherited 0.25 to the measured
+α = 0.10 (cost table in `docs/BLEND-DECISION.md`). No roster hybrid beats
 XGBoost beyond ±0.0036 noise. The only version of "the hybrid helps" we defend is the
 human-machine hybrid: uncertainty-routed deferral achieves selective risk 0.0451 vs 0.0835
 for random abstention — 46% of the way to the oracle — and that is measured.
