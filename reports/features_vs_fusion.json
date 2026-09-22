@@ -1,0 +1,190 @@
+{
+  "protocol": {
+    "folds": 5,
+    "seed": 42,
+    "rows": 307511,
+    "v1_features": 113,
+    "v2_features": 319,
+    "early_stopping": "inner 10% split of the training folds only",
+    "noise_floor": 0.0036,
+    "quick_mode": false
+  },
+  "models": {
+    "LightGBM": {
+      "v1": {
+        "oof_auc": 0.756,
+        "oof_pr_auc": 0.2423,
+        "fold_aucs": [
+          0.7545,
+          0.7585,
+          0.7545,
+          0.7612,
+          0.7517
+        ]
+      },
+      "v2": {
+        "oof_auc": 0.7721,
+        "oof_pr_auc": 0.2606,
+        "fold_aucs": [
+          0.7685,
+          0.7768,
+          0.7709,
+          0.7767,
+          0.7676
+        ]
+      },
+      "fold_paired_delta_v2_minus_v1": [
+        0.014,
+        0.0183,
+        0.0164,
+        0.0155,
+        0.0159
+      ],
+      "mean_delta": 0.016,
+      "feature_claim": true
+    },
+    "XGBoost": {
+      "v1": {
+        "oof_auc": 0.7584,
+        "oof_pr_auc": 0.2444,
+        "fold_aucs": [
+          0.7564,
+          0.7626,
+          0.7562,
+          0.7641,
+          0.753
+        ]
+      },
+      "v2": {
+        "oof_auc": 0.7749,
+        "oof_pr_auc": 0.2638,
+        "fold_aucs": [
+          0.7715,
+          0.7786,
+          0.7728,
+          0.7795,
+          0.772
+        ]
+      },
+      "fold_paired_delta_v2_minus_v1": [
+        0.0151,
+        0.016,
+        0.0166,
+        0.0154,
+        0.019
+      ],
+      "mean_delta": 0.0164,
+      "feature_claim": true
+    },
+    "CatBoost": {
+      "v1": {
+        "oof_auc": 0.7603,
+        "oof_pr_auc": 0.2476,
+        "fold_aucs": [
+          0.7569,
+          0.7654,
+          0.7577,
+          0.7664,
+          0.755
+        ]
+      },
+      "v2": {
+        "oof_auc": 0.7757,
+        "oof_pr_auc": 0.2642,
+        "fold_aucs": [
+          0.7717,
+          0.7826,
+          0.773,
+          0.7808,
+          0.7706
+        ]
+      },
+      "fold_paired_delta_v2_minus_v1": [
+        0.0148,
+        0.0172,
+        0.0153,
+        0.0144,
+        0.0156
+      ],
+      "mean_delta": 0.0155,
+      "feature_claim": true
+    },
+    "LogisticRegression": {
+      "v1": {
+        "oof_auc": 0.7377,
+        "oof_pr_auc": 0.2151,
+        "fold_aucs": [
+          0.7336,
+          0.7416,
+          0.7374,
+          0.7438,
+          0.7325
+        ]
+      },
+      "v2": {
+        "oof_auc": 0.756,
+        "oof_pr_auc": 0.2377,
+        "fold_aucs": [
+          0.752,
+          0.7602,
+          0.7562,
+          0.7607,
+          0.7509
+        ]
+      },
+      "fold_paired_delta_v2_minus_v1": [
+        0.0184,
+        0.0186,
+        0.0188,
+        0.0169,
+        0.0184
+      ],
+      "mean_delta": 0.0182,
+      "feature_claim": true
+    }
+  },
+  "fusion_on_v2": {
+    "best_single_model": "CatBoost",
+    "best_single_auc": 0.7757,
+    "pairwise_oof_corr": {
+      "LightGBM|XGBoost": 0.9613,
+      "LightGBM|CatBoost": 0.9514,
+      "LightGBM|LogisticRegression": 0.8776,
+      "XGBoost|CatBoost": 0.9547,
+      "XGBoost|LogisticRegression": 0.8697,
+      "CatBoost|LogisticRegression": 0.8904
+    },
+    "auc_simple_average_all": 0.7758,
+    "auc_rank_average_all": 0.7756,
+    "auc_simple_average_gbms": 0.7773,
+    "auc_cv_stack_best_plus_lightgbm": 0.7765,
+    "weight_sweep_note": {
+      "w_best_single": 0.25,
+      "auc": 0.7775,
+      "note": "self-selected weight - optimistic upper bound, never claimable"
+    },
+    "best_honest_fusion": {
+      "method": "simple_average_gbms",
+      "auc": 0.7773,
+      "gain_vs_best_single": 0.0016,
+      "gain_exceeds_noise_floor": false
+    },
+    "paired_bootstrap_vs_best_single": {
+      "delta_mean": 0.00153,
+      "delta_ci95": [
+        0.00099,
+        0.00209
+      ],
+      "frac_positive": 1.0,
+      "n_boot": 1000
+    }
+  },
+  "headline": {
+    "best_single_v1_auc": 0.7603,
+    "best_single_v2_auc": 0.7757,
+    "feature_gain": 0.0154,
+    "best_fusion_gain_on_v2": 0.0016,
+    "reading": "features vs fusion: the feature gain and the fusion gain above are judged by the SAME +0.0036 rule; whichever clears it is where the headroom lives."
+  },
+  "generated_seconds": 687.0
+}
