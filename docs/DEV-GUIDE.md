@@ -30,7 +30,7 @@ A loan decisioning system **and** a research project. The two have different goa
 - **The system** — FastAPI + React, scores applications, routes uncertain ones to a human reviewer.
 - **The research** — measuring *when a deferral guarantee is actually valid* under credit selection bias. This is the part that gets published.
 
-The headline finding so far is **negative and deliberate**: the deferral mechanism is inverted — it sends humans the *easy* cases. Quantified at roughly 10.5σ worse than a random router. Don't "fix" this by tuning the threshold; understanding it is the contribution.
+The headline finding is **negative and deliberate**: the original deferral mechanism was inverted — it sent humans the *easy* cases (up to ~38σ worse than a random router). It has since been **diagnosed (a fixed calibration offset between the two scores), fixed (model uncertainty, gate z = −99.7), and re-measured** — see `docs/DEFERRAL-FIX.md`. The measured fix is opt-in (`SMARTLEND_DEFERRAL_MODE=uncertainty`); the legacy router remains the demo default. Don't "fix" the legacy signal by tuning its threshold — the defect is the signal, and that diagnosis is the contribution.
 
 ---
 
@@ -70,9 +70,9 @@ Two things about this dataset that trip people up:
 
 ## Accuracy is a trap on this dataset
 
-Only 8% of applicants default, so **approving everyone scores 92% accuracy**. The confusion matrices show models rejecting ~13 of ~2,000 defaulters at a 0.5 threshold while reporting 92% accuracy and 99% recall.
+Only 8% of applicants default, so **approving everyone scores 92% accuracy**. That exact artefact happened here: TabPFN once showed accuracy 0.9193 / recall 1.0000 because a missing probability column fell back to a shared 0.5 threshold.
 
-**Judge models by AUC and PR-AUC.** Accuracy, precision and recall in the current dashboard are computed in *approval framing* (`y=1` = good customer) and mostly measure the easy direction.
+**Judge models by AUC and PR-AUC.** Where the dashboard shows accuracy/precision/recall, each model is now scored **at its own Youden-selected operating threshold** (commit c64c692), which is the honest version of those numbers — the defence of this is written out in `docs/PRESENTATION-GUIDE.md`.
 
 ---
 
@@ -84,7 +84,7 @@ Reviewer decisions on deferred cases are captured live. **Retraining on them is 
 python -m research.relearning.gate      # exits non-zero while the loop must stay shut
 ```
 
-Four conditions must all pass. They currently all fail. The important one: the deferral router must beat random at isolating *hard* cases, and ours does the opposite — the deferred pile is 93.7% good customers versus 90.1% for the pile it keeps.
+Four conditions must all pass. They currently all fail — but read the current numbers, not folklore: on the regenerated 22.5%-deferral artifact the deferred pile is statistically indistinguishable from random (balance z +0.5, was +38), and the opt-in uncertainty router passes condition 1 outright. Conditions 2–4 fail for stated reasons (capacity above the AUC bound; 0 of 1,000 exploration labels; no retraining design). Current table: `docs/RELEARNING-LOOP.md` §7.
 
 **Why this is gated rather than just built:** the router chooses which cases get human labels. Retraining on those labels means the model learns from a sample its own broken policy selected, and the bias compounds every cycle while the metrics look fine. That is the runaway feedback loop (Ensign et al.), compounded by the selective-labels problem (Lakkaraju et al., KDD 2017).
 
@@ -109,7 +109,7 @@ cp .env.example .env    # then fill in real values
 ## Working agreements
 
 - **Never commit** model weights, datasets, `.claude/`, or `catboost_info/` — all gitignored, and there is ~800MB of it sitting untracked.
-- **Never tune a threshold on the test split.** There is one locked holdout, opened at the end. The current `TAU_D` was tuned to hit a target deferral rate, and that failure is why this rule exists.
+- **Never tune a threshold on the test split.** There is one locked holdout, opened at the end. The original `TAU_D` was tuned to hit a target deferral rate, and that failure is why this rule exists; every later study (deferral fix, blend decision, t_base selection) uses an explicit tune/test split discipline — copy theirs.
 - **Artifacts are regenerated, not hand-edited.** If `model_metrics.csv` looks wrong, rerun the training script.
 - **A stale number is worse than no number.** The dashboard once showed an April synthetic accuracy beside live values for days, because a lookup preferred a training-time file over live computation. If a value can go stale, compute it.
 
@@ -119,10 +119,19 @@ cp .env.example .env    # then fill in real values
 
 | Document | Contents |
 |---|---|
+| `docs/PROJECT-OVERVIEW.md` | master overview + file map (start here) |
 | `docs/STATUS.md` | current state, results, plan, next actions |
 | `docs/REFERENCE.md` | CBES logic, citations, likely review questions |
+| `docs/DEFERRAL-FIX.md` / `docs/BLEND-DECISION.md` | the two measured fixes |
 | `docs/RELEARNING-LOOP.md` | data flow, gate conditions, how to open the loop |
-| `docs/FORM-IMPLEMENTATION.md` | the shortened application form |
+| `docs/FORM-IMPLEMENTATION.md` | the application form |
 | `docs/VOICE-MODULE.md` | voice setup and provider swapping |
 | `models/README.md` | fetching model weights, licence traps |
+| `colab/tabpfn_colab_server.ipynb` | hosting TabPFN on a Colab GPU as a live endpoint |
 | `docs/superpowers/specs/` | full research design |
+
+### Optional services (all degrade to a calm 503 when unconfigured)
+
+- **Remote TabPFN**: `backend/app/services/remote_tabpfn_service.py` ← `SMARTLEND_TABPFN_URL`/`_TOKEN` from the Colab notebook; verify with `python -m backend.run_tabpfn_connection_check`.
+- **Reviewer-briefing agent** (Claude): `backend/app/services/underwriting_agent_service.py` ← `ANTHROPIC_API_KEY`. Advisory only — it must never write a decision.
+- **Voice**: `backend/app/services/voice_service.py` ← `ELEVENLABS_API_KEY`/`SARVAM_API_KEY`.
