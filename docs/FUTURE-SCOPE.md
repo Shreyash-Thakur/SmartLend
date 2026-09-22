@@ -1,17 +1,32 @@
 # Future scope: is a hybrid worth building?
 
-**Question.** Would combining XGBoost with TabPFN-2.5 (or with CBES) into a
-hybrid improve accuracy?
+**Question.** Would combining XGBoost with TabPFN-2.5, Google TabFM, or CBES
+into a hybrid improve accuracy?
 
-**Answer, measured.** For **XGBoost + CBES: no** — every honest combination is
-equal to or worse than XGBoost alone, and the data show why. For
-**XGBoost + TabPFN-2.5: the question is currently unanswerable** — the saved
-TabPFN probabilities cannot be matched to the rows they score, and we report
-that rather than a number built on misaligned rows. What the data *do*
-support is (1) regenerating the TabPFN scores with row identifiers, and
-(2) not claiming ensemble gains among the gradient-boosting family, whose
-best measured combination (+0.0021 AUC) sits below the ±0.0036 fold-to-fold
-noise floor.
+**Answer, measured — the question is now CLOSED for the whole roster.**
+- **XGBoost + CBES: no** — every honest combination is equal to or worse than
+  XGBoost alone (§2).
+- **XGBoost + TabPFN-2.5: no** — the row-ID re-score (commit 12bbf4f,
+  `reports/tabpfn_scored_rows.csv`) unblocked the pre-registered experiment,
+  the alignment gate **verified** (AUC reproduces 0.7284 exactly, zero label
+  mismatches, corr with XGBoost 0.83 — the informative-model correlation the
+  broken artifact lacked), and the pre-registered decision rule returns
+  **KILL**: best honest hybrid (CV stack) −0.0008 vs XGBoost, weight-sweep
+  optimum w_XGB = 1.0, simple average significantly *hurts* (paired-bootstrap
+  CI [−0.0098, −0.0010]), and TabPFN loses to XGBoost in **all 16 segments**
+  including all four pre-named weak ones (§1).
+- **Gradient-boosting family: no** — best measured combination (+0.0021 AUC)
+  sits below the ±0.0036 fold-to-fold noise floor (§3).
+- **XGBoost + TabFM (Google): no** — scored 2026-09-22 on the same 8,000
+  id-indexed rows (`reports/tabfm_scored_rows.csv`, AUC 0.6911, gate verified
+  with corr(TabFM, XGBoost) = 0.66); best honest hybrid (CV stack) **−0.0004**
+  vs XGBoost, weight-sweep optimum w_XGB = 1.0, simple average significantly
+  hurts (CI [−0.0219, −0.0071]), and no real segment win (its only positive
+  segment is the n=13 missing-EXT_SOURCE_2 bucket at CI [0.0, 0.5] — noise).
+
+Per the pre-registered rule in `docs/DEFENCE-DECISION-HYBRID.md` §4.4: *"the
+roster is exhausted, XGBoost alone is the system, and the hybrid line of work
+ends with a documented negative result — which is a finding, not a failure."*
 
 All numbers below come from `reports/complementarity.json`, produced by
 `research/analysis/complementarity.py` (metric helpers unit-tested in
@@ -23,37 +38,34 @@ deviation, **±0.0036**. A "gain" smaller than that is not a gain.
 
 ---
 
-## 1. Why the TabPFN half of the question has no answer yet
+## 1. XGBoost + TabPFN: answered — the pre-registered rule says KILL
 
-`reports/_tabpfn_probs_5000.npy` holds 10,000 TabPFN-2.5 P(default) values
-documented as a `default_rng(42)` subsample of the 20% holdout
-(`train_test_split(test_size=0.2, random_state=42, stratify=TARGET)` on the
-merged CSV). Before comparing anything we verified that reconstruction:
-TabPFN's AUC on the reconstructed rows must reproduce its known **0.7446**.
+**History (why this was ever open).** The original TabPFN artifact
+(`reports/_tabpfn_probs_5000.npy`) carried no row IDs; the alignment gate
+failed (AUC 0.5052 on every one of 30 attempted reconstructions, corr with
+XGBoost ~0.01), so all TabPFN comparisons were skipped rather than reported
+on misaligned rows. Commit 12bbf4f re-scored 8,000 rows saving `SK_ID_CURR`
+with every probability (`reports/tabpfn_scored_rows.csv`), and
+`research/analysis/complementarity.py` now joins on ids and verifies the join
+(labels must match the dataset TARGET on every row; the recomputed AUC must
+reproduce the run's own 0.7284).
 
-It does not. Measured facts:
+**Gate result (2026-09-22): VERIFIED.** 8,000/8,000 rows joined, 0 label
+mismatches, AUC reproduces exactly, corr(TabPFN, XGBoost) in P(default) =
+**0.83** — the informative-model correlation the broken artifact lacked.
 
-| Check | Expected if aligned | Measured |
-|---|---|---|
-| TabPFN AUC on reconstructed rows | ~0.7446 | **0.5052** (chance) |
-| Corr(TabPFN P(default), XGBoost P(default)) on those rows | ~0.6 for two informative models | **0.0109** |
-| 30 alternative reconstructions (legacy RNG, sorted holdout, permutation draw, flipped stratify labels, consecutive 10k chunks, full-dataset draw) | one near 0.7446 | all in **0.47–0.53** |
-| Batch-of-500 permutation search (20×20 pairings vs XGBoost) | some batch corr ≫ noise | max abs corr **0.126** = null noise at n=500 |
+**Hybrid result, against the pre-registered decision rule** (fixed in
+`docs/DEFENCE-DECISION-HYBRID.md` §4.4 *before* the data existed):
 
-The probabilities themselves look sane (mean 0.059 against an 8.07% default
-rate), but their row order matches nothing derivable from the current CSV.
-The scoring was done off-repo (GPU session); no index array was saved.
+| Criterion | Required for BUILD | Measured | Verdict |
+|---|---|---|---|
+| TabPFN beats XGBoost in ≥1 pre-named weak segment (CI excluding 0) | yes | loses in **all 16 segments** (deltas −0.014 to −0.083), including age 60+, thin-file, under-30, EXT_SOURCE_2 Q2 | fails |
+| Honest combination beats XGBoost by > +0.0036 | yes | best honest hybrid (CV stack) **−0.0008**; weight sweep optimum **w_XGB = 1.0**; simple average −0.0057 (CI [−0.0098, −0.0010], significantly worse) | fails |
 
-**Consequence.** Every XGBoost + TabPFN comparison — error correlation,
-segment wins, hybrid AUC — was skipped. This is an *unanswered* question, not
-a negative answer. The analysis script contains the full TabPFN pipeline
-behind the alignment gate; it will run automatically the moment a correctly
-indexed artifact exists.
-
-**What to do next (concrete, cheap).** Re-score TabPFN on the holdout and
-save `SK_ID_CURR` alongside each probability (two-column parquet/npz). The
-existing run took 77 GPU-minutes for all 61,503 rows; a 10,000-row re-score
-is ~13 minutes.
+**KILL.** The one candidate with a plausible mechanism (different model
+class, 0.83 — not 0.99 — correlation) still adds nothing an honest evaluation
+can claim. Source: `reports/complementarity.json → tabpfn_alignment,
+hybrid_xgb_tabpfn, segments_xgb_vs_tabpfn`.
 
 ## 2. XGBoost + CBES: measured, and the answer is no
 
@@ -142,19 +154,19 @@ improvement. This is exactly the pattern §2a predicts: error correlations of
    on those grounds, not on AUC.
 2. **Do not claim tree-ensemble blending gains.** The best measurable blend
    (+0.0021) is inside the ±0.0036 noise floor.
-3. **Regenerate the TabPFN artifact with row IDs** (§1, ~13 GPU-minutes for
-   10k rows). This is the one genuinely open question: TabPFN is the only
-   competent model in the roster built on a different learning principle, so
-   it is the only candidate that could plausibly break the 0.99 error-
-   correlation wall. Whether it does is precisely what the missing alignment
-   prevents us from knowing.
-4. **When TabPFN is re-scored, target XGBoost's measured weak segments
-   first**: applicants 60+ (XGB AUC 0.7190), under 30 (0.7423), thin-file/no
-   bureau (0.7353 vs 0.7686 with bureau), and EXT_SOURCE_2 Q2 (0.7227).
-   A hybrid case exists only if TabPFN beats XGBoost *somewhere*; these are
-   the places to look, and the segment machinery in
-   `research/analysis/complementarity.py` already measures it automatically
-   once the alignment gate passes.
+3. ~~Regenerate the TabPFN artifact with row IDs~~ — **done** (commit 12bbf4f)
+   and the fusion question is answered: KILL (§1). TabPFN did break the 0.99
+   error-correlation wall (corr 0.83) — diversity again without enough
+   segment-local competence, the same lesson CBES taught at a lower level.
+4. ~~Target XGBoost's weak segments when TabPFN is re-scored~~ — **done**:
+   TabPFN loses in all four pre-named weak segments (and all 12 others).
+   With the roster exhausted, the honest future-scope items are
+   (a) **feature engineering on the unused Home Credit tables** (the measured
+   remaining path toward the ~0.80 ceiling — the learning curve in
+   `reports/convergence.json` also shows same-kind data is not yet exhausted),
+   and (b) foundation models on **richer features / larger contexts** (the
+   Colab endpoint in `colab/tabpfn_colab_server.ipynb` exists precisely to
+   lift the 8 GB VRAM context cap).
 
 ### Honesty notes
 
