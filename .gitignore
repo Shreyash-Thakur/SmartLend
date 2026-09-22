@@ -22,6 +22,9 @@ data/raw/**/*.csv
 data/raw/**/*.zip
 !data/raw/**/*columns_description*.csv
 
+# Derived feature matrices (regenerate: python -m research.features.engineer)
+data/processed/
+
 # Agent worktrees / session cache (hundreds of MB)
 .claude/
 
