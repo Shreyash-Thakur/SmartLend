@@ -119,3 +119,47 @@ def sarvam_api_key() -> str:
 def sarvam_configured() -> bool:
     """Check availability without raising — for health checks and feature flags."""
     return get_secret(SARVAM_API_KEY) is not None
+
+
+# ---------------------------------------------------------------------------
+# Underwriting agent (Claude API)
+# ---------------------------------------------------------------------------
+ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY"
+
+
+def anthropic_api_key() -> str:
+    return require_secret(ANTHROPIC_API_KEY)
+
+
+def anthropic_configured() -> bool:
+    """Check availability without raising — for health checks and feature flags."""
+    return get_secret(ANTHROPIC_API_KEY) is not None
+
+
+# ---------------------------------------------------------------------------
+# Remote TabPFN endpoint (Colab-hosted GPU inference)
+# ---------------------------------------------------------------------------
+# TabPFN-2.5 needs more VRAM than the local 8 GB GPU can give it, so it can be
+# hosted on a Colab GPU via colab/tabpfn_colab_server.ipynb, which prints a
+# public tunnel URL and a session token. The backend treats that endpoint as a
+# strictly OPTIONAL research instrument: nothing on the lending decision path
+# calls it, and every consumer must degrade gracefully when it is absent.
+# Licence note: TabPFN-2.5 outputs are non-commercial (models/README.md), so
+# the remote scores are research/demo material, never decision inputs.
+TABPFN_URL_ENV = "SMARTLEND_TABPFN_URL"
+TABPFN_TOKEN_ENV = "SMARTLEND_TABPFN_TOKEN"
+
+
+def tabpfn_remote_url() -> str | None:
+    """Base URL of the Colab-hosted TabPFN endpoint, or None when not configured."""
+    url = get_secret(TABPFN_URL_ENV)
+    return url.rstrip("/") if url else None
+
+
+def tabpfn_remote_token() -> str | None:
+    return get_secret(TABPFN_TOKEN_ENV)
+
+
+def tabpfn_remote_configured() -> bool:
+    """Check availability without raising — for health checks and feature flags."""
+    return tabpfn_remote_url() is not None
