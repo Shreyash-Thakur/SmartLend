@@ -34,7 +34,8 @@ Numbers from `backend/artifacts/model_metrics.csv` — 5-fold out-of-fold CV ove
 
 | Model | ROC-AUC | Notes |
 |---|---|---|
-| **XGBoost** | **0.7651 ± 0.0036** | reference model for all research analyses |
+| **CatBoost (FE-v2)** | **0.7757 ± 0.0011** | best overall — engineered features (`research/features/engineer.py`); fold-paired gain +0.0155 over the same model on v1 features |
+| **XGBoost** | **0.7651 ± 0.0036** | reference model for all v1-feature research analyses |
 | CatBoost | 0.7643 | |
 | LightGBM | 0.7631 | |
 | Logistic Regression | 0.7378 | same class as the serving model |
@@ -64,6 +65,7 @@ The production default is still the legacy router (deliberate demo-stability cho
 Two companion measurements close the loop:
 - **No roster hybrid helps.** Every honest XGBoost+CBES combination is ≤ XGBoost alone; the best tree-family blend (+0.0021) is inside the ±0.0036 fold noise. See [`docs/FUTURE-SCOPE.md`](docs/FUTURE-SCOPE.md) and `reports/complementarity.json`.
 - **Convergence measured.** Learning curve (AUC vs training rows, capacity-adaptive) and boosting-convergence curves in `reports/convergence.json` + `backend/artifacts/plots/`.
+- **Features beat fusion — measured under one pre-registered rule.** Engineering 319 features (application ratios + deep `bureau.csv` aggregates) lifted every model in every fold (+0.015 AUC, 4× the noise floor); the best honest ensemble on the same predictions gained +0.0016 (below the floor, like every hybrid before it). Headroom lives in information, not fusion. See `docs/FUTURE-SCOPE.md` §5 and `reports/features_vs_fusion.json`.
 
 ---
 

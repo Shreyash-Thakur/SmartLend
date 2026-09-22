@@ -161,12 +161,49 @@ improvement. This is exactly the pattern §2a predicts: error correlations of
 4. ~~Target XGBoost's weak segments when TabPFN is re-scored~~ — **done**:
    TabPFN loses in all four pre-named weak segments (and all 12 others).
    With the roster exhausted, the honest future-scope items are
-   (a) **feature engineering on the unused Home Credit tables** (the measured
-   remaining path toward the ~0.80 ceiling — the learning curve in
-   `reports/convergence.json` also shows same-kind data is not yet exhausted),
-   and (b) foundation models on **richer features / larger contexts** (the
-   Colab endpoint in `colab/tabpfn_colab_server.ipynb` exists precisely to
-   lift the 8 GB VRAM context cap).
+   (a) **feature engineering on the unused Home Credit tables** — now
+   **measured, and it delivers** (§5 below), and (b) foundation models on
+   **richer features / larger contexts** (the Colab endpoint in
+   `colab/tabpfn_colab_server.ipynb` exists precisely to lift the 8 GB VRAM
+   context cap).
+
+## 5. Features vs fusion — the closing experiment (2026-09-23)
+
+The natural follow-up question after four KILL verdicts: if fusing models
+adds nothing, where DOES headroom live? Tested by holding models, folds and
+evaluation fixed and changing only the features — v1 (the current ~113-column
+numeric frame) vs v2 (319 engineered features from application ratios,
+EXT_SOURCE combinations and ~35 deep bureau.csv aggregates —
+`research/features/engineer.py`, grounded in the published top solutions to
+this dataset). Decision rules pre-registered in
+`research/analysis/features_vs_fusion.py` with the same ±0.0036 noise floor
+that killed every hybrid. Source: `reports/features_vs_fusion.json`.
+
+**Feature claim: GRANTED — for every model, in every fold.**
+
+| Model (same 5 folds, seed 42) | v1 OOF AUC | v2 OOF AUC | mean fold delta |
+|---|---|---|---|
+| CatBoost | 0.7603 | **0.7757** | +0.0155 |
+| XGBoost | 0.7584 | 0.7749 | +0.0164 |
+| LightGBM | 0.7560 | 0.7721 | +0.0160 |
+| LogisticRegression | 0.7377 | 0.7560 | +0.0182 |
+
+All 20 fold deltas positive; every mean delta ≥ 4× the noise floor. Even the
+linear model gains +0.018 — the information is real, not a tree artefact.
+
+**Fusion claim on v2: DENIED — again.** Best honest combination (simple
+average of the three GBMs) reaches 0.7773 vs CatBoost's 0.7757: +0.0016,
+directionally real (paired-bootstrap CI [0.0010, 0.0021]) but **below the
+0.0036 floor** — the exact same pattern as the earlier XGB+CatBoost +0.0021.
+OOF correlations remain 0.87–0.96: better features made every model better
+*in the same way*, so there is still almost no independent error to cancel.
+
+**The sentence this buys the paper:** under one pre-registered criterion,
+feature enrichment cleared the noise floor for every model in every fold
+(+0.015 AUC), while no honest model combination ever has — on this dataset,
+headroom lives in information, not in fusion. Remaining known headroom to the
+~0.80 ceiling: the side tables not on disk (previous_application,
+installments_payments, POS_CASH, credit_card_balance).
 
 ### Honesty notes
 

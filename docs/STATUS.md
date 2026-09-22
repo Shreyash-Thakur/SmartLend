@@ -1,6 +1,6 @@
 # SmartLend — Project Status
 
-**Updated:** 22 September 2026 · **Defense:** November 2026 · **Weeks remaining:** ~7
+**Updated:** 23 September 2026 · **Defense:** November 2026 · **Weeks remaining:** ~7
 
 ---
 
@@ -14,7 +14,9 @@
 
 **4. Model version is now stamped and shown everywhere** (reviewer requirement). Every decision records `engine_version` + serving artifact + threshold hash in `_decision_meta`; `/health`, the org dashboard header, the customer decision panel and the audit report all display it. The old hardcoded `/health` values (synthetic-era AUC 0.710) are gone.
 
-**5. Convergence analysis exists** (reviewer requirement). Learning curve (capacity-adaptive XGBoost + LogReg) and boosting-convergence curve: `reports/convergence.json`, plots in `backend/artifacts/plots/`.
+**5. Feature engineering v2 delivers the accuracy the fusion work couldn't (23 Sep).** 319 engineered features (application ratios + deep bureau.csv aggregates) lift EVERY model in EVERY fold: best single 0.7603 → **0.7757** (CatBoost, fold-paired +0.0155, 4× the noise floor), while the best honest ensemble on the same predictions gains only +0.0016 (below the floor). One pre-registered rule, both answers: headroom is information, not fusion. (`reports/features_vs_fusion.json`, `docs/FUTURE-SCOPE.md` §5)
+
+**6. Convergence analysis exists** (reviewer requirement). Learning curve (capacity-adaptive XGBoost + LogReg) and boosting-convergence curve: `reports/convergence.json`, plots in `backend/artifacts/plots/`.
 
 ---
 
@@ -34,7 +36,8 @@
 | TabPFN hosted on Colab as live endpoint (reviewer item) | ✅ Built | `colab/tabpfn_colab_server.ipynb` + backend client + connection run — needs a Colab session to go live |
 | Convergence analysis (reviewer item) | ✅ Done (22 Sep) | `research/analysis/convergence.py` |
 | Reviewer-briefing agent (reviewer item) | ✅ Built | Claude-powered, advisory-only; needs `ANTHROPIC_API_KEY` |
-| Foundation-model fusion analysis | ⏳ Running | complementarity re-run with TabPFN + TabFM through the id-join alignment gate |
+| Foundation-model fusion analysis | ✅ Done | TabPFN and TabFM both KILL through the id-join gate (`reports/complementarity.json`) |
+| Feature engineering v2 + features-vs-fusion experiment | ✅ **Done (23 Sep)** | +0.0155 fold-paired; fusion still below the floor |
 | RBI compliance mapping (reviewer item) | ✅ Documented | `docs/RBI-COMPLIANCE.md` |
 | Report / paper writing | ⏳ **Now** | October is writing, not experiments |
 
@@ -44,7 +47,8 @@
 
 | Model | ROC-AUC | Sample |
 |---|---|---|
-| **XGBoost** | **0.7651 ± 0.0036** | 307,511 OOF rows |
+| **CatBoost (FE-v2)** | **0.7757 ± 0.0011** | 307,511 OOF rows, 319 engineered features |
+| **XGBoost** | **0.7651 ± 0.0036** | 307,511 OOF rows (v1 features) |
 | CatBoost | 0.7643 | 307,511 OOF |
 | LightGBM | 0.7631 | 307,511 OOF |
 | Logistic Regression | 0.7378 | 307,511 OOF |
@@ -62,7 +66,7 @@ Notes to state precisely:
 
 - **Boosting converges:** held-out AUC rises monotonically and early-stops (~440 rounds at lr 0.05); no divergence, no overfitting within horizon.
 - **Learning curve:** capacity-adaptive protocol (per-size early stopping on a validation split carved from the training draw). Read the verdict in `reports/convergence.json` — if the half→full gain is below the ±0.0036 noise floor the curve has plateaued; otherwise more same-kind data still helps and the honest wording in the report applies.
-- Together with the 14-trial tuning study (best +0.001, inside noise — `reports/tuning_cpu.json`), the remaining path to the ~0.80 Kaggle ceiling is **feature engineering on the unused Home Credit tables**.
+- Together with the 14-trial tuning study (best +0.001, inside noise — `reports/tuning_cpu.json`), the remaining path to the ~0.80 Kaggle ceiling is **feature engineering** — now measured: the v2 features delivered +0.0155 (see headline 5); what's left is the side tables not on disk (previous_application, installments, POS_CASH, credit_card_balance).
 
 ## Relearning gate — regenerated 22 Sep on the current artifact
 

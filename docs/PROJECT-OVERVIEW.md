@@ -71,7 +71,14 @@ and the per-application audit report all display it.
    flat (100k→246k ≈ +0.010 AUC) — more same-kind data would still help, and
    the rest of the ~0.80-ceiling gap is feature engineering.
    → `reports/convergence.json`
-6. **Governance as architecture.** Relearning capture is live but retraining is
+6. **Features beat fusion, under one pre-registered rule.** 319 engineered
+   features (application ratios, EXT_SOURCE combinations, ~35 deep bureau
+   aggregates) lift every model in every fold — best single 0.7603 → 0.7757
+   OOF (+0.0155, 4× the noise floor) — while the best honest ensemble of the
+   improved models gains +0.0016, below the same floor. Headroom on this
+   dataset is information, not fusion. → `reports/features_vs_fusion.json`,
+   `docs/FUTURE-SCOPE.md` §5
+7. **Governance as architecture.** Relearning capture is live but retraining is
    gated behind four measured conditions (runaway-feedback-loop / selective-
    labels defence); a 3% exploration arm collects the only unselected labels.
    Aligned to RBI FREE-AI human-in-the-loop expectations. → `docs/RBI-COMPLIANCE.md`
