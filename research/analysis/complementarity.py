@@ -1,5 +1,5 @@
-"""Complementarity analysis: would an XGBoost + TabPFN-2.5 (or XGBoost + CBES)
-hybrid measurably beat XGBoost alone?
+"""Complementarity analysis: would an XGBoost + TabPFN-2.5 (or XGBoost + CBES,
+or XGBoost + any other id-indexed scorer) hybrid measurably beat XGBoost alone?
 
 Answers with measurements, never assertions.  Two data sources:
 
@@ -7,35 +7,33 @@ Answers with measurements, never assertions.  Two data sources:
     5-fold-CV probabilities for XGBoost, LightGBM, CatBoost, Logistic
     Regression, Random Forest and CBES.  All six-model analyses (correlations,
     error overlap, segments, hybrid suites) run on these rows.
-  * reports/_tabpfn_probs_5000.npy — 10,000 TabPFN-2.5 P(default) values said
-    to correspond to a default_rng(42) subsample of the 20% holdout of
-    creddefer_full_merged.csv (train_test_split(test_size=0.2,
-    random_state=42, stratify=TARGET)).
+  * reports/<model>_scored_rows.csv — per-row scores for foundation-model
+    baselines, saved WITH `SK_ID_CURR` so they join exactly
+    (reports/tabpfn_scored_rows.csv from commit 12bbf4f; a TabFM file plugs in
+    the same way).
 
 LABEL CONVENTION USED THROUGHOUT THIS SCRIPT: y = 1 means DEFAULT and every
 probability is P(default).  prediction_outputs.csv stores the opposite
 (y_true = 1 means approve, prob_* = P(approve)), so those columns are flipped
-(p -> 1 - p, y -> 1 - y) immediately on load.  The TabPFN .npy is already
-P(default).
+(p -> 1 - p, y -> 1 - y) immediately on load.
 
-ALIGNMENT GATE: the reconstruction of which 10,000 rows the TabPFN
-probabilities belong to is verified before any TabPFN comparison is reported:
-TabPFN's AUC on the reconstructed rows must come out near the known reference
-value 0.7446.  If the gate fails, every TabPFN analysis is SKIPPED and the
-failure (with diagnostics) is recorded in the output JSON instead — a
-misaligned comparison would invert or destroy every conclusion.
+ALIGNMENT GATE: before any foundation-model comparison is reported, the scored
+rows are joined on SK_ID_CURR and the join is verified two ways: the file's
+own labels must agree with the dataset's TARGET on every joined row, and the
+model's AUC recomputed on the joined rows must reproduce its known reference
+value.  If the gate fails, that model's analyses are SKIPPED and the failure
+is recorded in the output JSON instead — a misaligned comparison would invert
+or destroy every conclusion.
 
-RESULT OF THAT GATE ON 2026-08-31: FAILED.  TabPFN AUC on the prescribed
-reconstruction is 0.5052 (chance level), and the npy values correlate ~0.01
-with XGBoost's P(default) on the matched rows (two informative credit models
-on the same rows correlate ~0.6).  30 alternative reconstructions (legacy
-RNG, sorted holdout, permutation draw, flipped stratify labels, consecutive
-chunks) all give AUC 0.47-0.53, and no batch-of-500 permutation aligns either
-(max |corr| 0.126 over 400 pairings = null noise at n=500).  The npy cannot be
-matched to rows of the current CSV, so the XGB+TabPFN question is left
-explicitly unanswered rather than answered with garbage.
+HISTORY: the original TabPFN artifact (reports/_tabpfn_probs_5000.npy) carried
+NO row ids.  The gate failed on 2026-08-31 — AUC 0.5052 (chance) on every one
+of 30 attempted reconstructions — so all TabPFN analyses were skipped and the
+question was left explicitly unanswered rather than answered with garbage.
+Commit 12bbf4f re-scored 8,000 rows and saved SK_ID_CURR alongside every
+probability (reports/tabpfn_scored_rows.csv), which is what this script now
+consumes; the .npy is retired.
 
-Run:  python research/analysis/complementarity.py
+Run:  python -m research.analysis.complementarity
 Outputs: reports/complementarity.json
 """
 
@@ -50,16 +48,34 @@ import pandas as pd
 from scipy.stats import rankdata, spearmanr
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import StratifiedKFold
 
 REPO = Path(__file__).resolve().parents[2]
-MERGED_CSV = Path(r"C:\Users\shrey\Downloads\creddefer_full_merged.csv")
 PRED_CSV = REPO / "backend" / "artifacts" / "prediction_outputs.csv"
-TABPFN_NPY = REPO / "reports" / "_tabpfn_probs_5000.npy"
+TABPFN_CSV = REPO / "reports" / "tabpfn_scored_rows.csv"
+TABFM_CSV = REPO / "reports" / "tabfm_scored_rows.csv"
 OUT_JSON = REPO / "reports" / "complementarity.json"
 
-# Reference AUC for TabPFN on the reconstructed 10k rows (alignment gate).
-TABPFN_REF_AUC = 0.7446
+
+def _merged_csv_path() -> Path | None:
+    """The Home Credit extract with segmentation features (not in the repo).
+
+    Resolved the same way the serving layer does (env var first), with the
+    original hardcoded location as a fallback for this machine.
+    """
+    from backend.app.services.customer_profile_service import _resolve_source_path
+
+    resolved = _resolve_source_path()
+    if resolved is not None:
+        return Path(resolved)
+    legacy = Path(r"C:\Users\shrey\Downloads\creddefer_full_merged.csv")
+    return legacy if legacy.exists() else None
+
+
+# Reference AUCs for the alignment gates: the model's AUC recomputed on the
+# joined rows must reproduce the value its own scoring run reported.
+# TabPFN: reports/tabpfn_quick_run.json (8,000 rows, RTX 4060 re-score).
+TABPFN_REF_AUC = 0.7284
 TABPFN_REF_TOL = 0.002
 
 # Fold-to-fold standard deviation of XGBoost's CV AUC (given): a hybrid "gain"
@@ -177,52 +193,67 @@ def error_confusion(y: np.ndarray, p_a: np.ndarray, p_b: np.ndarray,
 
 
 # --------------------------------------------------------------------------
-# TabPFN alignment gate
+# Scored-rows alignment gate (TabPFN, TabFM, any id-indexed scorer)
 # --------------------------------------------------------------------------
 
-def try_align_tabpfn(features: pd.DataFrame) -> dict:
-    """Attempt the prescribed reconstruction of the 10,000 TabPFN-scored rows
-    and verify it.  Returns a status dict; on success it also carries the
-    aligned frame under key '_frame' (stripped before JSON output)."""
-    if not TABPFN_NPY.exists() or not MERGED_CSV.exists():
-        return {"status": "skipped", "reason": "input file missing"}
+def align_scored_rows(csv_path: Path, model_label: str, features: pd.DataFrame,
+                      ref_auc: float | None = None,
+                      ref_tol: float = 0.002) -> dict:
+    """Join an id-indexed scored-rows CSV onto the OOF frame and VERIFY it.
 
-    probs = np.load(TABPFN_NPY)
-    # Reproduce the original 80/20 split (row selection depends only on the
-    # number of rows, random_state and the stratify labels).
-    _, holdout = train_test_split(features, test_size=0.2, random_state=42,
-                                  stratify=features["TARGET"])
-    sub_idx = np.random.default_rng(42).choice(len(holdout), len(probs),
-                                               replace=False)
-    sub = holdout.iloc[sub_idx].copy().reset_index(drop=True)
-    sub["pd_TabPFN"] = probs
+    The CSV must carry `SK_ID_CURR`, `p_default` and a label column
+    (`y_target`, 1 = defaulted).  Verification, in order of strength:
 
-    auc = float(roc_auc_score(sub["TARGET"], sub["pd_TabPFN"]))
-    corr_xgb = float(np.corrcoef(sub["pd_TabPFN"], sub["pd_XGBoost"])[0, 1])
+      1. every SK_ID_CURR must exist in the OOF frame (an id that doesn't is a
+         wrong-dataset file, not sampling);
+      2. the file's own labels must equal the dataset's TARGET on every joined
+         row — the single strongest misalignment detector;
+      3. when a reference AUC is given, the model's AUC recomputed on the
+         joined rows must reproduce it within tolerance.
 
-    if abs(auc - TABPFN_REF_AUC) <= TABPFN_REF_TOL:
-        return {"status": "verified", "auc_on_reconstructed_rows": round(auc, 4),
-                "corr_with_xgb_pd": round(corr_xgb, 4), "_frame": sub}
+    Returns a status dict; on success it also carries the aligned frame under
+    '_frame' (stripped before JSON output) with a `pd_{model_label}` column.
+    """
+    if not csv_path.exists():
+        return {"status": "skipped",
+                "reason": f"{csv_path.name} missing — score {model_label} with "
+                          "row ids first"}
 
-    return {
-        "status": "ALIGNMENT_FAILED",
-        "auc_on_reconstructed_rows": round(auc, 4),
-        "expected_auc": TABPFN_REF_AUC,
-        "corr_with_xgb_pd_on_reconstructed_rows": round(corr_xgb, 4),
-        "expected_corr_order_of_magnitude": "~0.6 for two informative models",
-        "diagnostics": (
-            "30 alternative reconstructions tried (legacy np.random RNG, "
-            "sorted holdout, permutation draw, stratify on approve labels, "
-            "consecutive 10k chunks, full-dataset subsample): all give AUC "
-            "0.47-0.53. Batch-of-500 permutation search (20x20 pairings): "
-            "max |corr| with XGBoost P(default) = 0.126, i.e. null noise at "
-            "n=500. The .npy cannot be matched to rows of the current CSV."),
-        "consequence": (
-            "Every XGBoost+TabPFN comparison is skipped. The hybrid question "
-            "for TabPFN is UNANSWERED, not answered negatively. To answer it, "
-            "re-score TabPFN and save the SK_ID_CURR of each scored row "
-            "alongside the probabilities."),
+    scored = pd.read_csv(csv_path)
+    required = {"SK_ID_CURR", "p_default", "y_target"}
+    if not required.issubset(scored.columns):
+        return {"status": "ALIGNMENT_FAILED",
+                "reason": f"{csv_path.name} lacks columns {sorted(required - set(scored.columns))}"}
+
+    sub = features.merge(
+        scored[["SK_ID_CURR", "p_default", "y_target"]],
+        on="SK_ID_CURR", how="inner", validate="1:1",
+    ).rename(columns={"p_default": f"pd_{model_label}"})
+
+    if len(sub) != len(scored):
+        return {"status": "ALIGNMENT_FAILED",
+                "scored_rows": int(len(scored)), "joined_rows": int(len(sub)),
+                "reason": "some scored SK_ID_CURR ids do not exist in the OOF frame"}
+
+    label_mismatches = int((sub["y_target"].astype(int) != sub["TARGET"].astype(int)).sum())
+    auc = float(roc_auc_score(sub["TARGET"], sub[f"pd_{model_label}"]))
+    corr_xgb = float(np.corrcoef(sub[f"pd_{model_label}"], sub["pd_XGBoost"])[0, 1])
+
+    report = {
+        "source": csv_path.name,
+        "scored_rows": int(len(scored)),
+        "label_mismatches_vs_dataset": label_mismatches,
+        "auc_on_joined_rows": round(auc, 4),
+        "expected_auc": ref_auc,
+        "corr_with_xgb_pd": round(corr_xgb, 4),
     }
+    if label_mismatches:
+        return {"status": "ALIGNMENT_FAILED", **report,
+                "reason": "file labels disagree with dataset TARGET on joined rows"}
+    if ref_auc is not None and abs(auc - ref_auc) > ref_tol:
+        return {"status": "ALIGNMENT_FAILED", **report,
+                "reason": "AUC on joined rows does not reproduce the reference"}
+    return {"status": "verified", **report, "_frame": sub}
 
 
 # --------------------------------------------------------------------------
@@ -240,7 +271,10 @@ def load_oof_with_features() -> pd.DataFrame:
     for m in MODELS:
         preds[f"pd_{m}"] = 1.0 - preds[f"prob_{m}"]
 
-    feats = pd.read_csv(MERGED_CSV, usecols=[
+    merged_csv = _merged_csv_path()
+    if merged_csv is None:
+        raise SystemExit("Home Credit extract not found; set SMARTLEND_CUSTOMER_DATA.")
+    feats = pd.read_csv(merged_csv, usecols=[
         "SK_ID_CURR", "TARGET", "EXT_SOURCE_2", "AMT_INCOME_TOTAL",
         "DAYS_BIRTH", "total_prev_credits"])
     df = preds.merge(feats, on="SK_ID_CURR", how="inner", validate="1:1")
@@ -381,6 +415,17 @@ def analysis_hybrid(y: np.ndarray, p_xgb: np.ndarray, p_other: np.ndarray,
     return out
 
 
+def _tabfm_ref_auc() -> float | None:
+    """TabFM's own reported AUC, read from its run report when it exists."""
+    report = REPO / "reports" / "tabfm_quick_run.json"
+    if not report.exists():
+        return None
+    try:
+        return float(json.loads(report.read_text())["metrics"]["roc_auc"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def main() -> None:
     df = load_oof_with_features()
     y = df["y"].to_numpy()
@@ -398,26 +443,34 @@ def main() -> None:
         },
     }
 
-    # ---- TabPFN: alignment gate first ------------------------------------
-    tab = try_align_tabpfn(df)
-    frame = tab.pop("_frame", None)
-    results["tabpfn_alignment"] = tab
-    if frame is not None:
-        # (unreached with the current artifact — kept so the analysis runs
-        #  automatically once a correctly-indexed TabPFN artifact exists)
+    # ---- Foundation models: alignment gate first, then the same suite -----
+    # TabPFN's ~807-default sample carries AUC sampling error ~±0.01, so only
+    # the PAIRED statistics inside analysis_hybrid/_segment_auc can resolve
+    # gains near the noise floor — stated here so nobody quotes raw deltas.
+    foundation_sources = [
+        ("TabPFN", TABPFN_CSV, TABPFN_REF_AUC, TABPFN_REF_TOL),
+        # TabFM plugs in the moment reports/tabfm_scored_rows.csv exists; its
+        # reference AUC is read from its own run report when present.
+        ("TabFM", TABFM_CSV, _tabfm_ref_auc(), 0.002),
+    ]
+    for label, csv_path, ref_auc, ref_tol in foundation_sources:
+        gate = align_scored_rows(csv_path, label, df, ref_auc=ref_auc, ref_tol=ref_tol)
+        frame = gate.pop("_frame", None)
+        results[f"{label.lower()}_alignment"] = gate
+        if frame is None:
+            print(f"{label}: alignment gate {gate.get('status')} — analyses skipped "
+                  f"({gate.get('reason', '')})")
+            continue
         sub = frame
-        results["correlations_10k_incl_tabpfn"] = analysis_correlations(
-            sub.assign(y=sub["TARGET"]), MODELS + ["TabPFN"])
-        results["segments_xgb_vs_tabpfn_10k"] = analysis_segments(
-            sub.assign(y=sub["TARGET"]), "XGBoost", "TabPFN")
-        results["hybrid_xgb_tabpfn_10k"] = analysis_hybrid(
+        n_note = f"{len(sub):,} {label}-scored rows (id-joined, labels verified)"
+        results[f"segments_xgb_vs_{label.lower()}"] = analysis_segments(
+            sub.assign(y=sub["TARGET"]), "XGBoost", label)
+        results[f"hybrid_xgb_{label.lower()}"] = analysis_hybrid(
             sub["TARGET"].to_numpy(), sub["pd_XGBoost"].to_numpy(),
-            sub["pd_TabPFN"].to_numpy(), "TabPFN",
-            "10,000 common rows (subsample of holdout)")
-        print("TabPFN analyses completed on verified rows.")
-    else:
-        print("TabPFN alignment gate FAILED — TabPFN analyses skipped. "
-              f"AUC on reconstruction: {tab.get('auc_on_reconstructed_rows')}")
+            sub[f"pd_{label}"].to_numpy(), label, n_note)
+        results[f"correlations_{label.lower()}_rows"] = analysis_correlations(
+            sub.assign(y=sub["TARGET"]), MODELS + [label])
+        print(f"{label} analyses completed on {len(sub):,} verified rows.")
 
     # ---- Six OOF models: correlations, errors, segments, hybrids ---------
     results["correlations_full_oof"] = analysis_correlations(df, MODELS)
