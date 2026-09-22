@@ -1,24 +1,26 @@
 # SmartLend Backend
 
-## Start API
+FastAPI service. Start from the **repository root**:
 
-From the repository root:
-
-```powershell
-..\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```bash
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-## API Endpoints
+Interactive API docs (the authoritative endpoint list — do not maintain one by
+hand here): **http://localhost:8000/docs**
 
-- `GET /api/health`
-- `GET /api/public-metrics`
-- `GET /api/dashboard-metrics`
-- `GET /api/trends`
-- `GET /api/applications?scope=all|customer|org`
-- `GET /api/applications/{id}`
-- `POST /api/applications`
-- `POST /api/applications/{id}/decision`
+Routers live in `backend/app/routers/`:
 
-## Dependency file
+| Router | Prefix | Purpose |
+|---|---|---|
+| `public.py` | *(none)* | `/health`, `/predict`, public dashboard metrics |
+| `applications.py` | `/api` | applications CRUD, decisions, documents, explain, audit report, reason codes, dashboards, model-analysis |
+| `customers.py` | `/api` | sample customer ids, on-file profiles |
+| `relearning.py` | `/api` | relearning gate status (read-only, fails closed) |
+| `tabpfn.py` | `/api` | optional Colab-hosted TabPFN status + second opinion |
+| `agent.py` | `/api` | optional Claude reviewer-briefing agent |
+| `voice.py` | `/api` | optional TTS/STT |
 
-Backend API dependencies are in `requirements-api.txt`.
+Dependencies: `requirements-api.txt` (must keep `from backend.app.main import
+app` importable). Setup, layout, working agreements and pitfalls:
+**[`../docs/DEV-GUIDE.md`](../docs/DEV-GUIDE.md)**.

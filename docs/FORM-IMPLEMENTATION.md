@@ -1,10 +1,19 @@
 # Loan Application Form — Implementation
 
-Implements `docs/FORM-REDESIGN.md`. The design is not revisited here; this
-document records what was built, what is asked versus pulled, how the profile
-lookup is cached, and how backward compatibility is preserved.
+Implements the short-form design (now archived at
+`docs/archive/FORM-REDESIGN.md`). This document records what was built, what
+is asked versus pulled, how the profile lookup is cached, and how backward
+compatibility is preserved.
 
-**Field count: 30 asked → 14 asked (+ `customer_id`).**
+> **Superseded on field count (commit 73a7f78):** the form was later expanded
+> to **32 fields across six sections**, with sample-ID chips fed by
+> `GET /api/customers/samples` and voice controls wired via
+> `frontend/src/services/voice.ts`. The 14-field inventory below is the
+> original implementation record; the profile-lookup, caching and
+> compatibility sections (§2–§5) remain accurate. Source of truth for the
+> current fields: `frontend/src/pages/CustomerNewApplication.tsx`.
+
+**Original field count: 30 asked → 14 asked (+ `customer_id`); now 32 asked.**
 
 ---
 
