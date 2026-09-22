@@ -1,0 +1,199 @@
+{
+  "generated_seconds": 195.5,
+  "protocol": {
+    "features": "all numeric columns of the merged Home Credit extract",
+    "holdout": "test_size=0.2, random_state=42, stratified \u2014 fixed across all points",
+    "seeds_per_size": "3 below full size, 1 at full size",
+    "noise_floor": 0.0036,
+    "quick_mode": false
+  },
+  "learning_curve": {
+    "sizes": [
+      2000,
+      5000,
+      10000,
+      25000,
+      50000,
+      100000,
+      175000,
+      246008
+    ],
+    "models": {
+      "XGBoost": [
+        {
+          "n": 2000,
+          "auc_mean": 0.6927,
+          "auc_sd": 0.0018,
+          "n_seeds": 3
+        },
+        {
+          "n": 5000,
+          "auc_mean": 0.7031,
+          "auc_sd": 0.0012,
+          "n_seeds": 3
+        },
+        {
+          "n": 10000,
+          "auc_mean": 0.7169,
+          "auc_sd": 0.0022,
+          "n_seeds": 3
+        },
+        {
+          "n": 25000,
+          "auc_mean": 0.7335,
+          "auc_sd": 0.0034,
+          "n_seeds": 3
+        },
+        {
+          "n": 50000,
+          "auc_mean": 0.7435,
+          "auc_sd": 0.0008,
+          "n_seeds": 3
+        },
+        {
+          "n": 100000,
+          "auc_mean": 0.7486,
+          "auc_sd": 0.0015,
+          "n_seeds": 3
+        },
+        {
+          "n": 175000,
+          "auc_mean": 0.7548,
+          "auc_sd": 0.0017,
+          "n_seeds": 3
+        },
+        {
+          "n": 246008,
+          "auc_mean": 0.7586,
+          "auc_sd": 0.0,
+          "n_seeds": 1
+        }
+      ],
+      "LogisticRegression": [
+        {
+          "n": 2000,
+          "auc_mean": 0.6865,
+          "auc_sd": 0.0084,
+          "n_seeds": 3
+        },
+        {
+          "n": 5000,
+          "auc_mean": 0.7068,
+          "auc_sd": 0.0001,
+          "n_seeds": 3
+        },
+        {
+          "n": 10000,
+          "auc_mean": 0.7159,
+          "auc_sd": 0.0029,
+          "n_seeds": 3
+        },
+        {
+          "n": 25000,
+          "auc_mean": 0.7251,
+          "auc_sd": 0.0015,
+          "n_seeds": 3
+        },
+        {
+          "n": 50000,
+          "auc_mean": 0.7294,
+          "auc_sd": 0.0006,
+          "n_seeds": 3
+        },
+        {
+          "n": 100000,
+          "auc_mean": 0.7316,
+          "auc_sd": 0.0001,
+          "n_seeds": 3
+        },
+        {
+          "n": 175000,
+          "auc_mean": 0.7319,
+          "auc_sd": 0.0001,
+          "n_seeds": 3
+        },
+        {
+          "n": 246008,
+          "auc_mean": 0.7323,
+          "auc_sd": 0.0,
+          "n_seeds": 1
+        }
+      ]
+    },
+    "verdict_xgboost": {
+      "half_size": 100000,
+      "half_auc": 0.7486,
+      "full_size": 246008,
+      "full_auc": 0.7586,
+      "gain_half_to_full": 0.01,
+      "noise_floor": 0.0036,
+      "converged": false
+    }
+  },
+  "boosting_convergence": {
+    "learning_rate": 0.05,
+    "max_rounds": 2000,
+    "early_stopping_rounds": 100,
+    "stopped_at_round": 540,
+    "best_round": 439,
+    "best_auc": 0.76065,
+    "auc_at_50": 0.74528
+  },
+  "boosting_auc_curve_every_10": [
+    0.71704,
+    0.72815,
+    0.73291,
+    0.7365,
+    0.74206,
+    0.74557,
+    0.74807,
+    0.75009,
+    0.75214,
+    0.75337,
+    0.75444,
+    0.7552,
+    0.75567,
+    0.7561,
+    0.75643,
+    0.75665,
+    0.75698,
+    0.75733,
+    0.75749,
+    0.75776,
+    0.75792,
+    0.75827,
+    0.75841,
+    0.75867,
+    0.7588,
+    0.75894,
+    0.75911,
+    0.75932,
+    0.75947,
+    0.75949,
+    0.75976,
+    0.75977,
+    0.75978,
+    0.75992,
+    0.76005,
+    0.76009,
+    0.76013,
+    0.76017,
+    0.7603,
+    0.76033,
+    0.76041,
+    0.76057,
+    0.7605,
+    0.76057,
+    0.76064,
+    0.76062,
+    0.76047,
+    0.76053,
+    0.76038,
+    0.7604,
+    0.76046,
+    0.76048,
+    0.76048,
+    0.76057
+  ],
+  "conclusion": "Sample-size and iteration convergence measured. Iterations converge (early-stopped) and tuning found nothing, but the learning curve is STILL RISING at the full 246k rows: doubling the data bought 0.01 AUC against a \u00b10.0036 noise floor. Honest reading: on this feature set, more data of the same kind would still help somewhat; the rest of the ~0.03 gap to the Kaggle ceiling is feature engineering over the unused Home Credit tables."
+}
