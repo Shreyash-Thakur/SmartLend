@@ -1,0 +1,486 @@
+{
+  "protocol": {
+    "rows": 307511,
+    "quick_mode": false,
+    "folds": "5-fold StratifiedKFold seed 42 (same as features_vs_fusion)",
+    "sglb": {
+      "iterations": 1000,
+      "virtual_ensembles": 10,
+      "note": "posterior_sampling=True; fixed budget, no early stopping"
+    },
+    "split": "50/50 tune/test seed 20260831; thresholds fit on tune only",
+    "target_deferral_rate": 0.225,
+    "error_definition": "predicted default iff pd >= Youden t* (t* from tune)"
+  },
+  "sglb_model": {
+    "oof_auc": 0.7748,
+    "fold_aucs": [
+      0.7705,
+      0.7806,
+      0.7727,
+      0.7807,
+      0.7698
+    ],
+    "leaderboard_catboost_fe_v2_auc_for_reference": 0.7757,
+    "youden_threshold_tune": 0.0813,
+    "overall_error_rate_test": 0.29899
+  },
+  "uncertainty_separation": {
+    "corr_knowledge_vs_chow": -0.3566,
+    "corr_knowledge_vs_total": 0.3481,
+    "corr_total_vs_pd": 0.9362,
+    "caveat": "with nearly all pd below 0.5, binary entropy is close to monotone in pd itself, so total/data uncertainty largely rank-order like 'defer the highest-pd band'; knowledge uncertainty (mutual information) is the signal that is NOT reducible to pd and carries the novelty claim",
+    "mean_knowledge_thin_file": 7.1e-05,
+    "mean_knowledge_has_bureau": 6.6e-05
+  },
+  "candidates_at_matched_rate": {
+    "chow_distance": {
+      "deferral_rate": 0.22605296703868466,
+      "selective_risk": 0.27096026017025354,
+      "random_risk": 0.29898670620983897,
+      "oracle_risk": 0.09423608601752956,
+      "position_random0_oracle1": 0.13688088472338666,
+      "beats_random": true,
+      "error_detection_auroc": 0.462408872225201
+    },
+    "knowledge_uncertainty": {
+      "deferral_rate": 0.22704154634615886,
+      "selective_risk": 0.21741398604929027,
+      "random_risk": 0.29898670620983897,
+      "oracle_risk": 0.09307765446330156,
+      "position_random0_oracle1": 0.39615898120379955,
+      "beats_random": true,
+      "error_detection_auroc": 0.7486927184945928
+    },
+    "data_uncertainty": {
+      "deferral_rate": 0.22672936340695649,
+      "selective_risk": 0.1550780100088313,
+      "random_risk": 0.29898670620983897,
+      "oracle_risk": 0.09344379494511965,
+      "position_random0_oracle1": 0.7001394274097209,
+      "beats_random": true,
+      "error_detection_auroc": 0.919672881663568
+    },
+    "total_uncertainty": {
+      "deferral_rate": 0.22680740914175707,
+      "selective_risk": 0.15500113557026657,
+      "random_risk": 0.29898670620983897,
+      "oracle_risk": 0.09335228754321476,
+      "position_random0_oracle1": 0.7002017054012865,
+      "beats_random": true,
+      "error_detection_auroc": 0.9196706049661126
+    },
+    "xgb_disagreement": {
+      "deferral_rate": 0.22606597466115144,
+      "selective_risk": 0.20265216770170677,
+      "random_risk": 0.29898670620983897,
+      "oracle_risk": 0.09422086271082464,
+      "position_random0_oracle1": 0.47046195235484145,
+      "beats_random": true,
+      "error_detection_auroc": 0.7472081268892272
+    }
+  },
+  "verdict": {
+    "novelty_signal": "knowledge_uncertainty (SGLB virtual ensembles, single model)",
+    "beats_random": true,
+    "position_vs_chow": [
+      0.39615898120379955,
+      0.13688088472338666
+    ],
+    "claim_granted": true,
+    "rule": "claim only if knowledge uncertainty beats random AND reaches Chow's position at the matched 22.5% rate on TEST"
+  },
+  "risk_coverage_curves": {
+    "chow_distance": [
+      {
+        "coverage": 0.05,
+        "selective_risk": 0.6436
+      },
+      {
+        "coverage": 0.1,
+        "selective_risk": 0.71163
+      },
+      {
+        "coverage": 0.15,
+        "selective_risk": 0.70312
+      },
+      {
+        "coverage": 0.2,
+        "selective_risk": 0.56421
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.4728
+      },
+      {
+        "coverage": 0.3,
+        "selective_risk": 0.41253
+      },
+      {
+        "coverage": 0.35,
+        "selective_risk": 0.37014
+      },
+      {
+        "coverage": 0.4,
+        "selective_risk": 0.33953
+      },
+      {
+        "coverage": 0.45,
+        "selective_risk": 0.31645
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.29979
+      },
+      {
+        "coverage": 0.55,
+        "selective_risk": 0.28785
+      },
+      {
+        "coverage": 0.6,
+        "selective_risk": 0.279
+      },
+      {
+        "coverage": 0.65,
+        "selective_risk": 0.27379
+      },
+      {
+        "coverage": 0.7,
+        "selective_risk": 0.27129
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.27039
+      },
+      {
+        "coverage": 0.8,
+        "selective_risk": 0.27188
+      },
+      {
+        "coverage": 0.85,
+        "selective_risk": 0.27562
+      },
+      {
+        "coverage": 0.9,
+        "selective_risk": 0.28175
+      },
+      {
+        "coverage": 0.95,
+        "selective_risk": 0.28954
+      }
+    ],
+    "knowledge_uncertainty": [
+      {
+        "coverage": 0.05,
+        "selective_risk": 0.03603
+      },
+      {
+        "coverage": 0.1,
+        "selective_risk": 0.04975
+      },
+      {
+        "coverage": 0.15,
+        "selective_risk": 0.06413
+      },
+      {
+        "coverage": 0.2,
+        "selective_risk": 0.07645
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.09004
+      },
+      {
+        "coverage": 0.3,
+        "selective_risk": 0.10183
+      },
+      {
+        "coverage": 0.35,
+        "selective_risk": 0.11385
+      },
+      {
+        "coverage": 0.4,
+        "selective_risk": 0.12419
+      },
+      {
+        "coverage": 0.45,
+        "selective_risk": 0.13518
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.14704
+      },
+      {
+        "coverage": 0.55,
+        "selective_risk": 0.15906
+      },
+      {
+        "coverage": 0.6,
+        "selective_risk": 0.17116
+      },
+      {
+        "coverage": 0.65,
+        "selective_risk": 0.18384
+      },
+      {
+        "coverage": 0.7,
+        "selective_risk": 0.19701
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.21055
+      },
+      {
+        "coverage": 0.8,
+        "selective_risk": 0.22534
+      },
+      {
+        "coverage": 0.85,
+        "selective_risk": 0.24222
+      },
+      {
+        "coverage": 0.9,
+        "selective_risk": 0.26021
+      },
+      {
+        "coverage": 0.95,
+        "selective_risk": 0.27973
+      }
+    ],
+    "data_uncertainty": [
+      {
+        "coverage": 0.05,
+        "selective_risk": 0.00754
+      },
+      {
+        "coverage": 0.1,
+        "selective_risk": 0.00898
+      },
+      {
+        "coverage": 0.15,
+        "selective_risk": 0.01171
+      },
+      {
+        "coverage": 0.2,
+        "selective_risk": 0.01288
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.01493
+      },
+      {
+        "coverage": 0.3,
+        "selective_risk": 0.01708
+      },
+      {
+        "coverage": 0.35,
+        "selective_risk": 0.01868
+      },
+      {
+        "coverage": 0.4,
+        "selective_risk": 0.02055
+      },
+      {
+        "coverage": 0.45,
+        "selective_risk": 0.02284
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.02477
+      },
+      {
+        "coverage": 0.55,
+        "selective_risk": 0.02729
+      },
+      {
+        "coverage": 0.6,
+        "selective_risk": 0.03036
+      },
+      {
+        "coverage": 0.65,
+        "selective_risk": 0.03355
+      },
+      {
+        "coverage": 0.7,
+        "selective_risk": 0.07716
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.13232
+      },
+      {
+        "coverage": 0.8,
+        "selective_risk": 0.17931
+      },
+      {
+        "coverage": 0.85,
+        "selective_risk": 0.21958
+      },
+      {
+        "coverage": 0.9,
+        "selective_risk": 0.25311
+      },
+      {
+        "coverage": 0.95,
+        "selective_risk": 0.28073
+      }
+    ],
+    "total_uncertainty": [
+      {
+        "coverage": 0.05,
+        "selective_risk": 0.00754
+      },
+      {
+        "coverage": 0.1,
+        "selective_risk": 0.00898
+      },
+      {
+        "coverage": 0.15,
+        "selective_risk": 0.01171
+      },
+      {
+        "coverage": 0.2,
+        "selective_risk": 0.01288
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.01493
+      },
+      {
+        "coverage": 0.3,
+        "selective_risk": 0.01706
+      },
+      {
+        "coverage": 0.35,
+        "selective_risk": 0.01869
+      },
+      {
+        "coverage": 0.4,
+        "selective_risk": 0.02055
+      },
+      {
+        "coverage": 0.45,
+        "selective_risk": 0.02284
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.02477
+      },
+      {
+        "coverage": 0.55,
+        "selective_risk": 0.02732
+      },
+      {
+        "coverage": 0.6,
+        "selective_risk": 0.03036
+      },
+      {
+        "coverage": 0.65,
+        "selective_risk": 0.03355
+      },
+      {
+        "coverage": 0.7,
+        "selective_risk": 0.07716
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.13235
+      },
+      {
+        "coverage": 0.8,
+        "selective_risk": 0.17931
+      },
+      {
+        "coverage": 0.85,
+        "selective_risk": 0.21956
+      },
+      {
+        "coverage": 0.9,
+        "selective_risk": 0.25311
+      },
+      {
+        "coverage": 0.95,
+        "selective_risk": 0.28073
+      }
+    ],
+    "xgb_disagreement": [
+      {
+        "coverage": 0.05,
+        "selective_risk": 0.13176
+      },
+      {
+        "coverage": 0.1,
+        "selective_risk": 0.13235
+      },
+      {
+        "coverage": 0.15,
+        "selective_risk": 0.13138
+      },
+      {
+        "coverage": 0.2,
+        "selective_risk": 0.13122
+      },
+      {
+        "coverage": 0.25,
+        "selective_risk": 0.13122
+      },
+      {
+        "coverage": 0.3,
+        "selective_risk": 0.13335
+      },
+      {
+        "coverage": 0.35,
+        "selective_risk": 0.13632
+      },
+      {
+        "coverage": 0.4,
+        "selective_risk": 0.13941
+      },
+      {
+        "coverage": 0.45,
+        "selective_risk": 0.14381
+      },
+      {
+        "coverage": 0.5,
+        "selective_risk": 0.14916
+      },
+      {
+        "coverage": 0.55,
+        "selective_risk": 0.15575
+      },
+      {
+        "coverage": 0.6,
+        "selective_risk": 0.16315
+      },
+      {
+        "coverage": 0.65,
+        "selective_risk": 0.1718
+      },
+      {
+        "coverage": 0.7,
+        "selective_risk": 0.18268
+      },
+      {
+        "coverage": 0.75,
+        "selective_risk": 0.19583
+      },
+      {
+        "coverage": 0.8,
+        "selective_risk": 0.21164
+      },
+      {
+        "coverage": 0.85,
+        "selective_risk": 0.23035
+      },
+      {
+        "coverage": 0.9,
+        "selective_risk": 0.25207
+      },
+      {
+        "coverage": 0.95,
+        "selective_risk": 0.27658
+      }
+    ]
+  },
+  "generated_seconds": 129.0
+}
