@@ -1,0 +1,89 @@
+{
+  "protocol": {
+    "rows": 307511,
+    "quick_mode": false,
+    "folds": "5-fold StratifiedKFold seed 42, params and early stopping identical to features_vs_fusion's CatBoost arm",
+    "baseline": "CatBoost v2 fold AUCs from reports/features_vs_fusion.json",
+    "noise_floor": 0.0036
+  },
+  "constraints": {
+    "n_constrained": 21,
+    "of_features": 319,
+    "directions": {
+      "EXT_SOURCE_1": -1,
+      "EXT_SOURCE_2": -1,
+      "EXT_SOURCE_3": -1,
+      "APP_EXT_MEAN": -1,
+      "APP_EXT_MIN": -1,
+      "APP_EXT_MAX": -1,
+      "APP_EXT_PROD": -1,
+      "APP_EXT_PROD3": -1,
+      "APP_EXT2_X_EXT3": -1,
+      "APP_ANNUITY_TO_INCOME": 1,
+      "APP_CREDIT_TO_INCOME": 1,
+      "BURO_overdue_sum": 1,
+      "BURO_overdue_max": 1,
+      "BURO_max_overdue_max": 1,
+      "BURO_day_overdue_max": 1,
+      "BURO_day_overdue_mean": 1,
+      "BURO_debt_to_credit_mean": 1,
+      "BURO_debt_to_credit_max": 1,
+      "BURO_total_debt_to_credit": 1,
+      "BURO_overdue_to_debt": 1,
+      "BURO_prolong_sum": 1
+    },
+    "rationale": "financial-behaviour features only; age/family/region deliberately unconstrained (fairness posture)"
+  },
+  "constrained_model": {
+    "oof_fold_aucs": [
+      0.772,
+      0.7813,
+      0.7724,
+      0.7785,
+      0.7707
+    ],
+    "mean_fold_auc": 0.775
+  },
+  "baseline_model": {
+    "fold_aucs": [
+      0.7717,
+      0.7826,
+      0.773,
+      0.7808,
+      0.7706
+    ],
+    "oof_auc": 0.7757
+  },
+  "fold_paired_delta_monotone_minus_baseline": [
+    0.0003,
+    -0.0013,
+    -0.0006,
+    -0.0023,
+    0.0001
+  ],
+  "mean_delta": -0.0008,
+  "verdict": "guarantee is free (|delta| within fold noise)",
+  "monotonicity_verification": {
+    "method": "5th-95th percentile sweep, 200 applicants, 3 features",
+    "per_feature": {
+      "APP_EXT_MEAN": {
+        "direction": -1,
+        "violations": 0,
+        "checked_transitions": 4800
+      },
+      "APP_ANNUITY_TO_INCOME": {
+        "direction": 1,
+        "violations": 0,
+        "checked_transitions": 4800
+      },
+      "BURO_total_debt_to_credit": {
+        "direction": 1,
+        "violations": 0,
+        "checked_transitions": 4800
+      }
+    },
+    "total_violations": 0,
+    "holds": true
+  },
+  "generated_seconds": 295.8
+}
