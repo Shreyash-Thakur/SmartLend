@@ -220,3 +220,89 @@ installments_payments, POS_CASH, credit_card_balance).
   paired statistics (as implemented) can resolve gains near the noise floor.
 - Bootstrap CIs quantify stability of orderings on these rows; the ±0.0036
   fold std is the stricter and binding criterion for claiming a gain.
+
+## 6. Modifying the model itself — three pre-registered answers (2026-09-30)
+
+After §5 settled *where* headroom lives, the remaining reviewer question is
+"what did you change about the model?". Three modifications of the FE-v2
+CatBoost were built and priced under the project's standard discipline —
+decision rules fixed in each script's docstring before results existed, same
+5 folds (seed 42), same ±0.0036 noise floor, tune/test seed 20260831.
+
+### 6a. Epistemic-uncertainty deferral from ONE model — **claim GRANTED**
+
+`research/analysis/uncertainty_deferral_catboost.py` →
+`reports/uncertainty_deferral.json`. CatBoost trained with SGLB
+(`posterior_sampling=True`) yields virtual ensembles: K = 10 approximate
+posterior samples from a single model (Malinin et al., ICLR 2021), whose
+spread splits **knowledge** (epistemic) from **data** (aleatoric)
+uncertainty. The SGLB model matches the leaderboard model (OOF 0.7748 vs
+0.7757) despite its fixed 1,000-iteration budget. Raced at the matched 22.5%
+deferral rate on the TEST half (errors defined at the tune-fit Youden
+threshold t\* = 0.0813):
+
+| Signal (defer highest first) | Selective risk | Position (random 0 → oracle 1) | Needs 2nd model? |
+|---|---|---|---|
+| Chow distance −\|pd − t\*\| | 0.2710 | 0.14 | no |
+| **Knowledge uncertainty (SGLB)** | **0.2174** | **0.40** | **no** |
+| XGB disagreement \|pd_cat − pd_xgb\| | 0.2027 | 0.47 | yes |
+| Data / total uncertainty | 0.1551 | 0.70 | no — but see caveat |
+| Random abstention | 0.2990 | 0.00 | — |
+
+Pre-registered rule (beat random AND reach Chow's position): **granted** —
+knowledge uncertainty routes review cases ~3× better than Chow's rule and
+nearly matches two-model disagreement *without a second model*, from
+information Chow cannot see (corr with Chow = **−0.36**). Thin-file
+applicants carry higher mean knowledge uncertainty than bureau-backed ones,
+the direction epistemic uncertainty should point.
+
+Two honesty notes. (1) Data/total entropy's spectacular 0.70 position is
+discounted in the report itself: with nearly all pd < 0.5, binary entropy is
+near-monotone in pd (corr 0.94), so those signals largely mean "defer the
+highest-pd band" — operationally just deferring the rejects. Knowledge
+uncertainty is the only signal not reducible to pd. (2) Chow's rule won the
+*serving-side* study (`reports/deferral_fix.json`) in approval space at the
+engine's 0.64 threshold; here, at a Youden threshold of 0.08 in P(default)
+space, most errors sit deep in the high-pd band where boundary distance is a
+weak proxy. The two studies answer different operating points; flipping the
+serving router to an uncertainty signal remains a human decision that bumps
+`ENGINE_VERSION`.
+
+### 6b. Monotone constraints (RBI alignment) — **the guarantee is free**
+
+`research/analysis/monotone_catboost.py` → `reports/monotone_catboost.json`.
+21 domain-signed constraints (EXT_SOURCE scores and combos ↓ risk; payment
+burden, bureau overdue, leverage and prolongations ↑ risk; age/family/region
+deliberately unconstrained) make every directional adverse-action explanation
+— "your credit score improved, so your risk went down" — true **by
+construction**, which is what RBI FREE-AI's explainability posture asks for
+and SHAP alone cannot guarantee. Price, fold-paired against the recorded
+FE-v2 baseline: mean delta **−0.0008** (folds +0.0003/−0.0013/−0.0006/
+−0.0023/+0.0001), inside the ±0.0036 noise floor. Empirical sweep (3
+features × 200 applicants × 25-point grids): **0 violations in 14,400
+transitions**. Verdict: monotonicity guaranteed at no measurable accuracy
+cost.
+
+### 6c. Cost-sensitive training — **claim DENIED (a useful null)**
+
+`research/analysis/cost_sensitive_catboost.py` →
+`reports/cost_sensitive_catboost.json`. Stated cost model: approving a
+defaulter loses LGD ≈ 0.75 of principal; rejecting a good payer forgoes ≈
+0.10 margin (7.5 : 1). Question: does pushing those costs into TRAINING
+(class weights) beat cost-optimal THRESHOLDING of the committed unweighted
+OOF predictions? Elkan (2001) predicts no — and no it is: test expected cost
+0.042838 vs 0.042751 per applicant (weighted arm **worse** by +0.000087,
+paired-bootstrap CI [−0.000211, +0.000368] spans zero), and the weighted arm
+loses at 4 of 5 decision-time cost ratios (2–20). The finding: on this
+dataset the economics belong in the **decision layer**, which is exactly
+where SmartLend keeps them (cost-based `t_base`, deferral band). The class
+weights did not damage ranking (AUC 0.7749 vs 0.7757) — they just bought
+nothing thresholding didn't already provide.
+
+**The paragraph this buys the paper:** modifying the model pays only where
+the modification adds *information or guarantees*, not preferences. Epistemic
+uncertainty (new information about model ignorance) cleared its
+pre-registered bar; monotonicity (a compliance guarantee) proved free; cost
+weighting (a preference the decision layer already expresses) added nothing —
+consistent with §5's features-not-fusion result and with Elkan's 2001
+prediction, each under one pre-registered rule.

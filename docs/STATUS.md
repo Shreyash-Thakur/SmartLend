@@ -1,6 +1,6 @@
 # SmartLend — Project Status
 
-**Updated:** 23 September 2026 · **Defense:** November 2026 · **Weeks remaining:** ~7
+**Updated:** 30 September 2026 · **Defense:** November 2026 · **Weeks remaining:** ~6
 
 ---
 
@@ -17,6 +17,8 @@
 **5. Feature engineering v2 delivers the accuracy the fusion work couldn't (23 Sep).** 319 engineered features (application ratios + deep bureau.csv aggregates) lift EVERY model in EVERY fold: best single 0.7603 → **0.7757** (CatBoost, fold-paired +0.0155, 4× the noise floor), while the best honest ensemble on the same predictions gains only +0.0016 (below the floor). One pre-registered rule, both answers: headroom is information, not fusion. (`reports/features_vs_fusion.json`, `docs/FUTURE-SCOPE.md` §5)
 
 **6. Convergence analysis exists** (reviewer requirement). Learning curve (capacity-adaptive XGBoost + LogReg) and boosting-convergence curve: `reports/convergence.json`, plots in `backend/artifacts/plots/`.
+
+**7. Three model-modification studies, pre-registered, all answered (30 Sep).** (a) **Epistemic-uncertainty deferral — GRANTED:** SGLB CatBoost's virtual ensembles (one model, no partner) route review cases ~3× better than Chow's rule at the matched 22.5% rate (position 0.40 vs 0.14; selective risk 0.217 vs random 0.299) and nearly match two-model disagreement. (b) **Monotone RBI-aligned CatBoost — the guarantee is free:** 21 domain-signed constraints, fold-paired delta −0.0008 (inside noise), 0/14,400 violations — directional adverse-action explanations true by construction. (c) **Cost-sensitive training — DENIED:** class-weighted training never beats cost-optimal thresholding (CI spans zero; Elkan 2001 confirmed) — the economics belong in the decision layer, where SmartLend keeps them. (`reports/uncertainty_deferral.json`, `reports/monotone_catboost.json`, `reports/cost_sensitive_catboost.json`, `docs/FUTURE-SCOPE.md` §6)
 
 ---
 
