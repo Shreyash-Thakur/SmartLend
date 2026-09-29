@@ -18,9 +18,10 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 from sklearn.metrics import roc_auc_score, recall_score, f1_score
 
-import xgboost as xgb
-import lightgbm as lgb
-from catboost import CatBoostClassifier
+# NOTE: the GBM trainer imports (xgboost, lightgbm, catboost) live inside
+# train_pipeline(), not here. The API never trains (hard rule), so the
+# serving process must not pay their import cost or require their wheels —
+# the Docker image ships without catboost and with the CPU-only xgboost.
 
 # We import the exact conservative risk-aware defaults defined directly in CBES Engine
 from backend.app.services.cbes_engine import DEFAULTS
@@ -79,6 +80,13 @@ def train_pipeline(df: pd.DataFrame, t_base_method: str = "cost") -> None:
     misclassification cost; "f1_legacy" reproduces the old degenerate
     fixed-range F1 sweep and exists only for comparison/rollback.
     """
+    # Offline-only imports: this function is never called by the API, and the
+    # serving image deliberately omits these trainers. Run it from the full
+    # research environment (requirements.txt).
+    import lightgbm as lgb
+    import xgboost as xgb
+    from catboost import CatBoostClassifier
+
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
     
     df = df.copy()

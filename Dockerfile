@@ -24,9 +24,17 @@ RUN apt-get update \
 WORKDIR /srv/smartlend
 
 # Requirements before code: editing a .py file must not invalidate the
-# ~2GB dependency layer.
+# dependency layer. The serving image trims the training-only weight:
+#   - xgboost -> xgboost-cpu (same `import xgboost`, official CPU wheel;
+#     drops the 469MB nvidia-nccl dependency a t3.micro can never use)
+#   - catboost (+ its plotly/graphviz) and matplotlib/seaborn: only
+#     train_pipeline() and the never-imported analysis.py use them, and
+#     train_pipeline imports its trainers lazily from the full research env.
+# The filter runs in the SAME layer as the install on purpose: Docker layers
+# are additive, so a later `pip uninstall` hides files without removing them.
 COPY backend/requirements-api.txt backend/requirements-api.txt
-RUN pip install --no-cache-dir -r backend/requirements-api.txt
+RUN grep -vE '^(xgboost|catboost|matplotlib|seaborn)==' backend/requirements-api.txt > /tmp/requirements-serve.txt \
+    && pip install --no-cache-dir -r /tmp/requirements-serve.txt xgboost-cpu==3.0.0
 
 # The application, with the serving model baked in as a build artifact
 # (backend/artifacts/pipeline_v3_real.joblib + thresholds). Nothing is
