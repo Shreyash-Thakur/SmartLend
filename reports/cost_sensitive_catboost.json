@@ -1,0 +1,82 @@
+{
+  "protocol": {
+    "rows": 307511,
+    "quick_mode": false,
+    "folds": "5-fold StratifiedKFold seed 42; baseline arm reuses reports/v2_oof_predictions.csv (committed, no retrain)",
+    "cost_model": {
+      "cost_fn_approve_defaulter": 0.75,
+      "cost_fp_reject_good": 0.1,
+      "ratio": 7.5,
+      "assumptions": "LGD ~0.75 unsecured retail; ~0.10 forgone margin"
+    },
+    "split": "50/50 tune/test seed 20260831; thresholds minimise tune cost",
+    "claim_rule": "weighted arm claimable only if paired-bootstrap 95% CI of its test-cost delta vs the thresholded baseline excludes 0"
+  },
+  "arms": {
+    "baseline_thresholded": {
+      "auc_oof": 0.7757,
+      "threshold_from_tune": 0.117,
+      "test_expected_cost_per_applicant": 0.042751,
+      "test_reject_rate": 0.2036,
+      "test_missed_defaulter_rate": 0.03585
+    },
+    "weighted_training": {
+      "auc_oof": 0.7749,
+      "threshold_from_tune": 0.4542,
+      "test_expected_cost_per_applicant": 0.042838,
+      "test_reject_rate": 0.2357,
+      "test_missed_defaulter_rate": 0.03217
+    }
+  },
+  "weighted_fold_aucs": [
+    0.7716,
+    0.7808,
+    0.7711,
+    0.78,
+    0.7711
+  ],
+  "paired_bootstrap_weighted_minus_baseline_cost": {
+    "delta_mean": 8.7e-05,
+    "delta_ci95": [
+      -0.000211,
+      0.000368
+    ],
+    "frac_negative": 0.281,
+    "n_boot": 1000
+  },
+  "claim_granted": false,
+  "decision_time_cost_ratio_sweep": [
+    {
+      "cost_ratio_fn_to_fp": 2.0,
+      "baseline_thresholded": 0.051621,
+      "weighted_training": 0.05172,
+      "weighted_wins": false
+    },
+    {
+      "cost_ratio_fn_to_fp": 5.0,
+      "baseline_thresholded": 0.054786,
+      "weighted_training": 0.05513,
+      "weighted_wins": false
+    },
+    {
+      "cost_ratio_fn_to_fp": 7.5,
+      "baseline_thresholded": 0.050295,
+      "weighted_training": 0.050398,
+      "weighted_wins": false
+    },
+    {
+      "cost_ratio_fn_to_fp": 10.0,
+      "baseline_thresholded": 0.045595,
+      "weighted_training": 0.046053,
+      "weighted_wins": false
+    },
+    {
+      "cost_ratio_fn_to_fp": 20.0,
+      "baseline_thresholded": 0.032474,
+      "weighted_training": 0.032413,
+      "weighted_wins": true
+    }
+  ],
+  "reading": "Elkan (2001): with calibrated probabilities, class-weighted training should be equivalent to threshold shifting; a null result here means SmartLend's economics rightly live in the decision layer, not the loss function.",
+  "generated_seconds": 111.7
+}
