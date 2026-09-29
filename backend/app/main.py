@@ -93,7 +93,46 @@ def health() -> dict[str, object]:
     return get_health_payload()
 
 
-@app.get("/", include_in_schema=False)
-def root() -> RedirectResponse:
-    """Redirect root to the interactive API docs for convenience."""
-    return RedirectResponse(url="/docs")
+# ---------------------------------------------------------------------------
+# Static frontend (production/Docker). Starlette matches routes in
+# registration order, so this mount comes LAST: every /api route above wins,
+# and everything else falls through to the built React app. Client-side
+# routes (/review, /dashboard, ...) are not files on disk, so 404s fall back
+# to index.html and React Router resolves them in the browser.
+# ---------------------------------------------------------------------------
+import os
+from pathlib import Path
+
+from fastapi.staticfiles import StaticFiles
+
+_STATIC_DIR = Path(
+    os.environ.get("SMARTLEND_STATIC_DIR", "").strip()
+    or Path(__file__).resolve().parents[2] / "frontend" / "dist"
+)
+
+
+class _SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        # Starlette signals a missing file either as a 404 response (old) or a
+        # raised HTTPException (new); both mean "client-side route" here.
+        from starlette.exceptions import HTTPException as _StarletteHTTPException
+
+        try:
+            response = await super().get_response(path, scope)
+        except _StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+        if response.status_code == 404:
+            response = await super().get_response("index.html", scope)
+        return response
+
+
+if _STATIC_DIR.is_dir():
+    app.mount("/", _SPAStaticFiles(directory=_STATIC_DIR, html=True), name="frontend")
+else:
+    # Dev machines run the Vite server instead; keep the old convenience redirect.
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        """Redirect root to the interactive API docs for convenience."""
+        return RedirectResponse(url="/docs")

@@ -1,0 +1,45 @@
+# Secrets — must NEVER enter the build context or a COPY could bake them in.
+.env
+.env.*
+
+# Version control / editor state
+.git
+.claude
+
+# Python local environments and caches
+.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+
+# Node: installed and rebuilt inside the frontend build stage
+frontend/node_modules
+frontend/dist
+
+# Local databases (the container gets a fresh one / Postgres)
+**/*.db
+
+# Licensed Home Credit data and derived caches — may not be redistributed,
+# and none of it is needed at serving time. (.dockerignore patterns are
+# rooted: `data` excludes only the top-level data/, backend/data/ stays.)
+data
+models
+reports
+colab
+
+# Research/training track — the image serves, it never trains.
+# EXCEPTION: research/relearning holds the gate the API imports (single
+# source of truth for the four conditions — "imported, never reimplemented"),
+# so that one subpackage ships. It evaluates the gate; it cannot retrain.
+research
+!research/__init__.py
+!research/relearning
+docs
+notebooks
+backend/catboost_info
+backend/comparison_outputs
+backend/tests
+
+# Superseded 102MB synthetic-era artifact; the serving pick is newest-first
+# and pipeline_v3_real.joblib (32KB) is newer, so this is dead weight.
+backend/artifacts/pipeline_v2.joblib

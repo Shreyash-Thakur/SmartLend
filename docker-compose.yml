@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: smartlend
+      # Local-dev default only; override with POSTGRES_PASSWORD in the shell
+      # or a gitignored .env. The AWS password never goes through this file.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartlend-local-dev}
+      POSTGRES_DB: smartlend
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartlend -d smartlend"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # `db` resolves via Compose's internal DNS — the same shape as pointing
+      # at an RDS endpoint hostname later.
+      SMARTLEND_DATABASE_URL: postgresql+psycopg2://smartlend:${POSTGRES_PASSWORD:-smartlend-local-dev}@db:5432/smartlend
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

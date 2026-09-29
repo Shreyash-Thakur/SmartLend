@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
+
+from backend.app import config as _config  # noqa: F401  # loads .env before the URL is read
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -18,11 +21,21 @@ LEGACY_DB_PATH = APP_ROOT / "smartlend.db"
 if not DB_PATH.exists() and LEGACY_DB_PATH.exists():
     LEGACY_DB_PATH.replace(DB_PATH)
 
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+# SQLite on disk by default (zero-setup dev); a Postgres URL via
+# SMARTLEND_DATABASE_URL for Docker Compose and RDS. The SQLite-specific
+# helpers below are dialect-guarded, so both engines share this module.
+SQLALCHEMY_DATABASE_URL = (
+    os.environ.get("SMARTLEND_DATABASE_URL", "").strip() or f"sqlite:///{DB_PATH}"
+)
+
+# check_same_thread is a SQLite-only pysqlite argument; other drivers reject it.
+_connect_args = (
+    {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
+)
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args=_connect_args,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
