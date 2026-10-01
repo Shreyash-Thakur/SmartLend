@@ -49,3 +49,11 @@ data/*.db-wal
 # Scratch intermediates and retired artifacts
 reports/_*.npy
 backend/artifacts/*.bak
+
+# Terraform — state holds EVERY attribute including secrets; never commit.
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/*.tfplan

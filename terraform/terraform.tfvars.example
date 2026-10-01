@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and fill in. terraform.tfvars is
+# read automatically by plan/apply. Alternative for the password:
+#   $env:TF_VAR_db_password = "..."   (PowerShell, session-only)
+
+db_password = "CHANGE-ME-your-rds-master-password"
+my_ip_cidr  = "YOUR.PUBLIC.IP.HERE/32" # e.g. 110.172.16.14/32
