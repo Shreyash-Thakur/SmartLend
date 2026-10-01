@@ -1,6 +1,12 @@
 # Secrets — must NEVER enter the build context or a COPY could bake them in.
 .env
 .env.*
+# frontend/.env holds the VITE_FIREBASE_* client config. Excluding it means
+# deployed builds ship with Firebase DISABLED and the guest login active —
+# raw-IP/HTTP hosts can't be Firebase-authorized domains anyway. Local dev
+# (vite, outside Docker) keeps Google sign-in.
+frontend/.env
+frontend/.env.*
 
 # Version control / editor state
 .git
