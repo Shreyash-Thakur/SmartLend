@@ -273,9 +273,11 @@ guests bounce back to /auth.
 
 `components/intro/MaskedHeading.tsx` (React Bits TS-TW + `mediaType="gradient"`
 so no image asset is needed; dependency `gsap@3.13.0`) and
-`components/intro/IntroSplash.tsx`, rendered by `Landing.tsx` before its
-content: once per session (sessionStorage), click/key/Skip to dismiss,
-skipped entirely under reduced motion.
+`components/intro/IntroHero.tsx`: a full-screen first section of `Landing.tsx`
+(user asked for it to stay rather than auto-dismiss). It stays until the
+visitor scrolls; scroll fades/scales it out and the landing content rises
+from below; "Scroll to explore" button jumps down; static under reduced
+motion. Shown on every visit to `/` (replaced the earlier timed overlay).
 
 - [ ] Bring in MaskedHeading (TS variant)
 - [ ] Intro on `/` for logged-out users: "SmartLend" masked reveal, then
