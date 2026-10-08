@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/authStore'
 
@@ -52,6 +53,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
 export default function App() {
   const { isAuthenticated, loading, role } = useAuth()
   const { initializeAuth } = useAuthStore()
+  const { pathname } = useLocation()
 
   useEffect(() => {
     initializeAuth()
@@ -73,6 +75,12 @@ export default function App() {
         </div>
       }
     >
+      {/* /auth has no header of its own, so the theme toggle floats there. */}
+      {pathname === '/auth' && (
+        <div className="fixed right-4 top-4 z-50">
+          <ThemeToggle />
+        </div>
+      )}
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route

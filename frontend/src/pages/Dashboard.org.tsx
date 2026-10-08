@@ -183,7 +183,7 @@ export const OrganizationDashboard: React.FC = () => {
         </div>
 
         <div className="grid gap-4">
-          <Card className="rounded-[30px] border-white/80 bg-neutral-900 text-white">
+          <Card className="rounded-[30px] border-white/80 bg-ink text-white dark:bg-neutral-100">
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.2em] text-white/60">Application Pipeline</p>
               <p className="text-4xl font-semibold">{applications.length}</p>

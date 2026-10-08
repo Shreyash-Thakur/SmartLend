@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/common'
 import { PageTransition } from '@/components/layouts/PageTransition'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { getServingModelInfo } from '@/services/applications'
 import type { ServingModelInfo } from '@/services/applications'
@@ -93,6 +94,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   Back to Home
                 </Button>
               )}
+              <ThemeToggle />
               <button
                 type="button"
                 onClick={() => void handleLogout()}
@@ -113,7 +115,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </main>
       </PageTransition>
 
-      <footer className="bg-neutral-900 text-neutral-400 py-8 mt-12">
+      <footer className="bg-ink text-neutral-400 dark:border-t dark:border-neutral-200 py-8 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-sm">
             <p>&copy; 2026 SmartLend. All rights reserved.</p>

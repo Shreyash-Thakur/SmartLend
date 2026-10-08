@@ -198,7 +198,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
                 onClick={() => setCurrentStep(index)}
                 className={`rounded-2xl px-4 py-3 text-left transition-all ${
                   index === currentStep
-                    ? 'bg-neutral-900 text-white shadow-md'
+                    ? 'bg-ink text-white shadow-md dark:bg-neutral-200'
                     : index < currentStep
                       ? 'bg-primary-50 text-primary-900'
                       : 'bg-neutral-100 text-neutral-500'
