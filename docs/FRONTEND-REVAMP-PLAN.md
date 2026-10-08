@@ -269,7 +269,14 @@ guests bounce back to /auth.
 - [ ] Recharts/Chart.js colours from tokens; Leaflet dark tiles in dark mode
 - [ ] Smoke test after each page
 
-### Phase 5 — intro screen with MaskedHeading
+### Phase 5 — intro screen with MaskedHeading  ✅ done 2026-10-08
+
+`components/intro/MaskedHeading.tsx` (React Bits TS-TW + `mediaType="gradient"`
+so no image asset is needed; dependency `gsap@3.13.0`) and
+`components/intro/IntroSplash.tsx`, rendered by `Landing.tsx` before its
+content: once per session (sessionStorage), click/key/Skip to dismiss,
+skipped entirely under reduced motion.
+
 - [ ] Bring in MaskedHeading (TS variant)
 - [ ] Intro on `/` for logged-out users: "SmartLend" masked reveal, then
       continue to landing/login; once per session, skippable, skipped entirely

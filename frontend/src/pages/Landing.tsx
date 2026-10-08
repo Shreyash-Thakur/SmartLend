@@ -1,17 +1,20 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Clock3, ShieldCheck, Sparkles, Users, Workflow, BarChart3 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, Card } from '@/components/common'
 import { getPublicMetrics } from '@/services/applications'
 import type { PublicMetrics } from '@/types/api'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import { IntroSplash, shouldShowIntro } from '@/components/intro/IntroSplash'
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate()
   const [metrics, setMetrics] = useState<PublicMetrics | null>(null)
   const [metricsError, setMetricsError] = useState<string | null>(null)
+  const [showIntro, setShowIntro] = useState(shouldShowIntro)
+  const finishIntro = useCallback(() => setShowIntro(false), [])
 
   const features = [
     {
@@ -68,7 +71,14 @@ export const Landing: React.FC = () => {
 
   return (
     <>
-    <div className="min-h-screen">
+    <AnimatePresence>{showIntro && <IntroSplash onDone={finishIntro} />}</AnimatePresence>
+    {!showIntro && (
+    <motion.div
+      className="min-h-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-neutral-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -251,7 +261,8 @@ export const Landing: React.FC = () => {
           </div>
         </div>
       </footer>
-    </div>
+    </motion.div>
+    )}
     </>
   )
 }
