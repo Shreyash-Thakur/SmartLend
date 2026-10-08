@@ -105,7 +105,7 @@ CHALLENGERS = {
 }
 
 
-def main() -> None:
+def main(only: str | None = None) -> None:
     started = time.time()
     X, y, _ids = build_feature_matrix()
     keep = np.random.default_rng(SEED).choice(len(y), QUICK_N, replace=False)
@@ -122,8 +122,11 @@ def main() -> None:
         "tuning": "none - defaults only (rule 4)",
     }, "models": {}}
 
+    if OUT_JSON.exists():  # merge per-model reruns into the standing report
+        results["models"].update(json.loads(OUT_JSON.read_text()).get("models", {}))
     fold_aucs: dict[str, list[float]] = {}
-    for name, fit_predict in CHALLENGERS.items():
+    todo = {n: f for n, f in CHALLENGERS.items() if only is None or n in (only, "CatBoost_baseline")}
+    for name, fit_predict in todo.items():
         aucs = []
         print(f"[{name}]")
         for k, (tr, va) in enumerate(folds):
@@ -163,4 +166,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", default=None, help="run a single challenger (baseline always included)")
+    main(only=ap.parse_args().only)

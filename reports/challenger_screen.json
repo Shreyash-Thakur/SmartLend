@@ -1,0 +1,45 @@
+{
+  "protocol": {
+    "rows": 30000,
+    "folds": 5,
+    "seed": 42,
+    "advance_rule": "fold-paired mean delta vs CatBoost > 0 on this screen",
+    "claim_rule_at_full_scale": "mean delta > +0.0036 AND all folds positive",
+    "tuning": "none - defaults only (rule 4)"
+  },
+  "models": {
+    "CatBoost_baseline": {
+      "fold_aucs": [
+        0.7607,
+        0.7503,
+        0.7367,
+        0.7491,
+        0.7436
+      ],
+      "mean_auc": 0.7481
+    },
+    "TabICLv2": {
+      "error": "OSError: [Errno 28] No space left on device"
+    },
+    "RealMLP_TD": {
+      "fold_aucs": [
+        0.755,
+        0.7228,
+        0.7225,
+        0.7439,
+        0.7358
+      ],
+      "mean_auc": 0.736,
+      "fold_paired_delta_vs_catboost": [
+        -0.0058,
+        -0.0274,
+        -0.0142,
+        -0.0052,
+        -0.0078
+      ],
+      "mean_delta": -0.0121,
+      "advances_to_full_run": false
+    }
+  },
+  "generated_seconds": 795.6
+}
