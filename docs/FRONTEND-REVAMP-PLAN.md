@@ -283,7 +283,17 @@ skipped entirely under reduced motion.
       under reduced motion
 - [ ] Smoke test
 
-### Phase 6 — GlideSelect on the loan form
+### Phase 6 — GlideSelect on the loan form  ✅ done 2026-10-08 (awaiting user test)
+
+`components/common/GlideSelect.tsx` (React Bits TS-TW; menu portalled to
+body with fixed positioning so overflow-hidden/backdrop-filter cards can't
+clip it; `fullWidth`/`triggerClassName`; lucide icons instead of
+@hugeicons). `common/Select` now renders it with the same props contract
+(controlled value, `onChange(string)`), so every call site upgraded with no
+edits: CustomerNewApplication (11), ApplicationTable filters (2), and the
+unused legacy LoanApplicationForm. "Select..." empty options become the
+placeholder. Values passed to onChange are the same strings as before.
+
 - [ ] Bring in GlideSelect (TS variant); check keyboard + screen-reader
       support before using it everywhere
 - [ ] Wrap it in `common/Select.tsx`-compatible API, wire through
