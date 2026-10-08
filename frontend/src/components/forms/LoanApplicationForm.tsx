@@ -198,7 +198,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
                 onClick={() => setCurrentStep(index)}
                 className={`rounded-2xl px-4 py-3 text-left transition-all ${
                   index === currentStep
-                    ? 'bg-neutral-900 text-white shadow-md'
+                    ? 'bg-ink text-white shadow-md dark:bg-neutral-200'
                     : index < currentStep
                       ? 'bg-primary-50 text-primary-900'
                       : 'bg-neutral-100 text-neutral-500'
@@ -213,7 +213,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
       )}
 
       {renderStepVisibility(0) && (
-        <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
+        <section className="rounded-2xl border border-neutral-200 bg-white/85 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Personal Information</p>
@@ -301,7 +301,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
       )}
 
       {renderStepVisibility(1) && (
-        <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
+        <section className="rounded-2xl border border-neutral-200 bg-white/85 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Income & Employment</p>
@@ -399,7 +399,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
       )}
 
       {renderStepVisibility(2) && (
-        <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
+        <section className="rounded-2xl border border-neutral-200 bg-white/85 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-5 flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Assets & Credit</p>
@@ -492,7 +492,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
       )}
 
       {renderStepVisibility(3) && (
-        <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
+        <section className="rounded-2xl border border-neutral-200 bg-white/85 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Supporting Documents</p>
@@ -533,7 +533,7 @@ export const LoanApplicationForm: React.FC<ApplicationFormProps> = ({
       )}
 
       {renderStepVisibility(4) && (
-        <section className="rounded-[32px] border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl">
+        <section className="rounded-2xl border border-neutral-200 bg-white/85 p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] backdrop-blur-xl">
           <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Application Summary</p>
             <h3 className="mt-2 text-2xl font-semibold text-neutral-900">Review Your Details</h3>

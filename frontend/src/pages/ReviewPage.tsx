@@ -91,7 +91,7 @@ export const ReviewPage: React.FC = () => {
 
   return (
     <DashboardLayout title="Review Queue" role="organization">
-      <section className="mb-8 rounded-[32px] border border-[#d6e7e4] bg-white p-8 shadow-sm">
+      <section className="mb-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Analyst Review</p>

@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Activity, BriefcaseBusiness, CheckCircle2, Clock3, MapPinned,
-  Users, XCircle, AlertTriangle,
+  Activity, BrainCircuit, BriefcaseBusiness, CheckCircle2, MapPinned,
+  XCircle, AlertTriangle,
 } from 'lucide-react'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
   Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
@@ -15,6 +15,7 @@ import { useApplicationData } from '@/hooks/useApplicationData'
 import { getStats } from '@/services/applications'
 import type { StatsResponse } from '@/types/api'
 import { formatCurrency } from '@/lib/utils'
+import { SERIES, useChartTheme } from '@/lib/chartTheme'
 import type { LoanApplication } from '@/types/application'
 
 type OrgTab = 'all' | 'deferred' | 'approved' | 'rejected' | 'confirmed'
@@ -39,6 +40,7 @@ export const OrganizationDashboard: React.FC = () => {
   const [bulkLoading, setBulkLoading] = useState(false)
   const [bulkError, setBulkError] = useState<string | null>(null)
   const [showBulkPanel, setShowBulkPanel] = useState(false)
+  const chart = useChartTheme()
 
   useEffect(() => {
     const load = async () => {
@@ -142,9 +144,9 @@ export const OrganizationDashboard: React.FC = () => {
   }, [applications])
 
   const approvalDistribution = useMemo(() => [
-    { label: 'Approved', value: stats?.approved ?? 0, fill: '#10b981' },
-    { label: 'Rejected', value: stats?.rejected ?? 0, fill: '#ef4444' },
-    { label: 'Deferred', value: stats?.deferred ?? 0, fill: '#f59e0b' },
+    { label: 'Approved', value: stats?.approved ?? 0, fill: SERIES.approve },
+    { label: 'Rejected', value: stats?.rejected ?? 0, fill: SERIES.reject },
+    { label: 'Deferred', value: stats?.deferred ?? 0, fill: SERIES.defer },
   ], [stats])
 
   const categoryAnalysis = useMemo(() => {
@@ -156,142 +158,169 @@ export const OrganizationDashboard: React.FC = () => {
     }))
   }, [applications])
 
-  return (
-    <DashboardLayout title="Organization Dashboard" role="organization">
-      {/* Hero */}
-      <section className="mb-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="rounded-[36px] border border-[#d6e7e4] bg-gradient-to-br from-[#edf6f4] via-[#f6faf9] to-[#f9fcfd] p-8 shadow-[0_30px_100px_rgba(118,176,165,0.18)]">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-2xl">
-              <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Operations Dashboard</p>
-              <h2 className="mt-3 text-4xl font-semibold tracking-tight text-neutral-900">Unified application pipeline</h2>
-              <p className="mt-4 text-base leading-7 text-neutral-600">
-                All records in one queue. Review, override, and confirm ML decisions. Deferred cases require human action before the customer is notified.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <OrgChip icon={<Users className="h-4 w-4" />} label={`${uploadedCount} training records`} />
-              <OrgChip icon={<BriefcaseBusiness className="h-4 w-4" />} label={`${submittedCount} live applications`} />
-              <OrgChip icon={<Activity className="h-4 w-4" />} label="Analyst workflow active" />
-              <OrgChip icon={<Clock3 className="h-4 w-4" />} label="Real-time backend sync" />
-            </div>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button variant="secondary" onClick={() => navigate('/dashboard/models')}>Model Analysis Dashboard</Button>
-            <Button variant="primary" leftIcon={<MapPinned className="h-4 w-4" />} onClick={() => navigate('/analytics/geo')}>Geo Analytics</Button>
-          </div>
-        </div>
+  const decisionTotal = approvalDistribution.reduce((sum, item) => sum + item.value, 0)
+  const avgLoanAmount = applications.length
+    ? formatCurrency(Math.round(applications.reduce((sum, a) => sum + a.loanAmount, 0) / applications.length))
+    : '--'
+  const statValue = (value: number | undefined) => (statsLoading ? '…' : value ?? '—')
 
-        <div className="grid gap-4">
-          <Card className="rounded-[30px] border-white/80 bg-neutral-900 text-white">
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Application Pipeline</p>
-              <p className="text-4xl font-semibold">{applications.length}</p>
-              <div className="grid gap-2 text-sm text-white/75">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-green-400" />Auto-Approved</span>
-                  <span>{tabCounts.approved}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><XCircle className="h-3.5 w-3.5 text-red-400" />Auto-Rejected</span>
-                  <span>{tabCounts.rejected}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-amber-400" />Needs Review</span>
-                  <span>{tabCounts.deferred}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-white/10 pt-2">
-                  <span className="flex items-center gap-1.5">✓ Org Confirmed</span>
-                  <span>{tabCounts.confirmed}</span>
-                </div>
-              </div>
-            </div>
-          </Card>
+  return (
+    <DashboardLayout title="Dashboard" role="organization">
+      {/* Page header */}
+      <section className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="max-w-2xl">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Operations overview</h1>
+          <p className="mt-1 text-sm leading-6 text-neutral-500">
+            All records in one queue. Review, override, and confirm ML decisions. Deferred cases require human action before the customer is notified.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" leftIcon={<BrainCircuit className="h-4 w-4" />} onClick={() => navigate('/dashboard/models')}>
+            Model Analysis
+          </Button>
+          <Button variant="primary" size="sm" leftIcon={<MapPinned className="h-4 w-4" />} onClick={() => navigate('/analytics/geo')}>
+            Geo Analytics
+          </Button>
         </div>
       </section>
 
       {(error || dashboardError) && (
-        <section className="mb-8">
+        <section className="mb-6">
           <Card className="border-red-200 bg-red-50">
             <p className="text-red-700">Connection issue: {error ?? dashboardError}</p>
           </Card>
         </section>
       )}
 
-      {/* Live Stats */}
-      <section className="mb-8">
-        <Card title="Live Stats">
-          {statsLoading ? (
-            <p className="text-neutral-600">Loading stats…</p>
-          ) : stats ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <KPICard label="Total Applications" value={stats.totalApplications} format="number" />
-              <KPICard label="Approval Rate" value={stats.approvalRate} format="percentage" />
-              <KPICard label="Rejection Rate" value={stats.rejectionRate} format="percentage" />
-              <KPICard label="Deferral Rate" value={stats.deferralRate} format="percentage" />
-              <KPICard label="Average CBES" value={stats.averageCBES} format="number" />
-              <KPICard label="Average ML Score" value={stats.averageMLProbability} format="number" />
+      {/* KPI row */}
+      <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KPICard
+          label="Total Applications"
+          value={statValue(stats?.totalApplications)}
+          icon={BriefcaseBusiness}
+          tone="blue"
+          hint={`${submittedCount} live · ${uploadedCount} training records`}
+        />
+        <KPICard
+          label="Approval Rate"
+          value={statsLoading ? '…' : stats ? `${stats.approvalRate}%` : '—'}
+          icon={CheckCircle2}
+          tone="green"
+          hint={stats ? `Rejection rate ${stats.rejectionRate}%` : undefined}
+        />
+        <KPICard
+          label="Needs Review"
+          value={tabCounts.deferred}
+          icon={AlertTriangle}
+          tone="amber"
+          hint={stats ? `Deferral rate ${stats.deferralRate}%` : undefined}
+        />
+        <KPICard
+          label="Average CBES"
+          value={statValue(stats?.averageCBES)}
+          icon={Activity}
+          tone="violet"
+          hint={stats ? `Average ML score ${stats.averageMLProbability}` : undefined}
+        />
+      </section>
+
+      {/* Trend + decision mix */}
+      <section className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card title="Applications Over Time" description="Final decisions per week, last 4 weeks" className="lg:col-span-2">
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trends} margin={{ top: 12, right: 12, bottom: 0, left: -12 }}>
+                <defs>
+                  {(['approve', 'reject', 'defer'] as const).map((key) => (
+                    <linearGradient key={key} id={`org-${key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={SERIES[key]} stopOpacity={0.25} />
+                      <stop offset="100%" stopColor={SERIES[key]} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                <XAxis dataKey="date" {...chart.axisProps} />
+                <YAxis allowDecimals={false} width={44} {...chart.axisProps} />
+                <Tooltip {...chart.tooltipProps} />
+                <Area type="monotone" dataKey="approved" name="Approved" stroke={SERIES.approve} strokeWidth={2} fill="url(#org-approve)" />
+                <Area type="monotone" dataKey="rejected" name="Rejected" stroke={SERIES.reject} strokeWidth={2} fill="url(#org-reject)" />
+                <Area type="monotone" dataKey="deferred" name="Deferred" stroke={SERIES.defer} strokeWidth={2} fill="url(#org-defer)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card title="Decision Mix" description="Across all applications">
+          <div className="relative h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={approvalDistribution}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius={62}
+                  outerRadius={90}
+                  paddingAngle={2}
+                  stroke={chart.surface}
+                  strokeWidth={2}
+                >
+                  {approvalDistribution.map((e) => <Cell key={e.label} fill={e.fill} />)}
+                </Pie>
+                <Tooltip {...chart.tooltipProps} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-semibold text-neutral-900">{decisionTotal}</span>
+              <span className="text-xs text-neutral-500">Decisions</span>
             </div>
-          ) : <p className="text-neutral-600">Stats unavailable</p>}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2 border-t border-neutral-200 pt-4 text-center">
+            {approvalDistribution.map((item) => (
+              <div key={item.label}>
+                <p className="flex items-center justify-center gap-1.5 text-xs text-neutral-500">
+                  <span className="h-2 w-2 rounded-full" style={{ background: item.fill }} />
+                  {item.label}
+                </p>
+                <p className="mt-1 text-lg font-semibold text-neutral-900">{item.value}</p>
+              </div>
+            ))}
+          </div>
         </Card>
       </section>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card title="Approval Distribution">
-          <div className="h-64">
+      {/* Purpose mix + pipeline */}
+      <section className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card title="Loan Purpose Mix" description="Applications by stated purpose" className="lg:col-span-2">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={approvalDistribution} dataKey="value" nameKey="label" outerRadius={90}>
-                  {approvalDistribution.map((e) => <Cell key={e.label} fill={e.fill} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        <Card title="Applications Over Time">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trends} margin={{ top: 12, right: 24, bottom: 8, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} width={36} />
-                <Tooltip />
-                <Line type="monotone" dataKey="approved" stroke="#10b981" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="rejected" stroke="#ef4444" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="deferred" stroke="#f59e0b" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        <Card title="Loan Purpose Mix">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryAnalysis} margin={{ top: 12, right: 24, bottom: 36, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="label" interval={0} angle={-18} textAnchor="end" height={60} />
-                <YAxis allowDecimals={false} width={36} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
+              <BarChart data={categoryAnalysis} margin={{ top: 12, right: 12, bottom: 28, left: -12 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                <XAxis dataKey="label" interval={0} angle={-18} textAnchor="end" height={56} {...chart.axisProps} />
+                <YAxis allowDecimals={false} width={44} {...chart.axisProps} />
+                <Tooltip {...chart.tooltipProps} />
+                <Bar dataKey="value" name="Applications" fill={SERIES.brand} radius={[6, 6, 0, 0]} maxBarSize={48} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card title="Operations Snapshot">
-          <div className="grid gap-4 mt-2">
-            <Snapshot
-              label="Avg Loan Amount"
-              value={stats ? formatCurrency(Math.round(applications.reduce((s, a) => s + a.loanAmount, 0) / Math.max(applications.length, 1))) : '--'}
-            />
-            <Snapshot label="Deferred (needs human)" value={tabCounts.deferred.toString()} />
-            <Snapshot label="Org-confirmed decisions" value={tabCounts.confirmed.toString()} />
+
+        <Card title="Application Pipeline" description="Where every application stands">
+          <p className="text-4xl font-semibold tracking-tight text-neutral-900">{applications.length}</p>
+          <div className="mt-4 space-y-1">
+            <PipelineRow icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} label="Auto-Approved" value={tabCounts.approved} />
+            <PipelineRow icon={<XCircle className="h-4 w-4 text-red-600" />} label="Auto-Rejected" value={tabCounts.rejected} />
+            <PipelineRow icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} label="Needs Review" value={tabCounts.deferred} />
+            <PipelineRow icon={<CheckCircle2 className="h-4 w-4 text-violet-600" />} label="Org-Confirmed" value={tabCounts.confirmed} />
+          </div>
+          <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-100 px-4 py-3">
+            <span className="text-sm text-neutral-500">Avg loan amount</span>
+            <span className="font-semibold text-neutral-900">{avgLoanAmount}</span>
           </div>
         </Card>
-      </div>
+      </section>
 
       {/* Application Table with Tabs + Bulk Actions */}
-      <div className="bg-white rounded-2xl border border-neutral-200 shadow-md overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         {/* Tab Bar */}
         <div className="border-b border-neutral-200 flex overflow-x-auto">
           {TAB_CONFIG.map((tab) => (
@@ -394,19 +423,11 @@ export const OrganizationDashboard: React.FC = () => {
   )
 }
 
-function OrgChip({ icon, label }: { icon: React.ReactNode; label: string }) {
+function PipelineRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm">
-      {icon}{label}
-    </div>
-  )
-}
-
-function Snapshot({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="font-semibold text-neutral-900">{value}</p>
+    <div className="flex items-center justify-between border-b border-neutral-200 py-2.5 text-sm last:border-0">
+      <span className="flex items-center gap-2 text-neutral-600">{icon}{label}</span>
+      <span className="font-semibold text-neutral-900">{value}</span>
     </div>
   )
 }

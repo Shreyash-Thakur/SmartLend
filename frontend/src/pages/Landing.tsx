@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { Button, Card } from '@/components/common'
 import { getPublicMetrics } from '@/services/applications'
 import type { PublicMetrics } from '@/types/api'
-import { PageTransition } from '@/components/layouts'
+import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import { IntroHero } from '@/components/intro/IntroHero'
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate()
@@ -67,8 +68,9 @@ export const Landing: React.FC = () => {
   }, [])
 
   return (
-    <PageTransition>
-    <div className="min-h-screen bg-gradient-to-b from-white to-neutral-50">
+    <>
+    <IntroHero continueTo="landing-content" />
+    <div id="landing-content" className="min-h-screen">
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-neutral-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -77,6 +79,7 @@ export const Landing: React.FC = () => {
               <span className="font-bold text-lg text-neutral-900">SmartLend</span>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle />
               <Button variant="ghost" onClick={() => navigate('/dashboard/customer')}>
                 Dashboard
               </Button>
@@ -242,7 +245,7 @@ export const Landing: React.FC = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-neutral-900 text-neutral-400 py-8 mt-12">
+      <footer className="bg-ink text-neutral-400 dark:border-t dark:border-neutral-200 py-8 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center text-sm">
             <p>&copy; 2026 SmartLend. All rights reserved.</p>
@@ -251,6 +254,6 @@ export const Landing: React.FC = () => {
         </div>
       </footer>
     </div>
-    </PageTransition>
+    </>
   )
 }

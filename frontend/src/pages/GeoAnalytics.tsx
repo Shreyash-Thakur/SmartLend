@@ -14,6 +14,7 @@ import {
   type LocationMetricsResponse,
   type RegionMetricsResponse,
 } from '@/services/applications'
+import { useChartTheme } from '@/lib/chartTheme'
 
 const REGION_VISUALS: Record<string, { fill: string; x: number; y: number }> = {
   North: { fill: '#2563eb', x: 152, y: 82 },
@@ -92,6 +93,7 @@ function getChoroplethColor(approvalRate: number, applications: number): string 
 }
 
 export const GeoAnalytics: React.FC = () => {
+  const chart = useChartTheme()
   const navigate = useNavigate()
   const [metrics, setMetrics] = useState<RegionMetricsResponse | null>(null)
   const [locationMetrics, setLocationMetrics] = useState<LocationMetricsResponse | null>(null)
@@ -255,7 +257,7 @@ export const GeoAnalytics: React.FC = () => {
 
   return (
     <DashboardLayout title="Geo Analytics" role="organization">
-      <section className="mb-8 rounded-[32px] border border-[#d6e7e4] bg-white p-8 shadow-sm">
+      <section className="mb-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">Geographic Intelligence</p>
@@ -270,7 +272,7 @@ export const GeoAnalytics: React.FC = () => {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-6 2xl:grid-cols-[1.1fr_0.9fr]">
         <Card title="Regional Density">
           {loading && <p className="mb-4 text-sm text-neutral-500">Loading map metrics...</p>}
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -286,6 +288,8 @@ export const GeoAnalytics: React.FC = () => {
                   scrollWheelZoom={false}
                   className="h-[460px] w-full"
                 >
+                  {/* Dark mode darkens these same tiles with a CSS filter
+                      (globals.css) — keyless, unlike hosted dark basemaps. */}
                   <TileLayer
                     attribution='&copy; OpenStreetMap contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -337,7 +341,7 @@ export const GeoAnalytics: React.FC = () => {
                       <Cell key={entry.name} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => String(value)} />
+                  <Tooltip {...chart.tooltipProps} formatter={(value) => String(value)} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

@@ -9,21 +9,25 @@ export const Card: React.FC<CardProps> = ({
   className = '',
   footer,
 }) => {
+  // Callers often pass their own background (e.g. bg-amber-50 for warnings);
+  // only apply the default surface when they don't, so the two never fight.
+  const hasOwnBackground = /(^|\s)bg-(?!gradient|opacity|clip|blend)/.test(className)
+
   return (
     <div
       className={`
-        rounded-[28px] overflow-hidden
-        border border-white/70
-        bg-white/88
+        overflow-hidden rounded-2xl
+        border border-neutral-200
+        ${hasOwnBackground ? '' : 'bg-white'}
         ${withGlass ? 'backdrop-blur-xl' : ''}
-        shadow-[0_20px_60px_rgba(15,23,42,0.08)] hover:shadow-[0_24px_70px_rgba(15,23,42,0.1)] transition-shadow duration-300
+        shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-300 hover:shadow-[0_8px_30px_rgba(15,23,42,0.06)]
         ${className}
       `}
     >
       {(title || description) && (
-        <div className="border-b border-neutral-200/80 bg-gradient-to-r from-white to-neutral-50 px-6 py-5">
-          {title && <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>}
-          {description && <p className="mt-1 text-sm text-neutral-600">{description}</p>}
+        <div className="px-6 pt-5">
+          {title && <h3 className="text-base font-semibold text-neutral-900">{title}</h3>}
+          {description && <p className="mt-1 text-sm text-neutral-500">{description}</p>}
         </div>
       )}
 

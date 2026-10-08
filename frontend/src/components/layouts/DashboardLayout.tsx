@@ -1,144 +1,24 @@
-import React, { useEffect, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
-import { Button } from '@/components/common'
-import { PageTransition } from '@/components/layouts/PageTransition'
-import { useAuth } from '@/hooks/useAuth'
-import { getServingModelInfo } from '@/services/applications'
-import type { ServingModelInfo } from '@/services/applications'
+import React, { useEffect } from 'react'
+import { useUiStore } from '@/store/uiStore'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
   title?: string
+  /** Kept for existing call sites; the shell now derives navigation from the
+   *  signed-in user's role. */
   role?: 'customer' | 'organization'
 }
 
-export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
-  children,
-  title,
-  role = 'customer',
-}) => {
-  const navigate = useNavigate()
-  const { logout } = useAuth()
+/**
+ * Page wrapper inside the AppShell (sidebar + top bar live there, mounted once
+ * in App.tsx). This only publishes the page title to the top-bar breadcrumb.
+ */
+export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
+  const setPageTitle = useUiStore((state) => state.setPageTitle)
 
-  // Always-visible serving-model identity for org users. Null (badge hidden)
-  // when the backend is unreachable — never a stale placeholder value.
-  const [servingInfo, setServingInfo] = useState<ServingModelInfo | null>(null)
   useEffect(() => {
-    if (role === 'customer') return
-    let cancelled = false
-    void getServingModelInfo().then((info) => {
-      if (!cancelled) setServingInfo(info)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [role])
+    setPageTitle(title ?? '')
+  }, [title, setPageTitle])
 
-  const handleLogout = async () => {
-    await logout()
-    navigate('/')
-  }
-
-  return (
-    <div className="min-h-screen bg-neutral-50 bg-hero-grid">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2"
-      >
-        Skip to main content
-      </a>
-
-      <header className="sticky top-0 z-40 border-b border-white/40 bg-white/80 shadow-sm backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="flex items-center gap-3 text-left"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center shadow-md">
-                <span className="text-white font-bold">S</span>
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold text-neutral-900">SmartLend</h1>
-                  {title && <p className="text-xs text-neutral-500">{title}</p>}
-                </div>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <nav className="hidden items-center gap-2 md:flex">
-                {role === 'customer' ? (
-                  <DashboardNavLink to="/dashboard/customer" label="Dashboard" />
-                ) : (
-                  <>
-                    <DashboardNavLink to="/dashboard/org" label="Dashboard" />
-                    <DashboardNavLink to="/review" label="Review" />
-                    <DashboardNavLink to="/dashboard/models" label="Model Analysis" />
-                  </>
-                )}
-              </nav>
-              {role !== 'customer' && servingInfo && servingInfo.artifact && (
-                <span
-                  title={servingInfo.engine_version}
-                  className="hidden items-center gap-1 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-medium text-primary-800 lg:inline-flex"
-                >
-                  Model: {servingInfo.model_name} · {servingInfo.artifact}
-                </span>
-              )}
-              {role !== 'customer' && (
-                <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
-                  Back to Home
-                </Button>
-              )}
-              <button
-                type="button"
-                onClick={() => void handleLogout()}
-                title="Log out"
-                className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Log Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <PageTransition>
-        <main id="main-content" className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-          {children}
-        </main>
-      </PageTransition>
-
-      <footer className="bg-neutral-900 text-neutral-400 py-8 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-sm">
-            <p>&copy; 2026 SmartLend. All rights reserved.</p>
-            <p className="mt-2">Intelligent Loan Assessment Platform</p>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
+  return <>{children}</>
 }
-
-function DashboardNavLink({ to, label }: { to: string; label: string }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-primary-100 text-primary-900'
-            : 'text-neutral-600 hover:bg-white hover:text-neutral-900'
-        }`
-      }
-    >
-      {label}
-    </NavLink>
-  )
-}
-

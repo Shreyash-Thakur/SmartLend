@@ -1,27 +1,43 @@
+/** Grey scale backed by CSS variables (see globals.css) so it flips in dark mode. */
+const varScale = (name) =>
+  Object.fromEntries(
+    [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => [
+      shade,
+      `rgb(var(--${name}-${shade}) / <alpha-value>)`,
+    ]),
+  )
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
+        // Brand colour: blue, matching the reference light theme. Full scale
+        // (the old green one only defined 50/100/500/600/900, so classes like
+        // primary-700 silently rendered nothing).
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          500: '#16a34a',
-          600: '#15803d',
-          900: '#14532d',
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+          950: '#172554',
         },
         accent: {
           50: '#f0f9ff',
           500: '#0ea5e9',
         },
-        neutral: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          500: '#6b7280',
-          900: '#111827',
-        },
+        neutral: varScale('neutral'),
+        gray: varScale('gray'),
+        // Fixed dark surface that does not flip with the theme.
+        ink: '#111827',
         success: '#10b981',
         warning: '#f59e0b',
         error: '#ef4444',

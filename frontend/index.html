@@ -4,9 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartLend</title>
+    <script>
+      // Apply the saved theme before first paint (default: light).
+      try {
+        if (localStorage.getItem('smartlend-theme') === 'dark') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch (e) {}
+    </script>
+    <style>
+      /* Boot splash: visible before any JS loads; React replaces #root's
+         contents on mount. Colours match globals.css / AppLoader. */
+      html { background: #f7f8fa; }
+      html.dark { background: #0a0a0a; }
+      .boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+      .boot span {
+        width: 44px; height: 44px; border-radius: 14px;
+        border: 2px solid rgba(115, 115, 115, 0.25); border-top-color: #3b82f6;
+        animation: boot-spin 0.9s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .boot span { animation-duration: 3s; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" role="status" aria-label="Loading SmartLend"><span></span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
   </html>
