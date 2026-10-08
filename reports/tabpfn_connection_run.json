@@ -1,6 +1,47 @@
 {
-  "started_at": "2026-09-22T17:19:20.395121+00:00",
+  "started_at": "2026-10-08T15:26:13.592266+00:00",
   "requested_rows": 400,
-  "verdict": "FAIL",
-  "reason": "SMARTLEND_TABPFN_URL is not set. Start the Colab notebook and copy its URL/token into .env."
+  "health": {
+    "configured": true,
+    "reachable": true,
+    "url": "https://per-cancer-spice-perth.trycloudflare.com",
+    "server": {
+      "status": "ok",
+      "model": "TabPFN-2.5 (pinned checkpoint)",
+      "checkpoint": "tabpfn-v2.5-classifier-v2.5_default.ckpt",
+      "tabpfn_version": "8.5.0",
+      "device": "Tesla T4",
+      "context_rows": 10000,
+      "feature_names": [
+        "age",
+        "dependents",
+        "years_employed",
+        "annual_income",
+        "monthly_income",
+        "existing_emis",
+        "cibil_score",
+        "total_loans",
+        "active_loans",
+        "closed_loans",
+        "missed_payments",
+        "credit_utilization_ratio",
+        "debt_to_income_ratio",
+        "loan_amount",
+        "loan_income_ratio"
+      ],
+      "licence": "TabPFN-2.5 outputs are non-commercial; research/demo use only."
+    }
+  },
+  "scored_rows": 400,
+  "eval_default_rate": 0.075,
+  "remote_auc_p_default": 0.71,
+  "min_sane_auc": 0.6,
+  "batches": 2,
+  "batch_seconds": [
+    13.47,
+    13.63
+  ],
+  "total_seconds": 27.1,
+  "mean_p_default": 0.060683238609926776,
+  "verdict": "PASS"
 }
