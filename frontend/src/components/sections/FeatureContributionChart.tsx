@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import type { FeatureContribution } from '@/types/application'
 import type { FeatureContributionChartProps } from '@/types/ui'
+import { useChartTheme } from '@/lib/chartTheme'
 
 /** SHAP values here are log-odds contributions and are therefore unbounded — a
  *  fixed [-1, 1] domain silently clips the largest attributions, which are
@@ -47,6 +48,8 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
   const resolvedSource = source ?? topFeatures.find((feature) => feature.source)?.source
   const isHeuristic = resolvedSource === 'heuristic'
 
+  const chart = useChartTheme()
+
   return (
     <Card title="Feature Importance Analysis" className="mt-6">
       <div className="space-y-6">
@@ -59,10 +62,10 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topFeatures} layout="vertical" margin={{ left: 12, right: 16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis type="number" domain={domain} allowDataOverflow={false} />
-              <YAxis dataKey="name" type="category" width={110} />
-              <Tooltip
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <XAxis {...chart.axisProps} type="number" domain={domain} allowDataOverflow={false} />
+              <YAxis {...chart.axisProps} dataKey="name" type="category" width={110} />
+              <Tooltip {...chart.tooltipProps}
                 formatter={(value: number) => [value, 'Impact']}
                 labelFormatter={(label) => `Feature: ${label}`}
               />

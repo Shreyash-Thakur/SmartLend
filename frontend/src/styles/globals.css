@@ -381,11 +381,11 @@
 .dark .bg-primary-50,
 .dark .bg-primary-100,
 .dark .hover\:bg-primary-50:hover,
-.dark .hover\:bg-primary-100:hover { background-color: rgb(22 163 74 / 0.12); }
-.dark .hover\:bg-primary-200:hover { background-color: rgb(22 163 74 / 0.2); }
-.dark .bg-primary-50\/40 { background-color: rgb(22 163 74 / 0.08); }
-.dark .bg-primary-50\/50 { background-color: rgb(22 163 74 / 0.08); }
-.dark .bg-primary-50\/60 { background-color: rgb(22 163 74 / 0.08); }
+.dark .hover\:bg-primary-100:hover { background-color: rgb(59 130 246 / 0.12); }
+.dark .hover\:bg-primary-200:hover { background-color: rgb(59 130 246 / 0.2); }
+.dark .bg-primary-50\/40 { background-color: rgb(59 130 246 / 0.08); }
+.dark .bg-primary-50\/50 { background-color: rgb(59 130 246 / 0.08); }
+.dark .bg-primary-50\/60 { background-color: rgb(59 130 246 / 0.08); }
 .dark .text-primary-600,
 .dark .text-primary-700,
 .dark .text-primary-800,
@@ -393,9 +393,9 @@
 .dark .text-primary-950,
 .dark .hover\:text-primary-600:hover,
 .dark .hover\:text-primary-700:hover,
-.dark .hover\:text-primary-900:hover { color: rgb(134 239 172); }
-.dark .text-primary-800\/80 { color: rgb(134 239 172 / 0.8); }
-.dark .border-primary-100, .dark .border-primary-200, .dark .border-primary-300 { border-color: rgb(22 163 74 / 0.3); }
+.dark .hover\:text-primary-900:hover { color: rgb(147 197 253); }
+.dark .text-primary-800\/80 { color: rgb(147 197 253 / 0.8); }
+.dark .border-primary-100, .dark .border-primary-200, .dark .border-primary-300 { border-color: rgb(59 130 246 / 0.3); }
 .dark .bg-accent-50,
 .dark .bg-accent-100,
 .dark .hover\:bg-accent-50:hover,
@@ -470,5 +470,14 @@ textarea {
 }
 
 ::selection {
-  background: rgba(22, 163, 74, 0.18);
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* Leaflet map tiles in dark mode: invert + rotate hue keeps water blue-ish
+   and land dark, without needing a keyed dark basemap provider. */
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
+.dark .leaflet-container {
+  background: #0a0a0a;
 }

@@ -5,6 +5,8 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { AppBackground } from '@/components/background/AppBackground'
 import { AppLoader } from '@/components/loader/AppLoader'
 import { PageTransition } from '@/components/layouts/PageTransition'
+import { AppShell } from '@/components/layouts/AppShell'
+import { isShellPath } from '@/components/layouts/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/authStore'
 
@@ -79,7 +81,9 @@ export default function App() {
         <AppLoader />
       ) : (
         <AnimatePresence mode="wait" onExitComplete={() => window.scrollTo(0, 0)}>
-          <PageTransition key={pathname}>
+          {/* Shell pages share one key so the shell persists across them and
+              animates only its own content; other pages transition whole. */}
+          <PageTransition key={isShellPath(pathname) ? 'shell' : pathname}>
             <Suspense fallback={<AppLoader />}>
               <Routes location={location}>
                 <Route path="/auth" element={<AuthPage />} />
@@ -97,62 +101,71 @@ export default function App() {
                     )
                   }
                 />
+                {/* Signed-in pages share one persistent shell (sidebar + top bar). */}
                 <Route
-                  path="/dashboard/customer"
-                  element={
-                    <ProtectedRoute requiredRole="customer">
-                      <CustomerDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/customer/new"
-                  element={
-                    <ProtectedRoute requiredRole="customer">
-                      <CustomerNewApplication />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/org"
-                  element={
-                    <ProtectedRoute requiredRole="org">
-                      <OrganizationDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/dashboard/models"
-                  element={
-                    <ProtectedRoute requiredRole="org">
-                      <ModelAnalysisDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/analytics/geo"
-                  element={
-                    <ProtectedRoute requiredRole="org">
-                      <GeoAnalytics />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/review"
-                  element={
-                    <ProtectedRoute requiredRole="org">
-                      <ReviewPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/review/:applicationId"
                   element={
                     <ProtectedRoute>
-                      <ApplicationReview />
+                      <AppShell />
                     </ProtectedRoute>
                   }
-                />
+                >
+                  <Route
+                    path="/dashboard/customer"
+                    element={
+                      <ProtectedRoute requiredRole="customer">
+                        <CustomerDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/customer/new"
+                    element={
+                      <ProtectedRoute requiredRole="customer">
+                        <CustomerNewApplication />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/org"
+                    element={
+                      <ProtectedRoute requiredRole="org">
+                        <OrganizationDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/models"
+                    element={
+                      <ProtectedRoute requiredRole="org">
+                        <ModelAnalysisDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics/geo"
+                    element={
+                      <ProtectedRoute requiredRole="org">
+                        <GeoAnalytics />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/review"
+                    element={
+                      <ProtectedRoute requiredRole="org">
+                        <ReviewPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/review/:applicationId"
+                    element={
+                      <ProtectedRoute>
+                        <ApplicationReview />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

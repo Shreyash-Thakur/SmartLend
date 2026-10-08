@@ -18,6 +18,7 @@ import { Card, KPICard } from '@/components/common'
 import { getModelAnalysis, getStats, getActiveModel, getServingModelInfo, setActiveModel } from '@/services/applications'
 import type { ServingModelInfo } from '@/services/applications'
 import type { ModelAnalysisResponse, ModelCaseItem, ModelMetricItem, StatsResponse } from '@/types/api'
+import { useChartTheme } from '@/lib/chartTheme'
 
 const DECISION_COLORS: Record<string, string> = {
   APPROVE: '#10b981',
@@ -144,6 +145,7 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
 }
 
 export const ModelAnalysisDashboard: React.FC = () => {
+  const chart = useChartTheme()
   const [analysis, setAnalysis] = useState<ModelAnalysisResponse | null>(null)
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [activeModel, setActiveModelState] = useState<string>('LogisticRegression')
@@ -549,10 +551,10 @@ export const ModelAnalysisDashboard: React.FC = () => {
                   layout="vertical"
                   margin={{ top: 8, right: 32, left: 24, bottom: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" domain={[0, 100]} unit="%" />
-                  <YAxis type="category" dataKey="model" width={130} />
-                  <Tooltip formatter={(value: number) => [`${value}%`, 'AUC']} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                  <XAxis {...chart.axisProps} type="number" domain={[0, 100]} unit="%" />
+                  <YAxis {...chart.axisProps} type="category" dataKey="model" width={130} />
+                  <Tooltip {...chart.tooltipProps} formatter={(value: number) => [`${value}%`, 'AUC']} />
                   <Bar dataKey="auc" radius={[0, 4, 4, 0]}>
                     {aucChartData.map((row) => (
                       <Cell
@@ -573,10 +575,10 @@ export const ModelAnalysisDashboard: React.FC = () => {
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={modelMetricsData} margin={{ top: 8, right: 16, left: 0, bottom: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="model" angle={-18} textAnchor="end" height={60} />
-                <YAxis domain={[0, 100]} />
-                <Tooltip formatter={(value: number) => [`${value}%`, '']} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <XAxis {...chart.axisProps} dataKey="model" angle={-18} textAnchor="end" height={60} />
+                <YAxis {...chart.axisProps} domain={[0, 100]} />
+                <Tooltip {...chart.tooltipProps} formatter={(value: number) => [`${value}%`, '']} />
                 <Legend />
                 <Bar dataKey="accuracy" fill="#2563eb" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="precision" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
@@ -598,10 +600,10 @@ export const ModelAnalysisDashboard: React.FC = () => {
             {confusionDerived.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={confusionDerived} margin={{ top: 8, right: 16, left: 0, bottom: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="model" angle={-18} textAnchor="end" height={60} />
-                  <YAxis />
-                  <Tooltip formatter={(value: number, name: string) => [value.toLocaleString('en-IN'), name]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                  <XAxis {...chart.axisProps} dataKey="model" angle={-18} textAnchor="end" height={60} />
+                  <YAxis {...chart.axisProps} />
+                  <Tooltip {...chart.tooltipProps} formatter={(value: number, name: string) => [value.toLocaleString('en-IN'), name]} />
                   <Legend />
                   <Bar dataKey="fp" stackId="err" fill="#ef4444" name="False Positives (bad approvals)" />
                   <Bar dataKey="fn" stackId="err" fill="#f59e0b" name="False Negatives (missed good)" />
@@ -654,12 +656,12 @@ export const ModelAnalysisDashboard: React.FC = () => {
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis type="number" dataKey="x" name="ML Prob" unit="%" domain={[0, 100]} />
-                <YAxis type="number" dataKey="y" name="CBES Prob" unit="%" domain={[0, 100]} />
-                <ReferenceLine x={50} stroke="#94a3b8" strokeDasharray="4 4" />
-                <ReferenceLine y={50} stroke="#94a3b8" strokeDasharray="4 4" />
-                <Tooltip
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <XAxis {...chart.axisProps} type="number" dataKey="x" name="ML Prob" unit="%" domain={[0, 100]} />
+                <YAxis {...chart.axisProps} type="number" dataKey="y" name="CBES Prob" unit="%" domain={[0, 100]} />
+                <ReferenceLine x={50} stroke={chart.axis} strokeDasharray="4 4" />
+                <ReferenceLine y={50} stroke={chart.axis} strokeDasharray="4 4" />
+                <Tooltip {...chart.tooltipProps}
                   cursor={{ strokeDasharray: '3 3' }}
                   formatter={(value: number, name: string) => [`${value}%`, name]}
                   labelFormatter={() => 'Model point'}
@@ -684,10 +686,10 @@ export const ModelAnalysisDashboard: React.FC = () => {
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis type="number" dataKey="recall" name="Recall" unit="%" domain={[0, 100]} />
-                <YAxis type="number" dataKey="precision" name="Precision" unit="%" domain={[0, 100]} />
-                <Tooltip
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <XAxis {...chart.axisProps} type="number" dataKey="recall" name="Recall" unit="%" domain={[0, 100]} />
+                <YAxis {...chart.axisProps} type="number" dataKey="precision" name="Precision" unit="%" domain={[0, 100]} />
+                <Tooltip {...chart.tooltipProps}
                   formatter={(value: number, name: string) => [`${value}%`, name]}
                   labelFormatter={() => 'Model Point'}
                 />
@@ -717,10 +719,10 @@ export const ModelAnalysisDashboard: React.FC = () => {
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={probabilityBandsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="band" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip formatter={(value: number) => [`${value}%`, '']} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <XAxis {...chart.axisProps} dataKey="band" />
+                <YAxis {...chart.axisProps} domain={[0, 100]} />
+                <Tooltip {...chart.tooltipProps} formatter={(value: number) => [`${value}%`, '']} />
                 <Legend />
                 <Bar dataKey="approvePct" stackId="a" fill="#10b981" name="Approve %" />
                 <Bar dataKey="rejectPct" stackId="a" fill="#ef4444" name="Reject %" />

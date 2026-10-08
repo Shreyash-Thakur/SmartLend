@@ -243,7 +243,22 @@ on the production build with a throttled network.
 - [ ] Short top progress bar while lazy chunks load
 - [ ] Smoke test
 
-### Phase 4 — dashboard layout (priority page)
+### Phase 4 — dashboard layout (priority page)  ✅ done 2026-10-08
+
+`components/layouts/AppShell.tsx` is a layout route in `App.tsx` (sidebar
+mounted once, collapsible + mobile drawer, breadcrumb top bar, own Suspense +
+content-only transitions); nav config in `layouts/navigation.ts`.
+`DashboardLayout` is now a thin wrapper that publishes the page title.
+Brand colour switched green → blue (full scale; one config block to revert).
+New `KPICard` (icon tile/tone/hint), flatter `Card`, `lib/chartTheme.ts`
+(recharts colours per theme) applied on org, models, geo, feature chart.
+Org + customer dashboards rebuilt; Geo map darkened via CSS filter in dark
+mode (CARTO dark tiles now need an API key).
+
+Found, not fixed (pre-existing, needs a decision): with Firebase configured,
+"Continue as Guest" is wiped by `onAuthStateChanged(null)` in `useAuth`, so
+guests bounce back to /auth.
+
 - [ ] Replace top-header layout with sidebar layout like the screenshots:
       collapsible left sidebar, grouped nav, user block at the bottom, top bar
       with breadcrumb + theme toggle (+ bell slot, empty for now)

@@ -562,7 +562,7 @@ export const CustomerNewApplication: React.FC = () => {
   const canListen = Boolean(voice?.tts.configured)
 
   return (
-    <DashboardLayout title="Customer Dashboard" role="customer">
+    <DashboardLayout title="New Application" role="customer">
       <section className="mb-4">
         <Button
           variant="ghost"
