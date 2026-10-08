@@ -208,7 +208,16 @@ are not real Tailwind classes, so they render nothing in light mode; untouched.
 - [ ] Sun/moon toggle component in the top bar
 - [ ] Smoke test
 
-### Phase 2 — ShapeGrid background on every page
+### Phase 2 — ShapeGrid background on every page  ✅ done 2026-10-08
+
+`components/background/ShapeGrid.tsx` (React Bits TS-TW, patched: window
+hover, DPR, reduced motion, vignette fades from the page colour — upstream
+faded from transparent black, which turned light mode grey) +
+`AppBackground.tsx` (theme colours), mounted once in `App.tsx`. Page
+containers made transparent; `:root` is a plain colour. Verified in headless
+Chrome: animates, one canvas across navigation, hover works through content,
+static under reduced motion.
+
 - [ ] Add `components/background/ShapeGrid.tsx` (+ `.css`), TS variant
 - [ ] Change hover listener from canvas → window (content covers the canvas)
 - [ ] Add reduced-motion check and devicePixelRatio-aware sizing
@@ -219,7 +228,14 @@ are not real Tailwind classes, so they render nothing in light mode; untouched.
 - [ ] Remove the old gradient backgrounds that would fight it
 - [ ] Smoke test (also check CPU in DevTools Performance — should idle low)
 
-### Phase 3 — preloader + page transitions
+### Phase 3 — preloader + page transitions  ✅ done 2026-10-08
+
+Three layers: HTML/CSS boot splash in `index.html` (covers the pre-JS blank
+screen), `components/loader/AppLoader.tsx` for auth start-up + lazy chunks,
+and `AnimatePresence` + `PageTransition` keyed by path in `App.tsx` (scrolls
+to top between pages). Per-page `PageTransition` wrappers removed. Verified
+on the production build with a throttled network.
+
 - [ ] Branded loader (logo + spinner) replacing both "Loading SmartLend..."
       screens in `App.tsx`
 - [ ] `AnimatePresence` keyed on route in `App.tsx` for enter + exit

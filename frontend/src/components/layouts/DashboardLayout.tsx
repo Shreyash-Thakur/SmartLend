@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/common'
-import { PageTransition } from '@/components/layouts/PageTransition'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { getServingModelInfo } from '@/services/applications'
@@ -42,7 +41,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 bg-hero-grid">
+    <div className="min-h-screen">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2"
@@ -109,11 +108,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
       </header>
 
-      <PageTransition>
         <main id="main-content" className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           {children}
         </main>
-      </PageTransition>
 
       <footer className="bg-ink text-neutral-400 dark:border-t dark:border-neutral-200 py-8 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

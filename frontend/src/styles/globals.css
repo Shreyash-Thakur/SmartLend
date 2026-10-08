@@ -420,11 +420,10 @@
 
 :root {
   color: #111827;
-  background:
-    radial-gradient(circle at top left, rgba(125, 189, 173, 0.32), transparent 30%),
-    radial-gradient(circle at bottom center, rgba(239, 255, 183, 0.18), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.12), transparent 30%),
-    linear-gradient(180deg, #f7fbfb 0%, #eef6f0 46%, #edf2f7 100%);
+  /* Plain page colour; the animated ShapeGrid (AppBackground) draws on top
+     of it and fades its edges into this same colour. Keep in sync with
+     PAGE_BG in components/background/AppBackground.tsx. */
+  background: #f7f8fa;
 }
 
 :root.dark {
