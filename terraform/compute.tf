@@ -64,9 +64,10 @@ resource "aws_instance" "app" {
   # at apply time. Changing this script REPLACES the instance (user_data is
   # immutable per instance) — plan will say so, and that is correct behavior.
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
-    region    = var.region
-    ecr_image = var.ecr_image
-    db_url    = "postgresql+psycopg2://${var.db_username}:${var.db_password}@${aws_db_instance.smartlend.address}:5432/smartlend"
+    region            = var.region
+    ecr_image         = var.ecr_image
+    db_url            = "postgresql+psycopg2://${var.db_username}:${var.db_password}@${aws_db_instance.smartlend.address}:5432/smartlend"
+    anthropic_api_key = var.anthropic_api_key
   })
 
   # The app writes its seed to the DB on first boot, so the DB must exist

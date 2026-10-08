@@ -4,3 +4,6 @@
 
 db_password = "CHANGE-ME-your-rds-master-password"
 my_ip_cidr  = "YOUR.PUBLIC.IP.HERE/32" # e.g. 110.172.16.14/32
+
+# Optional - live agent briefing on the deployed demo:
+# anthropic_api_key = "sk-ant-..."

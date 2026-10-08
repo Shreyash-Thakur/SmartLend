@@ -48,3 +48,10 @@ variable "ecr_image" {
   type        = string
   default     = "945323157703.dkr.ecr.ap-south-1.amazonaws.com/smartlend-app:latest"
 }
+
+variable "anthropic_api_key" {
+  description = "Optional: enables the live agent-briefing panel. Leave empty to deploy without it; the service degrades to a calm 503 with setup notes."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

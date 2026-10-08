@@ -23,6 +23,11 @@ snap install aws-cli --classic
 aws ecr get-login-password --region ${region} \
   | docker login --username AWS --password-stdin $(echo ${ecr_image} | cut -d/ -f1)
 docker pull ${ecr_image}
+# Optional agent-briefing key: only passed when the terraform var is set.
+EXTRA_ENV=""
+if [ -n "${anthropic_api_key}" ]; then
+  EXTRA_ENV="-e ANTHROPIC_API_KEY=${anthropic_api_key}"
+fi
 docker run -d --name smartlend -p 80:8000 --restart unless-stopped \
-  -e SMARTLEND_DATABASE_URL="${db_url}" \
+  -e SMARTLEND_DATABASE_URL="${db_url}" $EXTRA_ENV \
   ${ecr_image}
