@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.config import exploration_rate
 from backend.app.models import DeferredReview
+from backend.app.services.ttl_cache import TTLCache
 
 # The real gate. Imported, never reimplemented: the four conditions and their
 # thresholds (Z_THRESHOLD, MIN_EXPLORATION_LABELS, the Tasche bound) live in
@@ -144,9 +145,36 @@ def _empty_counts() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+# Gate results are cached for 5 minutes. Measured on the deployed t3.micro,
+# every /api/relearning/status call re-read prediction_outputs.csv (36 MB,
+# 307k rows) and re-ran the 200-trial gate evaluation — >65 s per request.
+#
+# CORRECTNESS: a stale-by-TTL governance readout is acceptable here because
+# the gate's file input is immutable per deployment — prediction_outputs.csv
+# is a committed artifact rewritten only by an offline evaluation run, never
+# by the API (the API never trains). The gate's only live input, the
+# exploration-labels count, is part of the cache key, so a changed count
+# recomputes immediately; the DB-derived capture counts in the status payload
+# are NOT cached at all and stay fresh on every call. Failed evaluations are
+# never cached (see cache_result below), so a fail-closed verdict ends the
+# moment the artifact is readable again.
+_GATE_RESULT_TTL_SECONDS = 300.0
+_GATE_CACHE = TTLCache()
+
+
 def _evaluate_gate(exploration_labels: int, predictions_path: Path | None) -> dict[str, Any]:
-    """Run the real four-condition gate, or fail closed with a reason."""
+    """Run the real four-condition gate (cached), or fail closed with a reason."""
     path = predictions_path or gate_module.DEFAULT_PREDICTIONS
+    return _GATE_CACHE.get_or_compute(
+        (str(path), int(exploration_labels)),
+        _GATE_RESULT_TTL_SECONDS,
+        lambda: _evaluate_gate_uncached(exploration_labels, path),
+        # Never cache a fail-closed fallback: refusal must not outlive its cause.
+        cache_result=lambda result: not result.get("unavailable", False),
+    )
+
+
+def _evaluate_gate_uncached(exploration_labels: int, path: Path) -> dict[str, Any]:
     try:
         frame = gate_module.load_predictions(path)
         return gate_module.evaluate_gate(frame, exploration_labels=exploration_labels)

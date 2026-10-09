@@ -10,6 +10,7 @@ import csv
 from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from backend.app.database import SessionLocal
 from backend.app.models import LoanApplication
@@ -17,6 +18,8 @@ from backend.app.schemas import LoanApplicationInput
 from backend.app.services.decision_service import build_application_response
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.model_analysis_service import get_model_analysis_payload
+from backend.app.services.training_data_service import get_training_applications
+from backend.app.services.ttl_cache import cached
 
 # NOTE (2026-08-30): public_api_service.py's input vocabulary changed from
 # the old 15-key India-specific schema to a 7-key Home Credit schema (see
@@ -319,6 +322,47 @@ def get_dashboard_metrics_payload() -> dict[str, Any]:
 
 def get_model_comparison_payload() -> list[dict[str, Any]]:
     return _compute_model_rows()
+
+
+# /api/public-metrics headline numbers, cached for 60 s. Measured on the
+# deployed t3.micro this computation took >65 s per request: it builds an API
+# payload for every LoanApplication row, materialises the full training-data
+# view, and consults the model-analysis aggregates over the 307k-row
+# prediction artifact. The payload mixes (a) DB-derived counts, which change
+# as applications arrive — hence the short 60 s TTL instead of the 300 s used
+# for the artifact-only endpoints — and (b) aggregates over committed
+# artifacts that are immutable per deployment (the API never trains and never
+# rewrites them). The cache key deliberately ignores the session argument:
+# every session reads the same database, and a headline metric stale by at
+# most 60 s is acceptable for a public marketing readout.
+@cached(60.0, key=lambda db: "public-metrics")
+def get_public_metrics_payload(db: Session) -> dict[str, int | float]:
+    """Headline totals for the public landing page. Logic moved verbatim from
+    the `/public-metrics` router so the cache lives at the service layer."""
+    db_items = [build_application_response(item) for item in db.query(LoanApplication).all()]
+    for item in db_items:
+        item["cbes_score"] = item.get("cbes_prob")
+    all_items = [*db_items, *get_training_applications()]
+    total = len(all_items)
+    deferred = sum(1 for item in all_items if item.get("finalDecision") == "DEFER")
+    automation_rate = round(((total - deferred) / total) * 100) if total else 0
+
+    analysis_payload = get_model_analysis_payload(limit=100)
+    summary = analysis_payload.get("summary", {}) if isinstance(analysis_payload, dict) else {}
+    automated_accuracy = float(summary.get("automatedAccuracy", 0.0) or 0.0)
+    deferral_rate = float(summary.get("deferralRate", 0.0) or 0.0)
+
+    # Hybrid quality assumes deferred cases receive analyst adjudication.
+    analyst_resolution_quality = 92.0
+    hybrid_quality = automated_accuracy + ((deferral_rate / 100.0) * max(0.0, analyst_resolution_quality - automated_accuracy))
+    quality_score = round(hybrid_quality, 2) if total else 0.0
+
+    return {
+        "applicationsProcessed": total,
+        "approvalSpeedup": round(1 + (automation_rate / 100), 2),
+        "accuracy": quality_score,
+        "automationRate": automation_rate,
+    }
 
 
 def _append_recent_application(app_item: LoanApplication) -> None:

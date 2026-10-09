@@ -8,6 +8,7 @@ import math
 
 from backend.app.services.decision_engine import _BLEND_ALPHA
 from backend.app.services.ml_service import dynamic_hybrid_decision
+from backend.app.services.ttl_cache import cached
 
 
 ARTIFACTS_DIR = Path(__file__).resolve().parents[2] / "artifacts"
@@ -350,6 +351,20 @@ _PAYLOAD_CACHE: dict[str, Any] = {"key": None, "payload": None}
 _PAYLOAD_CACHE_CASES = 4000
 
 
+# Serve repeat calls straight from memory for 5 minutes. Measured on the
+# deployed t3.micro, /api/model-analysis took >65 s per request even with the
+# (mtime, size)-keyed caches below, because the stat + rebuild-on-miss path
+# still ran under memory pressure. A stale-by-TTL payload is acceptable:
+# prediction_outputs.csv and model_metrics.csv are committed artifacts,
+# immutable per deployment — the API never trains and never rewrites them —
+# and after the TTL the inner (mtime, size) check still picks up an offline
+# retraining rewrite. Empty fallback payloads (missing/unreadable artifacts,
+# surfaced by the router as 404) are never cached, so recovery is immediate.
+@cached(
+    300.0,
+    key=lambda limit=200: int(limit),
+    cache_result=lambda payload: bool(payload.get("models") or payload.get("cases")),
+)
 def get_model_analysis_payload(limit: int = 200) -> dict[str, Any]:
     """Build the model-analysis payload, degrading to an empty payload on error.
 

@@ -42,6 +42,7 @@ from backend.app.services.explainability_service import build_explainability_pay
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.model_analysis_service import get_model_analysis_payload
 from backend.app.services.parser_service import parse_document
+from backend.app.services.public_api_service import get_public_metrics_payload
 from backend.app.services.review_reason_codes import catalog as reason_code_catalog
 from backend.app.services.training_data_service import get_training_application_by_id, get_training_applications
 
@@ -912,30 +913,10 @@ def dashboard_metrics(db: Session = Depends(get_db)) -> dict[str, int]:
 
 @router.get("/public-metrics", response_model=PublicMetricsResponse)
 def public_metrics(db: Session = Depends(get_db)) -> dict[str, int | float]:
-    db_items = [build_application_response(item) for item in db.query(LoanApplication).all()]
-    for item in db_items:
-        item["cbes_score"] = item.get("cbes_prob")
-    all_items = [*db_items, *get_training_applications()]
-    total = len(all_items)
-    deferred = sum(1 for item in all_items if item.get("finalDecision") == "DEFER")
-    automation_rate = round(((total - deferred) / total) * 100) if total else 0
-
-    analysis_payload = get_model_analysis_payload(limit=100)
-    summary = analysis_payload.get("summary", {}) if isinstance(analysis_payload, dict) else {}
-    automated_accuracy = float(summary.get("automatedAccuracy", 0.0) or 0.0)
-    deferral_rate = float(summary.get("deferralRate", 0.0) or 0.0)
-
-    # Hybrid quality assumes deferred cases receive analyst adjudication.
-    analyst_resolution_quality = 92.0
-    hybrid_quality = automated_accuracy + ((deferral_rate / 100.0) * max(0.0, analyst_resolution_quality - automated_accuracy))
-    quality_score = round(hybrid_quality, 2) if total else 0.0
-
-    return {
-        "applicationsProcessed": total,
-        "approvalSpeedup": round(1 + (automation_rate / 100), 2),
-        "accuracy": quality_score,
-        "automationRate": automation_rate,
-    }
+    # Computation (and its 60 s TTL cache) lives in public_api_service — this
+    # endpoint rebuilt the full application + training view per request and
+    # measured >65 s on the deployed t3.micro.
+    return get_public_metrics_payload(db)
 
 
 @router.get("/trends")
