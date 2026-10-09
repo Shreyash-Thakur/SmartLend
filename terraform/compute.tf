@@ -55,6 +55,11 @@ resource "aws_instance" "app" {
   iam_instance_profile        = aws_iam_instance_profile.ec2.name
   associate_public_ip_address = true
 
+  # Without this, a user_data change is stored on the instance but the new
+  # boot script never RUNS (the provider default is in-place attribute update)
+  # - discovered live when a Gemini-key rollout silently no-opped.
+  user_data_replace_on_change = true
+
   root_block_device {
     volume_size = 16 # 8 GiB default is too tight for OS + Docker + image
     volume_type = "gp3"
