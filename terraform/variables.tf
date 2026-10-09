@@ -55,3 +55,10 @@ variable "anthropic_api_key" {
   sensitive   = true
   default     = ""
 }
+
+variable "gemini_api_key" {
+  description = "Optional alternative to anthropic_api_key for the agent-briefing panel (Gemini provider)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

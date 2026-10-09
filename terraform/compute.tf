@@ -68,6 +68,7 @@ resource "aws_instance" "app" {
     ecr_image         = var.ecr_image
     db_url            = "postgresql+psycopg2://${var.db_username}:${var.db_password}@${aws_db_instance.smartlend.address}:5432/smartlend"
     anthropic_api_key = var.anthropic_api_key
+    gemini_api_key    = var.gemini_api_key
   })
 
   # The app writes its seed to the DB on first boot, so the DB must exist
