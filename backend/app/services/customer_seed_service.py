@@ -304,20 +304,26 @@ def seed_customer_profiles(force: bool = False, fixture_path: str | Path = SEED_
 
     session = SessionLocal()
     try:
-        existing = session.execute(select(func.count()).select_from(CustomerProfile)).scalar_one()
-        if existing and not force:
-            return 0
-        if force and existing:
+        if force:
             session.query(CustomerProfile).delete()
+
+        # Top-up semantics: insert only fixture rows whose customer_id is not
+        # already present. Still idempotent (a second run inserts nothing) but
+        # a grown fixture reaches existing deployments on their next startup
+        # instead of being silently skipped.
+        existing_ids = {row[0] for row in session.execute(select(CustomerProfile.customer_id))}
+        missing = [r for r in records if r.get("customer_id") not in existing_ids]
+        if not missing:
+            return 0
 
         columns = {c.name for c in CustomerProfile.__table__.columns}
         session.bulk_insert_mappings(
             CustomerProfile,
-            [{k: v for k, v in record.items() if k in columns} for record in records],
+            [{k: v for k, v in record.items() if k in columns} for record in missing],
         )
         session.commit()
-        logger.info("Seeded %d customer profiles from %s", len(records), fixture_path)
-        return len(records)
+        logger.info("Seeded %d customer profiles from %s", len(missing), fixture_path)
+        return len(missing)
     except Exception:  # noqa: BLE001 - see docstring: seeding must not break startup
         session.rollback()
         logger.exception("Customer profile seeding failed; continuing without seed data")
