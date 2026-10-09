@@ -24,12 +24,13 @@ import json
 import logging
 from typing import Any
 
-from backend.app.config import anthropic_api_key, anthropic_configured
+from backend.app.config import anthropic_api_key, anthropic_configured, get_secret
 from backend.app.services.review_reason_codes import catalog as reason_code_catalog
 
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-opus-5"
+GEMINI_MODEL = "gemini-2.5-flash"
 MAX_TOKENS = 4096
 
 # Structured output: the briefing arrives as validated JSON, not prose to parse.
@@ -96,8 +97,21 @@ class AgentBriefingError(RuntimeError):
     """The API answered but did not produce a usable briefing."""
 
 
+def _provider() -> str | None:
+    """Which LLM backs the briefing: 'anthropic' (native) or 'gemini' (adapter).
+
+    Anthropic wins when both keys are present; Gemini is the fallback so a
+    GEMINI_API_KEY alone is enough to light the panel up.
+    """
+    if anthropic_configured():
+        return "anthropic"
+    if get_secret("GEMINI_API_KEY"):
+        return "gemini"
+    return None
+
+
 def configured() -> bool:
-    return anthropic_configured()
+    return _provider() is not None
 
 
 def _client():
@@ -106,15 +120,73 @@ def _client():
     return anthropic.Anthropic(api_key=anthropic_api_key())
 
 
+def _gemini_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Gemini's responseSchema speaks an OpenAPI subset: same type/properties/
+    required/items/description, but no additionalProperties — strip it."""
+    cleaned = {k: v for k, v in schema.items() if k != "additionalProperties"}
+    if "properties" in cleaned:
+        cleaned["properties"] = {k: _gemini_schema(v) for k, v in cleaned["properties"].items()}
+    if "items" in cleaned:
+        cleaned["items"] = _gemini_schema(cleaned["items"])
+    return cleaned
+
+
+def _generate_gemini(user_text: str) -> tuple[str, str]:
+    """(briefing JSON text, model name) via Gemini's native API; errors are
+    mapped onto the same exception contract as the Anthropic path."""
+    import httpx
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    body = {
+        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+        "contents": [{"role": "user", "parts": [{"text": user_text}]}],
+        "generationConfig": {
+            "maxOutputTokens": MAX_TOKENS,
+            "responseMimeType": "application/json",
+            "responseSchema": _gemini_schema(BRIEFING_SCHEMA),
+        },
+    }
+    try:
+        response = httpx.post(
+            url, json=body, timeout=60.0,
+            headers={"x-goog-api-key": get_secret("GEMINI_API_KEY") or ""},
+        )
+    except httpx.HTTPError as exc:
+        raise AgentUnavailableError(f"Could not reach the Gemini API: {exc}") from exc
+    if response.status_code in (401, 403):
+        raise AgentUnavailableError(f"Gemini API key rejected (HTTP {response.status_code}).")
+    if response.status_code == 429:
+        raise AgentUnavailableError("Gemini API rate limited; retry shortly.")
+    if response.status_code != 200:
+        raise AgentUnavailableError(
+            f"Gemini API error {response.status_code}: {response.text[:200]}")
+
+    data = response.json()
+    candidates = data.get("candidates") or []
+    if not candidates:
+        reason = (data.get("promptFeedback") or {}).get("blockReason", "no candidates")
+        raise AgentBriefingError(f"Gemini produced no briefing ({reason}).")
+    finish = candidates[0].get("finishReason")
+    if finish not in (None, "STOP", "MAX_TOKENS"):
+        raise AgentBriefingError(f"Gemini stopped abnormally ({finish}).")
+    parts = (candidates[0].get("content") or {}).get("parts") or []
+    text = next((p.get("text") for p in parts if p.get("text")), None)
+    if not text:
+        raise AgentBriefingError("Gemini returned no text content.")
+    return text, GEMINI_MODEL
+
+
 def generate_briefing(report: dict[str, Any]) -> dict[str, Any]:
     """One decision report in, one structured reviewer briefing out.
 
     Raises AgentUnavailableError (missing key / transport / rate limit — the
     caller answers 503) or AgentBriefingError (malformed model output — 502).
     """
-    if not configured():
+    provider = _provider()
+    if provider is None:
         raise AgentUnavailableError(
-            "ANTHROPIC_API_KEY is not set. Add it to .env to enable the reviewer briefing agent."
+            "No agent API key is set. Add ANTHROPIC_API_KEY (or GEMINI_API_KEY) "
+            "to .env to enable the reviewer briefing agent."
         )
 
     import anthropic
@@ -134,42 +206,42 @@ def generate_briefing(report: dict[str, Any]) -> dict[str, Any]:
         "reason_code_taxonomy": taxonomy,
     }
 
-    try:
-        response = _client().messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            output_config={"format": {"type": "json_schema", "schema": BRIEFING_SCHEMA}},
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "Brief the reviewer on this application:\n"
-                        + json.dumps(user_payload, indent=1, default=str)
-                    ),
-                }
-            ],
-        )
-    except anthropic.AuthenticationError as exc:
-        raise AgentUnavailableError(f"Anthropic API key rejected: {exc.message}") from exc
-    except anthropic.RateLimitError as exc:
-        raise AgentUnavailableError("Anthropic API rate limited; retry shortly.") from exc
-    except anthropic.APIStatusError as exc:
-        raise AgentUnavailableError(f"Anthropic API error {exc.status_code}: {exc.message}") from exc
-    except anthropic.APIConnectionError as exc:
-        raise AgentUnavailableError(f"Could not reach the Anthropic API: {exc}") from exc
+    user_text = "Brief the reviewer on this application:\n" + json.dumps(
+        user_payload, indent=1, default=str
+    )
 
-    if response.stop_reason == "refusal":
-        raise AgentBriefingError("The model declined to produce a briefing for this case.")
+    if provider == "gemini":
+        text, model_name = _generate_gemini(user_text)
+    else:
+        try:
+            response = _client().messages.create(
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
+                system=SYSTEM_PROMPT,
+                output_config={"format": {"type": "json_schema", "schema": BRIEFING_SCHEMA}},
+                messages=[{"role": "user", "content": user_text}],
+            )
+        except anthropic.AuthenticationError as exc:
+            raise AgentUnavailableError(f"Anthropic API key rejected: {exc.message}") from exc
+        except anthropic.RateLimitError as exc:
+            raise AgentUnavailableError("Anthropic API rate limited; retry shortly.") from exc
+        except anthropic.APIStatusError as exc:
+            raise AgentUnavailableError(f"Anthropic API error {exc.status_code}: {exc.message}") from exc
+        except anthropic.APIConnectionError as exc:
+            raise AgentUnavailableError(f"Could not reach the Anthropic API: {exc}") from exc
 
-    text = next((block.text for block in response.content if block.type == "text"), None)
-    if not text:
-        raise AgentBriefingError("The model returned no text content.")
+        if response.stop_reason == "refusal":
+            raise AgentBriefingError("The model declined to produce a briefing for this case.")
+        text = next((block.text for block in response.content if block.type == "text"), None)
+        model_name = response.model
+        if not text:
+            raise AgentBriefingError("The model returned no text content.")
+
     try:
         briefing = json.loads(text)
     except json.JSONDecodeError as exc:
         raise AgentBriefingError(f"The model returned non-JSON output: {text[:200]}") from exc
 
-    briefing["model"] = response.model
+    briefing["model"] = model_name
     briefing["advisoryOnly"] = True
     return briefing
