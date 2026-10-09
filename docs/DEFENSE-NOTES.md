@@ -135,6 +135,16 @@ disk; serving 15-feature contract untouched.
   that gap is roadmap (promote the FE-v2 pipeline behind the same contract
   discipline), not an oversight — and the version stamping exists precisely so
   the two tracks can never be confused.
+- **"Why not TabPFN-3.5 (Sept 2026, claims 1M rows)?"** Released after our
+  evaluation cycle; and its weights license (TABPFN-3.5 License v1.0) bars
+  "any commercial or production purpose" for the model *and its outputs* —
+  explicitly including outputs feeding internal commercial decisions, which
+  is precisely what a loan decision is. Production requires a paid enterprise
+  agreement. Our 2026 challenger screen therefore tested permissively-licensed
+  models (TabICLv2 BSD-3, RealMLP Apache-2.0) a lender could actually deploy.
+  The license does allow benchmarking, so a 3.5 screen row can be added as a
+  research data point if asked. (Also: TabPFN is Prior Labs; Google's model is
+  TabFM — we evaluated TabFM separately: 0.6911, fusion KILL.)
 - **"Where does more accuracy come from next?"** Measured answer: data. The
   learning curve still rises at 246k (+0.010 per doubling), and the four
   unused Home Credit side tables are the known ~+0.015 path to ~0.79.
