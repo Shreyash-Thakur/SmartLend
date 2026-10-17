@@ -30,15 +30,15 @@ Credit-scoring research is dominated by a race for ranking accuracy, yet the
 decisions banks must defend are made downstream of the score: when to decide
 automatically, when to abstain, and how to prove to a regulator why. We present
 CredDefer, a deployed human-in-the-loop (HITL) credit decisioning system
-evaluated on 307{,}511 real loan applications, and---unusually for applied
-work---every claim in the system's development was adjudicated by a single
+evaluated on 307{,}511 real loan applications. Unusually for applied
+work, every comparative modelling claim in its development was adjudicated by a single
 pre-registered criterion: a gain is real only if it exceeds the measured
 cross-validation noise floor ($\pm 0.0036$ AUC) in fold-paired comparison.
 Under this one rule we report three findings. (1)~\emph{Information beats
 architecture}: enriching features lifted every model in every fold (best
 single model $0.7603{\to}0.7757$ AUC), while no honest combination of
-models---gradient-boosted ensembles, the TabPFN-2.5 and Google TabFM tabular
-foundation models, or 2026 deep-tabular challengers---ever cleared the floor.
+models (gradient-boosted ensembles, the TabPFN-2.5 and Google TabFM tabular
+foundation models, or 2026 deep-tabular challengers) ever cleared the floor.
 (2)~\emph{Deferral quality is measurable and was initially inverted}: the
 system's original disagreement-based router preferentially deferred the
 model's most confident cases ($z{\approx}{+}28\sigma$ against a random-router
@@ -50,9 +50,9 @@ reject-option baseline. (3)~\emph{Regulatory guarantees can be free}: 21
 domain-signed monotonicity constraints make directional adverse-action
 explanations true by construction at an AUC cost inside the noise floor,
 directly serving Reserve Bank of India explainability expectations. The full
-system---rule-based scoring, calibrated blending, capacity-aware deferral,
+system, comprising rule-based scoring, calibrated blending, capacity-aware deferral,
 reviewer capture with a deliberately closed relearning gate, and complete
-decision provenance---runs as a reproducible cloud deployment.
+decision provenance, runs as a reproducible cloud deployment.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -62,7 +62,7 @@ selective prediction, explainable AI, RBI compliance
 
 \section{Introduction}
 Automated credit assessment concentrates research attention on a single
-number---ranking accuracy (AUC)---while the institutions that deploy such
+number, ranking accuracy (AUC), while the institutions that deploy such
 models are accountable for an entire \emph{decision process}: which
 applications are decided instantly, which are escalated to a human
 underwriter, what the applicant is told, and what trail an auditor can follow.
@@ -83,18 +83,18 @@ in the system's development was decided by one rule, fixed before results
 existed: a gain counts only if the fold-paired mean AUC delta on identical
 5-fold splits exceeds the measured fold-noise floor of $\pm 0.0036$. The same
 rule that rejected our own hyperparameter tuning later rejected every model
-fusion we attempted---symmetry that we argue is what makes applied claims
+fusion we attempted: symmetry that we argue is what makes applied claims
 credible (Sec.~\ref{sec:protocol}).
 \item \textbf{Features versus fusion, answered on one dataset.} Holding
 models, folds and metric fixed and changing only the feature set, feature
 enrichment cleared the floor for \emph{every} model in \emph{every} fold
 ($+0.0155$ fold-paired for the best model), while the best honest ensemble of
-the improved models gained $+0.0016$---under the floor, as was every fusion
+the improved models gained $+0.0016$, under the floor, as was every fusion
 with two tabular foundation models and two 2026 deep-tabular challengers
 (Sec.~\ref{sec:results}).
 \item \textbf{Deferral audited, inverted, and repaired.} We show that a
-deployed disagreement-based deferral rule can be \emph{anti}-selective---ours
-deferred the model's most confident cases---and that this is detectable with
+deployed disagreement-based deferral rule can be \emph{anti}-selective (ours
+deferred the model's most confident cases), and that this is detectable with
 a simple permutation test against a random router. An uncertainty-based rule
 reversed the inversion at the mandated review capacity, and single-model
 epistemic uncertainty obtained from stochastic-gradient Langevin boosting
@@ -102,17 +102,17 @@ epistemic uncertainty obtained from stochastic-gradient Langevin boosting
 better than the classical reject-option baseline~\cite{chow1970}
 (Sec.~\ref{sec:deferral}).
 \item \textbf{Compliance guarantees priced empirically.} Monotonicity
-constraints on 21 domain-signed features---which make directional
-adverse-action explanations true by construction---cost $-0.0008$ AUC (inside
+constraints on 21 domain-signed features, which make directional
+adverse-action explanations true by construction, cost $-0.0008$ AUC (inside
 the noise floor) with zero violations in 14{,}400 empirical checks; by
 contrast, pushing a stated 7.5:1 misclassification-cost matrix into training
 never beat cost-optimal thresholding, confirming Elkan's classical
 argument~\cite{elkan2001} and locating the economics in the decision layer
 where governance already lives (Sec.~\ref{sec:studies}).
-\item \textbf{A reproducible deployment.} The complete system---API, rule
+\item \textbf{A reproducible deployment.} The complete system (API, rule
 engine, review queue with reviewer-outcome capture behind a deliberately
 closed relearning gate, an advisory LLM briefing for reviewers, and decision
-provenance stamps---runs on commodity cloud infrastructure from a single
+provenance stamps) runs on commodity cloud infrastructure from a single
 infrastructure-as-code definition, with a GPU-hosted foundation-model second
 opinion served remotely and verified by a labelled connection test
 (Sec.~\ref{sec:deploy}).
@@ -133,8 +133,8 @@ a deployed rule against a random-router null before trusting it.
 \textbf{Uncertainty quantification.} Deep ensembles~\cite{lakshminarayanan2017}
 and their efficient single-network counterparts~\cite{mukhoti2023} estimate
 epistemic uncertainty; calibration of modern models is itself
-fragile~\cite{guo2017}. For gradient-boosted trees---still the strongest
-model class on tabular data---Malinin et al.\ obtain principled ensembles
+fragile~\cite{guo2017}. For gradient-boosted trees, still the strongest
+model class on tabular data, Malinin et al.\ obtain principled ensembles
 from a single SGLB model~\cite{malinin2021}, the mechanism we adopt for
 deferral routing. Conformal prediction supplies distribution-free abstention
 triggers~\cite{angelopoulos2023,gibbs2021}; selective classification studies
@@ -183,8 +183,16 @@ regression over a 15-field profile contract (holdout AUC 0.6919); the
 contract guarantees the training-time derivation is byte-identical to the
 live API's. CBES (Credit-Based Evaluation System) is a transparent rule
 engine over five weighted pillars (credit, capacity, behaviour, liquidity,
-stability) with a standalone AUC of 0.5650---deliberately an
+stability) with a standalone AUC of 0.5650: deliberately an
 \emph{explanation layer}, not a predictor.
+CBES exists because an all-ML pipeline fails
+two institutional tests at once: a reviewer cannot argue with a gradient, and
+a regulator cannot inspect one. The pillar weights (0.35 credit, 0.30
+capacity, 0.20 behaviour, 0.10 liquidity, 0.05 stability) are fixed domain
+policy, calibrated to a probability through a logistic link, and every pillar
+sub-score is shown to the reviewer alongside the decision, so disagreement
+between the two opinions is itself interpretable: a high ML score over a weak
+capacity pillar names the conversation the underwriter should have.
 
 \textbf{Blend and thresholds.} Decisions use
 $p = (1-\alpha)\,p_{ml} + \alpha\,p_{cbes}$ with $\alpha = 0.10$ chosen from
@@ -218,7 +226,7 @@ header before results existed. Data: the Home Credit application table
 table~\cite{homecredit}. Comparisons: 5-fold stratified cross-validation
 (seed 42), identical folds across every experiment so deltas are
 fold-paired. Claim rule: a gain is claimed only if the fold-paired mean AUC
-delta exceeds $+0.0036$---the observed fold standard deviation---and, for
+delta exceeds $+0.0036$ (the observed fold standard deviation) and, for
 feature claims, every fold's delta is positive. Early stopping uses an inner
 10\% split of training folds only. Policy quantities (thresholds,
 calibrators, deferral cutoffs) are fitted on a 50/50 tuning split (seed
@@ -226,6 +234,38 @@ calibrators, deferral cutoffs) are fitted on a 50/50 tuning split (seed
 criterion because at an 8\% default rate accuracy is dominated by the class
 prior (always-approve scores 91.9\%); operating-point metrics are reported
 only with their threshold stated.
+
+Formally, for candidate $B$ and incumbent $A$ evaluated on identical folds
+$k = 1,\dots,5$ with per-fold AUCs $a_k^{B}, a_k^{A}$, the claim rule is
+\begin{equation}
+\underbrace{\tfrac{1}{5}\textstyle\sum_k \big(a_k^{B}-a_k^{A}\big)}_{\text{fold-paired mean delta}} > 0.0036
+\quad\text{and, for feature claims,}\quad a_k^{B} > a_k^{A}\;\forall k .
+\label{eq:claim}
+\end{equation}
+Table~\ref{tab:params} lists every decision-layer quantity, how it was fitted,
+and the artifact recording it; none is fitted on evaluation data.
+
+\begin{table}[t]
+\centering
+\caption{Decision-layer parameters: value, fitting procedure, evidence.}
+\label{tab:params}
+\begin{tabular}{@{}l l l@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{How set} \\
+\midrule
+Blend weight $\alpha$ & 0.10 & cost table on tuning split \\
+Base threshold $t_{base}$ & 0.65 & expected-cost minimisation \\
+Approve / reject cutoffs & 0.6425 / 0.6575 & band around $t_{base}$ \\
+Deferral rate & 22.5\% & capacity band (20--25\%) quantile \\
+Claim floor & $\pm0.0036$ AUC & observed fold std.\ dev. \\
+GBM protocol & 2000 trees, lr 0.05 & early stop 100, inner 10\% split \\
+SGLB budget & 1000 iter., $K{=}10$ & fixed (posterior sampling) \\
+Monotone constraints & 21 signs & domain knowledge, pre-fixed \\
+Cost matrix (studied) & FN:FP = 7.5:1 & stated LGD vs.\ margin \\
+Exploration arm & 3\% & counterfactual-label preservation \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Results: Where Accuracy Lives}\label{sec:results}
 
@@ -238,14 +278,14 @@ credit-bureau table. Fig.~\ref{fig:folddeltas} shows the result:
 \emph{all twenty} fold deltas are positive and every model's mean gain is at
 least four times the noise floor, whereas the best honest fusion of the
 improved models (a simple average of the three boosted ensembles) gains
-$+0.0016$---real in direction (paired bootstrap CI $[0.0010, 0.0021]$) but
+$+0.0016$: real in direction (paired bootstrap CI $[0.0010, 0.0021]$) but
 below the claim floor. Out-of-fold correlations among the improved models
 remain 0.87--0.96: better features made every model better \emph{in the same
 way}. A single-model gain attribution assigns 56\% of the top-25 gain
 importance to the engineered features, led by the external-score mean
 (30\%). Separately, a 14-configuration hyperparameter sweep over the boosted
-ensembles improved the early-stopped default by $+0.001$---under a third of
-the floor---and the capacity-adaptive learning curve
+ensembles improved the early-stopped default by $+0.001$, under a third of
+the floor, and the capacity-adaptive learning curve
 (Fig.~\ref{fig:learning}) still rises at full data ($+0.010$ AUC per
 doubling): optimisation is converged, information is not.
 
@@ -273,17 +313,17 @@ boosted model still gains $\approx0.010$ AUC per data doubling at the full
 Table~\ref{tab:models} summarises every model evaluated under the protocol.
 TabPFN-2.5 and Google TabFM~1.0 were scored on 8{,}000 rows joined by
 applicant identity with an alignment gate (zero label mismatches; AUC
-reproduces to four decimals)---a safeguard we added after an early
-row-misalignment incident, and which we recommend as standard practice for
+reproduces to four decimals); this safeguard was added after an early
+row-misalignment incident and we recommend it as standard practice for
 foundation-model comparisons. Both trail tuned gradient boosting; both
 fusions die under the floor, and the TabFM average actively hurts
 (CI $[-0.022, -0.007]$) despite TabFM being the most decorrelated partner we
-ever tested ($\rho = 0.66$)---diversity obtained by being wrong does not
+ever tested ($\rho = 0.66$). Diversity obtained by being wrong does not
 cancel errors. Among 2026 challengers screened under the same rules (30k
 subsample, defaults only, advance on positive fold-paired delta), the
 benchmark-tuned RealMLP lost every fold to CatBoost ($-0.0121$ fold-paired),
 and TabICLv2 could not complete the screen on commodity hardware (its
-in-context inference required $\sim$18\,GB of offload scratch per fold)---a
+in-context inference required $\sim$18\,GB of offload scratch per fold), a
 deployability result in itself. The TabPFN family's weights licences
 (non-commercial, explicitly covering model \emph{outputs}) independently
 preclude use in lending decisions; our screens therefore prioritised
@@ -321,9 +361,19 @@ two scores differ by a near-constant calibration offset (mean $+0.307$,
 positive on 98.4\% of rows) that \emph{widens with model confidence}; the
 rule therefore deferred the model's most confident cases. Against a
 random-router null (200 permutations), the deferred pile's accuracy
-signature sat at $z \approx +28\sigma$ on a held-out split---confident cases
-systematically sent to humans. We propose this simple audit (deferred-pile
+signature sat at $z \approx +28\sigma$ on a held-out split: confident cases
+were systematically sent to humans. We propose this simple audit (deferred-pile
 statistics versus a random router) as a deployment check for any L2D system.
+Concretely, with $n_d$ deferrals and deferred-pile statistic $T$ (we use the
+no-deferral engine's accuracy on the deferred cases), draw $T_1,\dots,T_m$
+from $m{=}200$ routers deferring $n_d$ uniformly random cases and report
+\begin{equation}
+z \;=\; \frac{T - \bar{T}_{\mathrm{rand}}}{\sigma_{\mathrm{rand}}} ,
+\label{eq:audit}
+\end{equation}
+where a working router should be strongly \emph{negative} (it removes cases
+the engine would get wrong). The production rule scored $z \approx +28$;
+no sign test or calibration analysis is needed to know something is inverted.
 
 \subsection{Repair and the single-model uncertainty signal}
 Racing candidate signals at the mandated 22.5\% rate (thresholds from the
@@ -333,7 +383,22 @@ became genuinely harder than random. Beyond the repair, we evaluated
 \emph{epistemic} uncertainty from a single SGLB-trained CatBoost
 (posterior-sampling mode; $K{=}10$ virtual ensembles~\cite{malinin2021}),
 whose decomposition separates knowledge uncertainty (mutual information)
-from data uncertainty. At the matched rate on the test half
+from data uncertainty: with member probabilities
+$p_1,\dots,p_K$ from one SGLB model's virtual ensembles and
+$\bar{p} = \tfrac{1}{K}\sum_k p_k$,
+\begin{equation}
+\underbrace{\mathcal{H}(\bar{p})}_{\text{total}} \;=\;
+\underbrace{\tfrac{1}{K}\textstyle\sum_k \mathcal{H}(p_k)}_{\text{data (aleatoric)}}
+\;+\; \underbrace{\mathcal{U}_{\mathrm{know}}}_{\text{knowledge (epistemic)}} ,
+\label{eq:decomp}
+\end{equation}
+where $\mathcal{H}$ is binary entropy and the residual mutual information
+$\mathcal{U}_{\mathrm{know}}$ is the deferral signal. At an 8\% base rate
+nearly all predictions sit below $0.5$, making total and data entropy
+near-monotone in $\bar{p}$ itself (correlation 0.94); knowledge uncertainty
+is the only component not reducible to the score, which is precisely why it
+carries routing information the reject-option rule cannot see (their
+correlation is $-0.36$). At the matched rate on the test half
 (Fig.~\ref{fig:riskcov}), knowledge uncertainty reached position 0.40 on the
 random$\to$oracle axis versus 0.14 for the reject-option
 baseline~\cite{chow1970} (selective risk 0.217 vs.\ 0.271; random 0.299),
@@ -360,7 +425,7 @@ coverage and approaches two-model disagreement without a second model.}
 knowledge only (external credit scores decrease risk; payment burden, bureau
 overdues, leverage and prolongations increase it; demographic fields
 deliberately unconstrained) and re-trained the best model under them.
-Fold-paired cost: $-0.0008$ AUC---inside the noise floor---with zero
+Fold-paired cost: $-0.0008$ AUC, inside the noise floor, with zero
 direction violations in 14{,}400 empirical sweep checks. Directional
 adverse-action explanations (``your bureau score improved, so your risk
 decreased'') thus become \emph{model properties}, which is what the RBI
@@ -372,7 +437,7 @@ cannot guarantee~\cite{rbifreeai}.
 default vs.\ forgone margin), class-weighted \emph{training} never beat
 cost-optimal \emph{thresholding} of the unweighted model (test cost delta
 $+0.000087$ per applicant; paired-bootstrap CI spans zero; the weighted arm
-loses at four of five decision-time cost ratios)---an empirical confirmation
+loses at four of five decision-time cost ratios), an empirical confirmation
 of Elkan's analysis~\cite{elkan2001} that justifies keeping the economics in
 auditable decision policy rather than inside the model.
 
@@ -385,8 +450,8 @@ container registry pulled via instance roles (no credentials on the
 machine). The full stack rebuilds from nothing in $\sim$15 minutes and
 destroys to zero cost; the demonstration database seeds itself with a
 committed 510-customer sample spanning instant-approve, instant-reject and
-defer outcomes. The TabPFN-2.5 second opinion---whose checkpoint and
-in-context set exceed commodity GPU memory---is served from a free cloud GPU
+defer outcomes. The TabPFN-2.5 second opinion, whose checkpoint and
+in-context set exceed commodity GPU memory, is served from a free cloud GPU
 behind an authenticated tunnel and consumed strictly as advisory input;
 a \emph{connection run} validates the remote endpoint by scoring 400
 locally-held labelled rows the remote never saw (last run: remote AUC 0.710,
@@ -399,7 +464,15 @@ fields. Operational lessons we believe generalise: cache governance
 endpoints that recompute from large artifacts (a 36\,MB artifact recomputed
 per request saturated a 1\,GB instance); treat boot-script changes as
 instance replacements; and audit free-tier platform restrictions before
-capacity planning.
+capacity planning. The connection run proceeds in four ordered
+gates (configured; reachable; scores returned for every row; sane, i.e.\ the
+recomputed AUC on the 400 labelled rows clears 0.60), so each failure mode is
+named rather than inferred. On the full population the engine's decision mix
+is 167{,}751 instant approvals, 70{,}593 instant rejections and 69{,}167
+deferrals (22.5\%); the deployed demonstration additionally routes reviewer
+adjudications (including rejections of deferred cases with written reason
+codes) through the same capture path, so the human-in-the-loop story is
+exercised end to end rather than mocked.
 
 \section{RBI Alignment}\label{sec:rbi}
 Mapping to the Digital Lending Directions~\cite{rbi2025} and
@@ -410,12 +483,55 @@ with reviewer capture and override monitoring; \emph{auditability} by
 provenance stamps (engine version, artifact, threshold hash) on every
 decision and regeneration of all reported numbers from committed scripts;
 \emph{model governance} by the versioned separation of research and serving
-tracks and the closed relearning gate. We state one caveat openly: TabPFN-2.5
+tracks and the closed relearning gate. Table~\ref{tab:rbi} summarises the mapping.
+
+\begin{table}[t]
+\centering
+\caption{RBI expectation $\to$ CredDefer mechanism $\to$ evidence.}
+\label{tab:rbi}
+\begin{tabular}{@{}p{1.9cm} p{3.1cm} p{2.4cm}@{}}
+\toprule
+\textbf{Expectation} & \textbf{Mechanism} & \textbf{Evidence} \\
+\midrule
+Explainability & SHAP per decision; CBES pillar breakdown; 21 monotone signs
+(directional reasons by construction) & monotonicity report: $-0.0008$ AUC,
+0/14{,}400 violations \\
+Human oversight & capacity-aware deferral (22.5\%); reviewer capture with
+reason codes, confidence, time; override monitoring & deferral audit:
+$z{=}{-}99.7$ after repair \\
+Auditability & engine version + artifact + threshold hash on every decision;
+all numbers regenerate from committed scripts & provenance stamps in API,
+dashboards, audit report \\
+Model governance & versioned research/serving separation; relearning gate
+closed; 3\% exploration arm & gate evaluation on every inspection \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We state one caveat openly: TabPFN-2.5
 outperforms the deployed serving model on identical features (0.7446
 best-case vs.\ 0.6919) and remains advisory because of its non-commercial
 output licence, its GPU footprint, and the governance rule that advisory AI
 never writes decisions; the roadmap is to promote the engineered-feature
 gradient-boosted model behind the same serve-time contract.
+
+\section{Discussion: What Generalises}
+Four practices from this project transfer beyond credit scoring. First, the
+\emph{deferral audit} of Eq.~\eqref{eq:audit} costs a few lines and no new
+data, yet it caught a production router doing the opposite of its job; any
+deployed abstention rule deserves it. Second, \emph{pre-registration with a
+symmetric floor} changed the sociology of our own development: because the
+rule in Eq.~\eqref{eq:claim} rejected our tuning gains before it rejected
+anyone else's fusion, negative results became reportable rather than
+embarrassing. Third, \emph{licence-aware challenger selection}: benchmark
+rank is not deployability, and for regulated decisioning the licence of a
+model's \emph{outputs} is as binding as its accuracy; screening only
+permissively licensed challengers kept every measured alternative actionable.
+Fourth, \emph{serve-time contracts}: freezing the feature derivation shared
+by training and serving cost us headline accuracy (0.6919 deployed vs.\
+0.7757 offline) but bought byte-identical provenance; we argue the right
+response is to promote richer features \emph{through} the contract, never
+around it.
 
 \section{Limitations}
 Our results are one-dataset (Home Credit; Indian-market cost and regulatory
@@ -429,7 +545,7 @@ this by appending identity-verified reject-tail applicants); and the
 relearning loop is deliberately unproven because it is deliberately closed.
 
 \section{Conclusion}
-Treating the decision pipeline---not the classifier---as the research object
+Treating the decision pipeline, rather than the classifier, as the research object
 yielded reproducible findings a leaderboard cannot express: on this corpus,
 accuracy headroom lives in information rather than architecture; deferral
 rules can silently invert and can be audited with a one-line permutation
