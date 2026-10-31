@@ -1,0 +1,164 @@
+{
+  "source": "reports/deferral_audit_10k.json (false-approval / false-rejection counts per router)",
+  "n_test": 153756,
+  "note": "Two cost models coexist in the project by design: the decision-layer pair (0.45 Basel F-IRB LGD / 0.2644 Verbraken ROI, ratio ~1.70) used by the t_base study and the audit, and the cost-sensitive training study's pair (0.75 / 0.10, ratio 7.5). This table shows the audit's router ranking under both and under a ratio sweep.",
+  "cost_pairs": {
+    "decision_layer_basel_verbraken": {
+      "cost_false_approval": 0.45,
+      "cost_false_rejection": 0.2644,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.055477,
+        "current_abs_diff": 0.060739,
+        "rank_diff": 0.052712,
+        "zscore_diff": 0.049613,
+        "isotonic_diff": 0.045283,
+        "ml_uncertainty": 0.048404,
+        "ml_uncertainty_0.5": 0.02534
+      }
+    },
+    "training_study_lgd_margin": {
+      "cost_false_approval": 0.75,
+      "cost_false_rejection": 0.1,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.030757,
+        "current_abs_diff": 0.03519,
+        "rank_diff": 0.033998,
+        "zscore_diff": 0.032551,
+        "isotonic_diff": 0.032927,
+        "ml_uncertainty": 0.028881,
+        "ml_uncertainty_0.5": 0.026425
+      }
+    },
+    "ratio_2": {
+      "cost_false_approval": 0.2,
+      "cost_false_rejection": 0.1,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.021485,
+        "current_abs_diff": 0.0236,
+        "rank_diff": 0.020659,
+        "zscore_diff": 0.019473,
+        "isotonic_diff": 0.017939,
+        "ml_uncertainty": 0.018851,
+        "ml_uncertainty_0.5": 0.01045
+      }
+    },
+    "ratio_5": {
+      "cost_false_approval": 0.5,
+      "cost_false_rejection": 0.1,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.026542,
+        "current_abs_diff": 0.029922,
+        "rank_diff": 0.027935,
+        "zscore_diff": 0.026606,
+        "isotonic_diff": 0.026114,
+        "ml_uncertainty": 0.024322,
+        "ml_uncertainty_0.5": 0.019163
+      }
+    },
+    "ratio_7.5": {
+      "cost_false_approval": 0.75,
+      "cost_false_rejection": 0.1,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.030757,
+        "current_abs_diff": 0.03519,
+        "rank_diff": 0.033998,
+        "zscore_diff": 0.032551,
+        "isotonic_diff": 0.032927,
+        "ml_uncertainty": 0.028881,
+        "ml_uncertainty_0.5": 0.026425
+      }
+    },
+    "ratio_10": {
+      "cost_false_approval": 1.0,
+      "cost_false_rejection": 0.1,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.034971,
+        "current_abs_diff": 0.040458,
+        "rank_diff": 0.040062,
+        "zscore_diff": 0.038495,
+        "isotonic_diff": 0.03974,
+        "ml_uncertainty": 0.03344,
+        "ml_uncertainty_0.5": 0.033686
+      }
+    },
+    "ratio_20": {
+      "cost_false_approval": 2.0,
+      "cost_false_rejection": 0.1,
+      "cost_per_applicant_by_router": {
+        "deployed_band_policy": 0.051829,
+        "current_abs_diff": 0.061531,
+        "rank_diff": 0.064314,
+        "zscore_diff": 0.062273,
+        "isotonic_diff": 0.066991,
+        "ml_uncertainty": 0.051677,
+        "ml_uncertainty_0.5": 0.062733
+      }
+    }
+  },
+  "ranking_by_pair": {
+    "decision_layer_basel_verbraken": [
+      "ml_uncertainty_0.5",
+      "isotonic_diff",
+      "ml_uncertainty",
+      "zscore_diff",
+      "rank_diff",
+      "deployed_band_policy",
+      "current_abs_diff"
+    ],
+    "training_study_lgd_margin": [
+      "ml_uncertainty_0.5",
+      "ml_uncertainty",
+      "deployed_band_policy",
+      "zscore_diff",
+      "isotonic_diff",
+      "rank_diff",
+      "current_abs_diff"
+    ],
+    "ratio_2": [
+      "ml_uncertainty_0.5",
+      "isotonic_diff",
+      "ml_uncertainty",
+      "zscore_diff",
+      "rank_diff",
+      "deployed_band_policy",
+      "current_abs_diff"
+    ],
+    "ratio_5": [
+      "ml_uncertainty_0.5",
+      "ml_uncertainty",
+      "isotonic_diff",
+      "deployed_band_policy",
+      "zscore_diff",
+      "rank_diff",
+      "current_abs_diff"
+    ],
+    "ratio_7.5": [
+      "ml_uncertainty_0.5",
+      "ml_uncertainty",
+      "deployed_band_policy",
+      "zscore_diff",
+      "isotonic_diff",
+      "rank_diff",
+      "current_abs_diff"
+    ],
+    "ratio_10": [
+      "ml_uncertainty",
+      "ml_uncertainty_0.5",
+      "deployed_band_policy",
+      "zscore_diff",
+      "isotonic_diff",
+      "rank_diff",
+      "current_abs_diff"
+    ],
+    "ratio_20": [
+      "ml_uncertainty",
+      "deployed_band_policy",
+      "current_abs_diff",
+      "zscore_diff",
+      "ml_uncertainty_0.5",
+      "rank_diff",
+      "isotonic_diff"
+    ]
+  },
+  "ranking_stable_across_all_pairs": false
+}

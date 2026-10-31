@@ -1,0 +1,532 @@
+{
+  "protocol": {
+    "frame": "research (SGLB OOF cache, pd at Youden t* from tune); y==1 DEFAULT",
+    "split": "50/25/25 tune/selection/final, permutation seed 20260831; final touched once per strategy",
+    "costs": {
+      "false_approval": 0.45,
+      "false_rejection": 0.2644,
+      "provenance": "decision-layer pair (reports/t_base_selection.json)"
+    },
+    "lambda_grid": [
+      0.0,
+      0.1,
+      0.25,
+      0.5,
+      0.75,
+      0.9,
+      1.0
+    ],
+    "lambda_selected_on": "selection slice, lowest realized auto cost at 22.5%",
+    "bootstrap": 200,
+    "review_cost_note": "auto_cost excludes review cost; add c_review * deferral_rate for total cost. Grid given so the frontier can be read at any assumed per-review cost.",
+    "c_review_grid": [
+      0.0,
+      0.01,
+      0.02,
+      0.05
+    ]
+  },
+  "lambda_selection_table": [
+    {
+      "lambda": 0.0,
+      "selection_auto_cost": 0.031595514971773465,
+      "selection_defer_rate": 0.22414735034730351
+    },
+    {
+      "lambda": 0.1,
+      "selection_auto_cost": 0.03159895418715367,
+      "selection_defer_rate": 0.22447254090897265
+    },
+    {
+      "lambda": 0.25,
+      "selection_auto_cost": 0.031987585525117726,
+      "selection_defer_rate": 0.22695699680012488
+    },
+    {
+      "lambda": 0.5,
+      "selection_auto_cost": 0.036671984182731085,
+      "selection_defer_rate": 0.22695699680012488
+    },
+    {
+      "lambda": 0.75,
+      "selection_auto_cost": 0.04225361221675902,
+      "selection_defer_rate": 0.22715211113712636
+    },
+    {
+      "lambda": 0.9,
+      "selection_auto_cost": 0.045929134472801066,
+      "selection_defer_rate": 0.22707406540232578
+    },
+    {
+      "lambda": 1.0,
+      "selection_auto_cost": 0.04828003329951352,
+      "selection_defer_rate": 0.22733421785166108
+    }
+  ],
+  "lambda_star": 0.0,
+  "no_deferral_cost_final": 0.08312801581726892,
+  "curves": {
+    "random": [
+      {
+        "capacity": 0.05,
+        "deferral_rate": 0.04998829313977991,
+        "auto_cost_per_applicant": 0.07887587606337314,
+        "ci95": [
+          0.07799710060095215,
+          0.07968996735086761
+        ]
+      },
+      {
+        "capacity": 0.1,
+        "deferral_rate": 0.0999895939020266,
+        "auto_cost_per_applicant": 0.07478260100418846,
+        "ci95": [
+          0.07390130063217046,
+          0.07571508077733553
+        ]
+      },
+      {
+        "capacity": 0.15,
+        "deferral_rate": 0.14999089466427326,
+        "auto_cost_per_applicant": 0.07027969510132938,
+        "ci95": [
+          0.069385833138219,
+          0.07103972853091912
+        ]
+      },
+      {
+        "capacity": 0.2,
+        "deferral_rate": 0.19999219542651994,
+        "auto_cost_per_applicant": 0.06622190483623402,
+        "ci95": [
+          0.06533268607403937,
+          0.0670776254585187
+        ]
+      },
+      {
+        "capacity": 0.225,
+        "deferral_rate": 0.22499284580764328,
+        "auto_cost_per_applicant": 0.0641601550508598,
+        "ci95": [
+          0.06333694502978746,
+          0.06494271169905566
+        ]
+      },
+      {
+        "capacity": 0.25,
+        "deferral_rate": 0.24999349618876662,
+        "auto_cost_per_applicant": 0.0620722131168865,
+        "ci95": [
+          0.06139748991909259,
+          0.06289489125627618
+        ]
+      },
+      {
+        "capacity": 0.3,
+        "deferral_rate": 0.2999947969510133,
+        "auto_cost_per_applicant": 0.05788842581752908,
+        "ci95": [
+          0.05703517469236973,
+          0.05866175719971905
+        ]
+      },
+      {
+        "capacity": 0.35,
+        "deferral_rate": 0.34999609771325996,
+        "auto_cost_per_applicant": 0.05382448554853145,
+        "ci95": [
+          0.053148017378183615,
+          0.05447624860168059
+        ]
+      },
+      {
+        "capacity": 0.4,
+        "deferral_rate": 0.39999739847550664,
+        "auto_cost_per_applicant": 0.04965422617653946,
+        "ci95": [
+          0.04888803350763548,
+          0.050301181742501117
+        ]
+      }
+    ],
+    "chow_margin": [
+      {
+        "capacity": 0.05,
+        "deferral_rate": 0.05167928406045943,
+        "auto_cost_per_applicant": 0.07612396264210827,
+        "ci95": [
+          0.07520838887588127,
+          0.07688559353781316
+        ]
+      },
+      {
+        "capacity": 0.1,
+        "deferral_rate": 0.10045786831083015,
+        "auto_cost_per_applicant": 0.07033064856005619,
+        "ci95": [
+          0.06946047972111656,
+          0.07099799084263377
+        ]
+      },
+      {
+        "capacity": 0.15,
+        "deferral_rate": 0.1506542834100783,
+        "auto_cost_per_applicant": 0.06506667707276466,
+        "ci95": [
+          0.0641535847706756,
+          0.06601269335830796
+        ]
+      },
+      {
+        "capacity": 0.2,
+        "deferral_rate": 0.2012149119383959,
+        "auto_cost_per_applicant": 0.06035430162074978,
+        "ci95": [
+          0.05947680363693125,
+          0.06117925765498582
+        ]
+      },
+      {
+        "capacity": 0.225,
+        "deferral_rate": 0.22608548609485157,
+        "auto_cost_per_applicant": 0.05830617341762273,
+        "ci95": [
+          0.05744418676344338,
+          0.059128465230625156
+        ]
+      },
+      {
+        "capacity": 0.25,
+        "deferral_rate": 0.2510471136085746,
+        "auto_cost_per_applicant": 0.05612414474882282,
+        "ci95": [
+          0.055370649860818445,
+          0.05691264705117199
+        ]
+      },
+      {
+        "capacity": 0.3,
+        "deferral_rate": 0.30039803324748304,
+        "auto_cost_per_applicant": 0.052450547620905855,
+        "ci95": [
+          0.05172405408569422,
+          0.05324764861208669
+        ]
+      },
+      {
+        "capacity": 0.35,
+        "deferral_rate": 0.3505033949894638,
+        "auto_cost_per_applicant": 0.04892212596581597,
+        "ci95": [
+          0.04814084640599391,
+          0.049609969041858534
+        ]
+      },
+      {
+        "capacity": 0.4,
+        "deferral_rate": 0.3992299487499675,
+        "auto_cost_per_applicant": 0.04591067925804521,
+        "ci95": [
+          0.04517726683836728,
+          0.046676107599053045
+        ]
+      }
+    ],
+    "knowledge": [
+      {
+        "capacity": 0.05,
+        "deferral_rate": 0.05153620021332501,
+        "auto_cost_per_applicant": 0.0740222274252712,
+        "ci95": [
+          0.07307843310179765,
+          0.07489579853794326
+        ]
+      },
+      {
+        "capacity": 0.1,
+        "deferral_rate": 0.10309841567158355,
+        "auto_cost_per_applicant": 0.06536121647285309,
+        "ci95": [
+          0.0646366277738755,
+          0.06627490153229794
+        ]
+      },
+      {
+        "capacity": 0.15,
+        "deferral_rate": 0.1521241447488228,
+        "auto_cost_per_applicant": 0.057823803949114176,
+        "ci95": [
+          0.056966431618928705,
+          0.05871366255625796
+        ]
+      },
+      {
+        "capacity": 0.2,
+        "deferral_rate": 0.20217747600093655,
+        "auto_cost_per_applicant": 0.05088672962355941,
+        "ci95": [
+          0.05015815864096361,
+          0.05183475116418222
+        ]
+      },
+      {
+        "capacity": 0.225,
+        "deferral_rate": 0.22674887484065662,
+        "auto_cost_per_applicant": 0.047862296105517836,
+        "ci95": [
+          0.04705902715991571,
+          0.04857243567730691
+        ]
+      },
+      {
+        "capacity": 0.25,
+        "deferral_rate": 0.2507869611592393,
+        "auto_cost_per_applicant": 0.04500820520825205,
+        "ci95": [
+          0.044337188662556266,
+          0.04578598116496267
+        ]
+      },
+      {
+        "capacity": 0.3,
+        "deferral_rate": 0.30076224667655244,
+        "auto_cost_per_applicant": 0.039536236634667925,
+        "ci95": [
+          0.038800897656026435,
+          0.04023412107494992
+        ]
+      },
+      {
+        "capacity": 0.35,
+        "deferral_rate": 0.3495798537943235,
+        "auto_cost_per_applicant": 0.03448547048570463,
+        "ci95": [
+          0.033738664637477565,
+          0.03519295741304405
+        ]
+      },
+      {
+        "capacity": 0.4,
+        "deferral_rate": 0.3989697963006322,
+        "auto_cost_per_applicant": 0.02986973126251984,
+        "ci95": [
+          0.029307579801763833,
+          0.030531805197845943
+        ]
+      }
+    ],
+    "expected_cost": [
+      {
+        "capacity": 0.05,
+        "deferral_rate": 0.049676110200577536,
+        "auto_cost_per_applicant": 0.07109420120190432,
+        "ci95": [
+          0.07033686581336665,
+          0.07206044564114572
+        ]
+      },
+      {
+        "capacity": 0.1,
+        "deferral_rate": 0.09768724472540909,
+        "auto_cost_per_applicant": 0.059655370847316536,
+        "ci95": [
+          0.05884478238247614,
+          0.06048120281484951
+        ]
+      },
+      {
+        "capacity": 0.15,
+        "deferral_rate": 0.1481958427638596,
+        "auto_cost_per_applicant": 0.04794484247769194,
+        "ci95": [
+          0.047174797861546866,
+          0.0486100701110851
+        ]
+      },
+      {
+        "capacity": 0.2,
+        "deferral_rate": 0.19765082338250214,
+        "auto_cost_per_applicant": 0.036726121907437764,
+        "ci95": [
+          0.03611917193475377,
+          0.037470097947397175
+        ]
+      },
+      {
+        "capacity": 0.225,
+        "deferral_rate": 0.22198808501782044,
+        "auto_cost_per_applicant": 0.031405655714248554,
+        "ci95": [
+          0.030756924347667736,
+          0.032041284762871054
+        ]
+      },
+      {
+        "capacity": 0.25,
+        "deferral_rate": 0.24789926897161738,
+        "auto_cost_per_applicant": 0.025820369936782953,
+        "ci95": [
+          0.025185244673378602,
+          0.02648389435209033
+        ]
+      },
+      {
+        "capacity": 0.3,
+        "deferral_rate": 0.29912328624574,
+        "auto_cost_per_applicant": 0.015605900257550926,
+        "ci95": [
+          0.015076208798355837,
+          0.01611895952027888
+        ]
+      },
+      {
+        "capacity": 0.35,
+        "deferral_rate": 0.34939774707978877,
+        "auto_cost_per_applicant": 0.00962889253102318,
+        "ci95": [
+          0.009241541793490984,
+          0.010126726761882466
+        ]
+      },
+      {
+        "capacity": 0.4,
+        "deferral_rate": 0.39968521553630426,
+        "auto_cost_per_applicant": 0.008112854132521658,
+        "ci95": [
+          0.007691260828845702,
+          0.008541032545071414
+        ]
+      }
+    ],
+    "combined_lambda_0.0": [
+      {
+        "capacity": 0.05,
+        "deferral_rate": 0.04965009495564401,
+        "auto_cost_per_applicant": 0.07109764041728454,
+        "ci95": [
+          0.07030049233851036,
+          0.07192322133770389
+        ]
+      },
+      {
+        "capacity": 0.1,
+        "deferral_rate": 0.09767423710294232,
+        "auto_cost_per_applicant": 0.05965881006269675,
+        "ci95": [
+          0.05879703361169646,
+          0.06046725955409871
+        ]
+      },
+      {
+        "capacity": 0.15,
+        "deferral_rate": 0.1481958427638596,
+        "auto_cost_per_applicant": 0.04794484247769194,
+        "ci95": [
+          0.04698794336481178,
+          0.0487358326179141
+        ]
+      },
+      {
+        "capacity": 0.2,
+        "deferral_rate": 0.1976248081375686,
+        "auto_cost_per_applicant": 0.03672956112281798,
+        "ci95": [
+          0.0359064490491428,
+          0.03748320911053878
+        ]
+      },
+      {
+        "capacity": 0.225,
+        "deferral_rate": 0.22198808501782044,
+        "auto_cost_per_applicant": 0.031405655714248554,
+        "ci95": [
+          0.030755697728869116,
+          0.03220346549077761
+        ]
+      },
+      {
+        "capacity": 0.25,
+        "deferral_rate": 0.24789926897161738,
+        "auto_cost_per_applicant": 0.025820369936782953,
+        "ci95": [
+          0.025203298472905124,
+          0.02645247287910716
+        ]
+      },
+      {
+        "capacity": 0.3,
+        "deferral_rate": 0.29912328624574,
+        "auto_cost_per_applicant": 0.015605900257550926,
+        "ci95": [
+          0.01510203660344962,
+          0.016112972631962326
+        ]
+      },
+      {
+        "capacity": 0.35,
+        "deferral_rate": 0.34939774707978877,
+        "auto_cost_per_applicant": 0.00962889253102318,
+        "ci95": [
+          0.009178178412549755,
+          0.010062339030671975
+        ]
+      },
+      {
+        "capacity": 0.4,
+        "deferral_rate": 0.39968521553630426,
+        "auto_cost_per_applicant": 0.008112854132521658,
+        "ci95": [
+          0.007702967689065793,
+          0.00851703348162023
+        ]
+      }
+    ]
+  },
+  "at_operating_rate": {
+    "random": {
+      "capacity": 0.225,
+      "deferral_rate": 0.22499284580764328,
+      "auto_cost_per_applicant": 0.0641601550508598,
+      "ci95": [
+        0.06333694502978746,
+        0.06494271169905566
+      ]
+    },
+    "chow_margin": {
+      "capacity": 0.225,
+      "deferral_rate": 0.22608548609485157,
+      "auto_cost_per_applicant": 0.05830617341762273,
+      "ci95": [
+        0.05744418676344338,
+        0.059128465230625156
+      ]
+    },
+    "knowledge": {
+      "capacity": 0.225,
+      "deferral_rate": 0.22674887484065662,
+      "auto_cost_per_applicant": 0.047862296105517836,
+      "ci95": [
+        0.04705902715991571,
+        0.04857243567730691
+      ]
+    },
+    "expected_cost": {
+      "capacity": 0.225,
+      "deferral_rate": 0.22198808501782044,
+      "auto_cost_per_applicant": 0.031405655714248554,
+      "ci95": [
+        0.030756924347667736,
+        0.032041284762871054
+      ]
+    },
+    "combined_lambda_0.0": {
+      "capacity": 0.225,
+      "deferral_rate": 0.22198808501782044,
+      "auto_cost_per_applicant": 0.031405655714248554,
+      "ci95": [
+        0.030755697728869116,
+        0.03220346549077761
+      ]
+    }
+  }
+}

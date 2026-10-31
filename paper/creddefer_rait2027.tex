@@ -37,14 +37,18 @@ review, and a cheap permutation audit against random routers exposes this
 (no router among 10{,}000 random draws produced a deferred pile as easy as
 the production rule's; empirical $p < 10^{-4}$). Second, after diagnosing the
 mechanism (a near-constant calibration offset between the two scores),
-plain model-uncertainty routing reverses the inversion at the mandated
-22.5\% review rate, and epistemic (knowledge) uncertainty from a single
-stochastic-gradient-Langevin-boosted model routes review cases roughly three
-times closer to the oracle than the classical reject-option baseline, without
-a second model. Third, the resulting policy concentrates review where
-information is missing: thin-file applicants with no credit-bureau record are
-deferred at 34.3\% versus 20.5\% for documented applicants, a subgroup
-property we measure rather than assume. Supporting results, all adjudicated
+uncertainty-based routing reverses the inversion at the mandated 22.5\%
+review rate, a repair confirmed on an untouched final split, and epistemic
+(knowledge) uncertainty from a single stochastic-gradient-Langevin-boosted
+model reaches a random-to-oracle routing position of 0.40 versus 0.14 for
+the classical reject-option baseline, without a second model, a result
+stable across ensemble sizes and training seeds. Third, who gets deferred
+depends on the router: the deployed policy defers thin-file applicants (no
+credit-bureau record) at 34.3\% versus 20.5\% for documented applicants,
+while the epistemic router is nearly flat across groups with the highest
+thin-file default recall; and a cost-aware routing study shows that
+expected-loss ranking, not uncertainty, minimises decision cost, cleanly
+separating the two objectives a review budget can serve. Supporting results, all adjudicated
 by one pre-registered fold-paired criterion with committed, dated protocols:
 feature enrichment lifted every model in every fold (best model
 $0.7603{\to}0.7757$ AUC) while no model fusion, tabular foundation model, or
@@ -102,8 +106,9 @@ Our contributions, in order of importance:
 inversion it caught (RQ1).} We show that a deployed disagreement-based
 deferral rule can be \emph{anti}-selective: ours deferred the model's most
 confident cases, a failure invisible to aggregate metrics. The audit costs a
-few lines (deferred-pile statistics against a random-router null), and with
-10{,}000 permutations resolves empirical $p$-values to $10^{-4}$
+few lines (deferred-pile decision loss against a random-router null), with
+10{,}000 permutations resolves empirical $p$-values to $10^{-4}$, and its
+findings survive a three-stage split whose final slice no candidate ever saw
 (Sec.~\ref{sec:deferral}).
 \item \textbf{Single-model epistemic routing (RQ1).} Knowledge uncertainty
 from stochastic-gradient Langevin boosting (SGLB) virtual
@@ -112,11 +117,12 @@ ensembles~\cite{ustimenko2021,malinin2021} routes review cases to position
 reject-option baseline~\cite{chow1970} at the same 22.5\% rate, approaching
 two-model disagreement without a second model.
 \item \textbf{A measured subgroup account of who gets deferred (RQ1).} The
-deployed policy defers thin-file applicants at 1.7$\times$ the rate of
-documented applicants, concentrating human attention where information is
-missing; we also report the approval, calibration and ranking gaps this
-leaves across gender, age and region groups, as measurements rather than
-claims (Sec.~\ref{sec:fairness}).
+thin-file deferral asymmetry turns out to be a property of the \emph{router},
+not of deferral itself: it shrinks monotonically as routers improve, from
+3.4$\times$ under the inverted rule to near-flat under the epistemic signal;
+we also report the approval, calibration and ranking gaps each policy leaves
+across gender, age and region groups, as measurements rather than claims
+(Sec.~\ref{sec:fairness}).
 \item \textbf{A pre-registered evaluation discipline with dated evidence
 (RQ2, RQ3).} Every comparative claim was decided by one rule, fixed in
 committed experiment protocols before results existed (commit hashes in the
@@ -279,7 +285,9 @@ test; five folds are not independent experiments. Where a claim matters we
 therefore also report paired-bootstrap confidence intervals on out-of-fold
 predictions (resampling rows, predictions paired), and we distinguish
 ``exceeds the practical floor'' from ``statistically distinguishable from
-zero'' throughout. Pre-registration is evidenced by dated repository commits
+zero'' throughout. These row-level bootstrap intervals are conditional on
+the fitted out-of-fold predictions: they quantify evaluation noise given the
+trained models, not variability over retraining. Pre-registration is evidenced by dated repository commits
 (Sec.~Reproducibility). Policy quantities (thresholds, calibrators, deferral
 cutoffs) are fitted on a 50/50 tuning split (seed 20260831) and reported on
 the held-out half. We use ROC-AUC as the model criterion because at an 8\%
@@ -304,14 +312,38 @@ Claim floor & $\pm0.0036$ AUC & observed fold std.\ dev. \\
 GBM protocol & 2000 trees, lr 0.05 & early stop 100, inner 10\% split \\
 SGLB budget & 1000 iter., $K{=}10$ & fixed (posterior sampling) \\
 Monotone constraints & 21 signs & domain knowledge, pre-fixed \\
-Cost matrix (studied) & FN:FP = 7.5:1 & stated LGD vs.\ margin \\
+Decision-layer costs & 0.45 / 0.2644 & Basel F-IRB LGD / EMP ROI \\
+Training-study costs & 0.75 / 0.10 (7.5:1) & that study's stated LGD vs.\ margin \\
 Exploration arm & 3\% & counterfactual-label preservation \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \section{Deferral Quality: Audit, Repair, Routing}\label{sec:deferral}
-This section answers RQ1 and carries the paper's central contribution.
+This section answers RQ1 and carries the paper's central contribution. Four
+distinct routing policies appear in this paper; Table~\ref{tab:policies}
+fixes their identities once, and every result below names the policy that
+produced it.
+
+\begin{table}[t]
+\centering
+\caption{The four routing policies, and which results each one generated.}
+\label{tab:policies}
+\begin{tabular}{@{}p{2.15cm} p{1.5cm} p{3.6cm}@{}}
+\toprule
+\textbf{Policy} & \textbf{Status} & \textbf{Generates} \\
+\midrule
+Disagreement $|p_{ml}{-}p_{cbes}|$ & historical, retired & the inversion finding
+(Sec.~\ref{sec:deferral}-A, Fig.~\ref{fig:auditnull} top) \\
+Margin uncertainty $|p_{ml}{-}t|$ & validated, wired behind a flag & the repair
+result and its final-test confirmation \\
+Blended uncertainty band & current artifact & the decision mix, the subgroup
+measurements of Fig.~\ref{fig:fairness}, the 34.3\% thin-file deferral rate \\
+SGLB epistemic & research candidate & the risk--coverage and
+random$\to$oracle results (Fig.~\ref{fig:riskcov}), deciles, robustness \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{A permutation audit for deployed routers}
 The original production rule deferred on raw score disagreement
@@ -324,15 +356,31 @@ z \;=\; \frac{T - \bar{T}_{\mathrm{rand}}}{\sigma_{\mathrm{rand}}}
 \label{eq:audit}
 \end{equation}
 and the \emph{empirical permutation $p$-value}
-$p = (1 + \#\{T_i \text{ at least as extreme}\})/(m+1)$, whose resolution
-floor is $1/(m+1)$; a $z$-score alone can be inflated by a small estimated
-null standard deviation, so we never report one without its empirical $p$.
-We use two statistics: the deferred pile's class-balance distance (a working
-router hands humans a harder, more balanced pile) and, because accuracy alone
-is misleading at an 8\% default rate, we accompany the audit with
-cost-weighted routing metrics below (default recall among deferred cases and
-expected decision cost of the auto-decided pile under the stated cost
-model). The original audit, run with $m=200$ at the rule's historical
+$p = (1 + \#\{T_i \text{ at least as extreme}\})/(m+1)$, with the alternative
+stated one-sided in the direction under test and a resolution floor of
+$1/(m+1)$; a $z$-score alone can be inflated by a small estimated null
+standard deviation, so we never report one without its empirical $p$. The
+\emph{primary} statistic is the deferred-set decision loss
+\begin{equation}
+R_{\mathrm{defer}} = \tfrac{1}{|D|}\textstyle\sum_{i \in D}
+\ell\big(y_i, \hat{y}_i\big),
+\qquad
+\ell = \mathbb{1}\big[\hat{y}_i \neq y_i\big],
+\label{eq:rdefer}
+\end{equation}
+where $D$ is the deferred set and $\hat{y}_i$ is the hard decision the
+no-deferral engine would have taken at its own operating threshold: a useful
+router should \emph{raise} the deferred set's expected decision loss relative
+to random routing (one-sided alternative $R_{\mathrm{defer}} >$ null), and we
+report the kept-set loss $R_{\mathrm{auto}}$ alongside it, because a router
+must both hand humans harder cases and leave safer automated decisions. The
+deferred pile's class-balance distance is reported as a supplementary
+diagnostic only (a balanced pile is not necessarily a hard one), and because
+0/1 loss weights errors equally at an 8\% default rate, every audit is
+accompanied by cost-weighted metrics (default recall among deferred cases and
+expected decision cost of the auto pile under the stated cost model).
+Tables report the gate's accuracy orientation, $z$ of
+$1 - R_{\mathrm{defer}}$, where negative means a harder pile. The original audit, run with $m=200$ at the rule's historical
 operating point (it deferred 51.8\% of cases), scored $z \approx +28$: the
 deferred pile was far \emph{easier} than random. Reconstructed at the
 matched 22.5\% capacity rate and re-audited with $m = 10{,}000$, the
@@ -392,12 +440,29 @@ it satisfies the capacity constraint and is no longer inverted, but
 difficulty-targeted signals do strictly better, which is exactly the
 decision the audit exists to inform.
 
+Two cost models coexist in this project by design and must not be conflated:
+the \emph{decision-layer} pair used throughout this section (false approval
+0.45, the Basel II F-IRB supervisory LGD; false rejection 0.2644, the
+EMP-measure return parameter~\cite{verbraken2014}; ratio $\approx$1.70) and
+the \emph{training study's} pair of Sec.~\ref{sec:studies} (0.75 LGD vs.\
+0.10 forgone margin; ratio 7.5), each carried with its provenance. A
+sensitivity sweep recomputing Table~\ref{tab:audit}'s cost column under both
+pairs and ratios 2--20 finds the qualitative conclusions invariant: the
+disagreement rule is last or next-to-last under \emph{every} cost
+assumption, and the wired margin rule is in the top three everywhere (first
+at ratios $\geq$10); which uncertainty \emph{variant} is cheapest does
+depend on the assumed loss ratio, with risk-ordering variants winning only
+when false approvals are cheap, so we report the ranking per assumption
+rather than a single winner.
+
 \begin{table}[t]
 \centering
-\caption{Deferral audit at the matched 22.5\% rate on the held-out half
-($m=10{,}000$ permutations). $z$: deferred-pile accuracy score
-(negative = harder than random). Recall: share of all defaulters deferred.
-Cost: expected decision cost per applicant of the auto pile.}
+\caption{Development race: deferral audit at the matched 22.5\% rate on the
+held-out half ($m=10{,}000$ permutations). $z$: deferred-pile accuracy,
+Eq.~\eqref{eq:rdefer} orientation (negative = harder than random). Recall:
+share of all defaulters deferred. Cost: expected decision cost per applicant
+of the auto pile. The selection-bias-free confirmation is in
+Sec.~\ref{sec:finaltest}.}
 \label{tab:audit}
 \begin{tabular}{@{}l r r r r@{}}
 \toprule
@@ -413,6 +478,23 @@ Uncertainty $|p_{ml}{-}0.5|$ (risk ord.) & $-263.1$ & $<10^{-4}$ & 57.3\% & 0.02
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{A selection-bias-free confirmation}\label{sec:finaltest}
+Racing six candidates and quoting the winner's statistics from the same
+held-out half uses that half for model selection. We therefore repeated the
+exercise under a three-stage design: 50\% TUNE (all signal fitting and
+thresholds), 25\% SELECTION (the race, with the winner picked by a rule
+fixed before results: highest deferred-pile loss, Eq.~\eqref{eq:rdefer},
+inside the rate band), and an untouched 25\% FINAL slice evaluated once.
+The selection slice picks the $|p_{ml}{-}0.5|$ variant, and the final slice
+confirms it: $z = -186.3$, empirical $p < 10^{-4}$, 56.8\% of the slice's
+defaulters routed to review, auto-pile cost 0.0253 versus 0.0729 with no
+deferral. The production-wired margin rule constitutes a second
+\emph{pre-specified} router on this slice (it was fixed by a dated commit
+before the present decision artifact existed), and it also confirms:
+$z = -42.7$, $p < 10^{-4}$, cost 0.0482. The deployed band policy remains
+near-random here too ($z = -0.5$, $p = 0.30$). The audit's findings
+therefore survive a split that the candidates never saw.
 
 \subsection{Routing on epistemic uncertainty}
 Beyond the repair, we evaluated \emph{epistemic} uncertainty from a single
@@ -434,9 +516,15 @@ nearly all predictions sit below $0.5$, making total and data entropy
 near-monotone in $\bar{p}$ itself (correlation 0.94); knowledge uncertainty
 is the only component not reducible to the score (correlation $-0.36$ with
 the reject-option signal), which is precisely why it carries routing
-information the reject-option rule cannot see. At the matched rate on the
+information the reject-option rule cannot see. We summarise routing quality
+by the normalised random$\to$oracle position
+$(R_{\mathrm{rand}} - R_{\mathrm{sel}})/(R_{\mathrm{rand}} -
+R_{\mathrm{oracle}})$, where $R_{\mathrm{sel}}$ is the kept-pile selective
+risk, $R_{\mathrm{rand}}$ the overall error rate (what a random router
+leaves), and $R_{\mathrm{oracle}}$ the best achievable kept-pile risk when
+the $n_d$ actual errors are deferred first. At the matched rate on the
 test half (Fig.~\ref{fig:riskcov}), knowledge uncertainty reached position
-0.40 on the random$\to$oracle axis versus 0.14 for the reject-option
+0.40 versus 0.14 for the reject-option
 baseline~\cite{chow1970} (selective risk 0.217 vs.\ 0.271; random 0.299),
 and approached a two-model disagreement signal (0.47) \emph{without a second
 model}. It is also higher on thin-file applicants, as an epistemic signal
@@ -450,40 +538,149 @@ a versioned flag, and switching the live routing signal, including any
 promotion of the SGLB signal, is an explicitly versioned governance
 decision rather than a silent change.
 
+\textbf{Is the uncertainty estimate informative?} Beyond routing rank, the
+signal should predict error. Binned by tune-split deciles of knowledge
+uncertainty, the test-half decision-error rate rises monotonically from
+5.0\% in the lowest decile to 64.7\% in the highest
+(Fig.~\ref{fig:deciles}; error-detection AUROC 0.749, AUPRC in the
+machine-readable report), against an overall error rate of 29.9\%. The
+reject-option margin, scored as an error detector in the same way, sits
+below chance (AUROC 0.462) because at this base rate its smallest margins
+concentrate in the risky band the engine already rejects.
+
+\textbf{Is the result an artifact of $K{=}10$ or one training run?} No.
+Across $K \in \{5, 10, 20, 50\}$ virtual ensembles and three training-seed
+sets (twelve configurations, each retrained under the full protocol), the
+random$\to$oracle position stays within 0.37--0.40 and the OOF AUC within
+0.7745--0.7750. One honest nuance: within a seed the per-case uncertainty
+ranks are insensitive to $K$ (Spearman $\rho \geq 0.99$ against the
+reference run), but across training seeds they correlate at
+$\rho \approx 0.68$, so individual routing decisions are moderately
+run-dependent even though aggregate routing quality is not; a production
+promotion should average uncertainties over seeds.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_uncertainty_deciles.pdf}
+\caption{Uncertainty calibration for routing: decision-error rate by
+knowledge-uncertainty decile (decile edges from the tuning half; errors on
+the held-out half). The monotone rise from 5.0\% to 64.7\% is what a
+routing signal must deliver.}
+\label{fig:deciles}
+\end{figure}
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_risk_coverage.pdf}
 \caption{Risk--coverage on the held-out half (research operating frame,
 Youden threshold fitted on the tuning half). Single-model epistemic
 (knowledge) uncertainty dominates the reject-option baseline at every
-coverage and approaches two-model disagreement without a second model.}
+measured coverage level (19-point grid) and approaches two-model
+disagreement without a second model.}
 \label{fig:riskcov}
+\end{figure}
+
+\subsection{Is uncertainty the right allocation objective?}
+\label{sec:costaware}
+Uncertainty is not financial risk: a model can be uncertain about an
+economically small case and confidently wrong about an expensive one. We
+therefore raced routing \emph{objectives} across a review-capacity grid
+(Fig.~\ref{fig:frontier}), under the same three-stage discipline as
+Sec.~\ref{sec:finaltest} (tune fits, selection picks, final evaluated once):
+random; the reject-option margin; knowledge uncertainty; expected decision
+cost $\mathbb{E}[L_i] = p_i c_{FA}$ for auto-approvals and
+$(1-p_i)c_{FR}$ for auto-rejections; and a rank-blend
+$\lambda\,\mathrm{rank}(U^{epi}_i) + (1-\lambda)\,\mathrm{rank}(\mathbb{E}[L_i])$
+with $\lambda$ chosen on the selection slice. The result is a clean negative
+for our own headline signal \emph{on this criterion}: the selection slice
+chooses $\lambda^{*} = 0$, i.e.\ pure expected-cost ranking, which at the
+22.5\% operating rate leaves an auto-pile cost of 0.0314 per applicant
+(95\% CI $[0.0308, 0.0320]$) versus 0.0479 for knowledge uncertainty,
+0.0583 for the margin rule and 0.0831 with no deferral; blending epistemic
+uncertainty into the cost ranking adds nothing. Together with
+Fig.~\ref{fig:riskcov}, the honest summary is that \emph{uncertainty and
+economic risk are different routing objectives}: epistemic uncertainty buys
+error isolation and information-targeted review, expected-loss ranking buys
+cost reduction, and an institution should pick (and audit) the objective it
+actually holds its review capacity for. The frontier excludes the cost of
+review itself; the report carries a per-review-cost grid so total cost can
+be read off at any assumed underwriting cost.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_cost_frontier.pdf}
+\caption{Expected auto-pile cost per applicant versus review capacity
+(final slice, touched once per strategy; shaded bands are 95\%
+row-bootstrap CIs; decision-layer costs 0.45/0.2644). Expected-cost ranking
+dominates on this criterion and the $\lambda^{*}{=}0$ blend coincides with
+it; epistemic uncertainty wins on error isolation
+(Fig.~\ref{fig:riskcov}), not on cost.}
+\label{fig:frontier}
 \end{figure}
 
 \subsection{Who gets deferred: a subgroup measurement}\label{sec:fairness}
 Selective prediction can magnify group disparities~\cite{jones2021}, so a
-deferral paper owes a subgroup account. We joined the deployed decision
-artifact to applicant attributes (gender, age, region rating, bureau-file
-status; none of these is an input to the 15-field serving contract) and
-measured the policy's decision mix, ranking and calibration per group
-(Fig.~\ref{fig:fairness}). Three observations. First, review concentrates
-where information is missing: thin-file applicants (no bureau record, 14.3\%
-of the population) are deferred at 34.3\% versus 20.5\% for documented
-applicants, which is the intended behaviour of an uncertainty-routed policy;
-their auto-reject rate, however, is also higher (39.0\% vs.\ 20.3\%),
-tracking their higher observed default rate (10.1\% vs.\ 7.7\%). Deferral
-therefore moderates, but does not remove, the thin-file approval gap.
-Second, decision-mix gaps across gender (approval 59.1\% F vs.\ 45.7\% M)
-and age (36.7\% under 30 vs.\ 68.7\% over 60) track the groups' observed
-default rates (7.0\% vs.\ 10.1\%; 11.5\% vs.\ 4.9\%) rather than deferral
-asymmetries (deferral rates stay within 22.1--25.2\% across these groups);
-we report them as measurements of the policy, not as a conditional-fairness
-analysis, which would require controls we do not claim. Third, calibration
-is tight in every group with $n \ge 500$ (10-bin ECE between 0.0011 and
-0.0042) and ranking AUC spans 0.719--0.768, lowest for the oldest and
-youngest bands. We release the full per-group table in the machine-readable
-report. This is a descriptive measurement of a deployed policy, not a
-regulatory fairness assessment.
+deferral paper owes a subgroup account. We joined the \emph{deployed band
+policy's} decision artifact to applicant attributes (gender, age, region
+rating, bureau-file status) and measured the policy's decision mix, ranking
+and calibration per group (Fig.~\ref{fig:fairness}). On attribute inputs we
+are precise: gender and age enter no component of the decision pipeline;
+region is \emph{not} in the 15-field ML serving contract but does enter
+CBES's lowest-weight pillar (region, weight 0.05), so a bounded region
+influence (at most $\alpha \times 0.05$ of the blend) is present in every
+blended decision, and an engineered region$\times$income feature exists in
+the offline research models only. Three observations on the deployed policy.
+First, review concentrates where information is missing: thin-file
+applicants (no bureau record, 14.3\% of the population) are deferred at
+34.3\% versus 20.5\% for documented applicants; their auto-reject rate,
+however, is also higher (39.0\% vs.\ 20.3\%), tracking their higher observed
+default rate (10.1\% vs.\ 7.7\%). Deferral therefore moderates, but does not
+remove, the thin-file approval gap. Second, decision-mix gaps across gender
+(approval 59.1\% F vs.\ 45.7\% M) and age (36.7\% under 30 vs.\ 68.7\% over
+60) track the groups' observed default rates (7.0\% vs.\ 10.1\%; 11.5\%
+vs.\ 4.9\%) rather than deferral asymmetries (deferral rates stay within
+22.1--25.2\% across these groups); we report them as measurements, not as a
+conditional-fairness analysis, which would require controls we do not claim.
+Third, calibration is tight in every group with $n \ge 500$ (10-bin ECE
+between 0.0011 and 0.0042) and ranking AUC spans 0.719--0.768, lowest for
+the oldest and youngest bands.
+
+\textbf{Does the asymmetry depend on the router?} Strongly, and in an
+instructive direction (Table~\ref{tab:subrouting}): the thin-file deferral
+asymmetry \emph{shrinks as the router improves}. The inverted historical
+rule concentrated review on thin-file applicants at 3.4$\times$ the
+documented rate while capturing only 10.9\% of documented defaulters; the
+deployed band and margin rules reduce the asymmetry; and the epistemic
+router is nearly flat across groups (24.4\% vs.\ 22.4\%) while giving
+thin-file applicants the highest default recall of any serving-frame-
+comparable policy. The 34.3\% headline is thus a property of the deployed
+band policy's calibration geometry, not of epistemic uncertainty, whose
+thin-file signal is only slightly elevated. Whether extra thin-file review
+\emph{helps} those applicants depends on reviewer behaviour we have not
+measured; what we can say is that the better-audited routers send humans
+harder cases without singling out thin-file applicants. This is a
+descriptive measurement of policies, not a regulatory fairness assessment.
+
+\begin{table}[t]
+\centering
+\caption{Subgroup routing by policy at the matched 22.5\% rate (held-out
+half): deferral rate and default recall in the review set, thin-file (TF)
+vs.\ documented (Doc). SGLB rows are in the research frame (its own
+threshold), stated for comparison, not equivalence.}
+\label{tab:subrouting}
+\begin{tabular}{@{}l c c c c@{}}
+\toprule
+& \multicolumn{2}{c}{\textbf{Defer rate}} & \multicolumn{2}{c}{\textbf{Default recall}} \\
+\textbf{Policy} & \textbf{TF} & \textbf{Doc} & \textbf{TF} & \textbf{Doc} \\
+\midrule
+Disagreement (historical) & 57.6\% & 16.7\% & 0.42 & 0.11 \\
+Random router & 22.9\% & 22.4\% & 0.25 & 0.22 \\
+Deployed band policy & 34.3\% & 20.5\% & 0.22 & 0.22 \\
+Margin uncertainty (wired) & 30.4\% & 21.2\% & 0.27 & 0.24 \\
+SGLB epistemic (research frame) & 24.4\% & 22.4\% & 0.44 & 0.46 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[t]
 \centering
@@ -632,15 +829,19 @@ ML$+$CBES blend, $+$ deferral & 0.7613 & 22.5\% & 79.5\% \\
 \end{tabular}
 \end{table}
 
-\textbf{Monotonicity is free (RQ3).} We fixed 21 sign constraints from
-domain knowledge only (external credit scores decrease risk; payment burden,
-bureau overdues, leverage and prolongations increase it; demographic fields
-deliberately unconstrained) and re-trained the best model under them.
-Fold-paired cost: $-0.0008$ AUC, inside the noise floor, with zero direction
-violations in 14{,}400 empirical sweep checks. Directional adverse-action
-explanations (``your bureau score improved, so your risk decreased'') thus
-become \emph{model properties}, which post-hoc attribution alone cannot
-guarantee.
+\textbf{Monotonicity costs nothing measurable (RQ3).} We fixed 21 sign
+constraints from domain knowledge only (external credit scores decrease
+risk; payment burden, bureau overdues, leverage and prolongations increase
+it; demographic fields deliberately unconstrained) and re-trained the best
+model under them. Fold-paired cost: $-0.0008$ AUC, inside the pre-registered
+practical floor, with zero direction violations in 14{,}400 empirical sweep
+checks. We state the guarantee's scope precisely: the constraint holds by
+model construction for each listed feature \emph{with the other inputs held
+fixed}; the 14{,}400 checks are sampled verification of that construction,
+not an exhaustive proof over the feature space. Within that scope,
+directional adverse-action explanations (``your bureau score improved, so
+your risk decreased'') become \emph{model properties}, which post-hoc
+attribution alone cannot guarantee.
 
 \textbf{Cost-sensitivity belongs in the decision layer.} With a stated
 7.5:1 false-negative:false-positive cost model (unsecured-retail
@@ -758,17 +959,26 @@ human-AI complementarity are explicitly out of scope. The subgroup analysis
 is descriptive, not causal or conditional. The committed demonstration
 sample under-represents the extreme-risk tail (corrected by appending
 identity-verified reject-tail applicants), and the relearning loop is
-deliberately unproven because it is deliberately closed.
+deliberately unproven because it is deliberately closed. All cost
+conclusions are conditional on the stated cost pairs (both carried with
+provenance, with a ratio sensitivity reported); the three-stage final slice
+comes from the same corpus, so it removes selection bias but not
+single-dataset risk; and per-case epistemic ranks vary across training
+seeds ($\rho \approx 0.68$) even though aggregate routing quality does not.
 
 \section{Conclusion}
 Treating the decision pipeline, rather than the classifier, as the research
 object yielded reproducible findings a leaderboard cannot express: deferral
-rules can silently invert and can be audited with a cheap permutation test;
-a single boosted model can supply epistemic routing without an ensemble;
-uncertainty-routed review concentrates human attention on thin-file
-applicants, measurably; accuracy headroom on this corpus lives in
-information rather than architecture; and a regulator-relevant
-explainability guarantee can be had at a cost inside the noise floor. Future
+rules can silently invert, can be audited with a cheap permutation test, and
+the audit's findings survive an untouched final split; a single boosted
+model can supply epistemic routing without an ensemble, robustly across
+ensemble sizes and training seeds; uncertainty and economic risk are
+different routing objectives, and expected-loss ranking, not uncertainty,
+minimises decision cost at fixed capacity; the subgroup footprint of
+deferral is a property of the router, shrinking to near-flat under the
+epistemic signal; accuracy headroom on this corpus lives in information
+rather than architecture; and a regulator-relevant explainability guarantee
+can be had at a cost inside the practical noise floor. Future
 work: replication of the deferral audit and epistemic routing on an
 independent credit dataset; the unused credit-history side tables (a
 measured $\sim$$+0.015$ AUC path); promotion of the engineered-feature model
@@ -782,7 +992,11 @@ commits: the features-versus-fusion protocol (commit \texttt{8bd7cbf},
 2026-09-23), the three model-modification studies (\texttt{4a7cb4c},
 2026-09-30) and the deferral race (\texttt{0a253bd}, 2026-08-31) were
 committed with their claim rules in the script headers before results were
-generated. Code, infrastructure definitions, figure generators,
+generated. The revision studies (the 10{,}000-permutation audit, the
+three-stage final-test split, the SGLB robustness sweep, the cost-aware
+routing comparison and the subgroup routing comparison) are likewise
+committed scripts whose selection rules are stated in their headers and
+whose outputs are machine-readable reports. Code, infrastructure definitions, figure generators,
 machine-readable reports, dependency versions and seeds are prepared for
 release as an anonymised archive; the Home Credit licence does not permit
 redistributing derived row-level data, so the archive ships regeneration

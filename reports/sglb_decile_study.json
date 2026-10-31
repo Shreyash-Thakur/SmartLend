@@ -1,0 +1,195 @@
+{
+  "protocol": {
+    "source": "data/processed/sglb_uncertainty_oof.pkl (committed study's K=10 OOF run)",
+    "rows": 307511,
+    "split": "tune/test seed 20260831; deciles and Youden threshold from tune only",
+    "error_definition": "predicted default iff pd >= Youden t*; error iff prediction != label",
+    "fold_aucs": [
+      0.7705,
+      0.7806,
+      0.7727,
+      0.7807,
+      0.7698
+    ]
+  },
+  "overall_error_rate_test": 0.29898670620983897,
+  "deciles": {
+    "knowledge_uncertainty": [
+      {
+        "decile": 1,
+        "n": 15339,
+        "error_rate": 0.049742486472390636
+      },
+      {
+        "decile": 2,
+        "n": 15339,
+        "error_rate": 0.10267944455309994
+      },
+      {
+        "decile": 3,
+        "n": 15227,
+        "error_rate": 0.15209824653575885
+      },
+      {
+        "decile": 4,
+        "n": 15352,
+        "error_rate": 0.1911803022407504
+      },
+      {
+        "decile": 5,
+        "n": 15050,
+        "error_rate": 0.23707641196013288
+      },
+      {
+        "decile": 6,
+        "n": 15935,
+        "error_rate": 0.29036711641041735
+      },
+      {
+        "decile": 7,
+        "n": 15214,
+        "error_rate": 0.35184698304193507
+      },
+      {
+        "decile": 8,
+        "n": 15202,
+        "error_rate": 0.42369425075647943
+      },
+      {
+        "decile": 9,
+        "n": 15400,
+        "error_rate": 0.5348051948051948
+      },
+      {
+        "decile": 10,
+        "n": 15698,
+        "error_rate": 0.6470250987386928
+      }
+    ],
+    "total_uncertainty": [
+      {
+        "decile": 1,
+        "n": 14899,
+        "error_rate": 0.008658299214712397
+      },
+      {
+        "decile": 2,
+        "n": 15436,
+        "error_rate": 0.01664939103394662
+      },
+      {
+        "decile": 3,
+        "n": 15641,
+        "error_rate": 0.025382008822965284
+      },
+      {
+        "decile": 4,
+        "n": 15300,
+        "error_rate": 0.03104575163398693
+      },
+      {
+        "decile": 5,
+        "n": 15245,
+        "error_rate": 0.04086585765824861
+      },
+      {
+        "decile": 6,
+        "n": 15565,
+        "error_rate": 0.058336010279473174
+      },
+      {
+        "decile": 7,
+        "n": 15524,
+        "error_rate": 0.35416129863437257
+      },
+      {
+        "decile": 8,
+        "n": 15138,
+        "error_rate": 0.8955608402695204
+      },
+      {
+        "decile": 9,
+        "n": 15334,
+        "error_rate": 0.8434850658667015
+      },
+      {
+        "decile": 10,
+        "n": 15674,
+        "error_rate": 0.7141125430649483
+      }
+    ],
+    "chow_margin": [
+      {
+        "decile": 1,
+        "n": 15678,
+        "error_rate": 0.7139941319045797
+      },
+      {
+        "decile": 2,
+        "n": 14862,
+        "error_rate": 0.412528596420401
+      },
+      {
+        "decile": 3,
+        "n": 15374,
+        "error_rate": 0.10888513074021075
+      },
+      {
+        "decile": 4,
+        "n": 15557,
+        "error_rate": 0.12078164170469885
+      },
+      {
+        "decile": 5,
+        "n": 15440,
+        "error_rate": 0.1408678756476684
+      },
+      {
+        "decile": 6,
+        "n": 15396,
+        "error_rate": 0.1752403221616004
+      },
+      {
+        "decile": 7,
+        "n": 15187,
+        "error_rate": 0.2251925989332982
+      },
+      {
+        "decile": 8,
+        "n": 15385,
+        "error_rate": 0.27552811179720504
+      },
+      {
+        "decile": 9,
+        "n": 15376,
+        "error_rate": 0.3595213319458897
+      },
+      {
+        "decile": 10,
+        "n": 15501,
+        "error_rate": 0.45371266369911617
+      }
+    ]
+  },
+  "error_detection": {
+    "knowledge_uncertainty": {
+      "auroc": 0.7486927184945928,
+      "auprc": 0.537151807762722
+    },
+    "total_uncertainty": {
+      "auroc": 0.9196706049661126,
+      "auprc": 0.7303818215276954
+    },
+    "chow_margin": {
+      "auroc": 0.462408872225201,
+      "auprc": 0.33708188937960626
+    }
+  },
+  "thin_file": {
+    "n_thin": 44020,
+    "mean_knowledge_thin": 7.054600830085778e-05,
+    "mean_knowledge_documented": 6.603959152083055e-05,
+    "error_rate_thin_test": 0.40971147720032763,
+    "error_rate_documented_test": 0.2805238955244267
+  }
+}

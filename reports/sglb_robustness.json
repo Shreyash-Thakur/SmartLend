@@ -1,0 +1,153 @@
+{
+  "protocol": {
+    "folds": "5-fold StratifiedKFold seed 42 (+offset on model seeds)",
+    "iterations": 1000,
+    "K_grid": [
+      5,
+      10,
+      20,
+      50
+    ],
+    "seed_offsets": [
+      0,
+      100,
+      200
+    ],
+    "split": "tune/test seed 20260831; Youden threshold and deferral quantile from tune only",
+    "target_deferral_rate": 0.225,
+    "reference": "offset 0, K=10 (the committed uncertainty_deferral study configuration)"
+  },
+  "configurations": {
+    "offset0_K5": {
+      "oof_auc": 0.7749824844890512,
+      "routing": {
+        "deferral_rate": 0.22717162257082651,
+        "selective_risk": 0.2211197791747667,
+        "random_risk": 0.3016922916829262,
+        "oracle_risk": 0.09642589647134069,
+        "position_random0_oracle1": 0.39252656249507667
+      }
+    },
+    "offset0_K10": {
+      "oof_auc": 0.7748189109137129,
+      "routing": {
+        "deferral_rate": 0.22704154634615886,
+        "selective_risk": 0.21741398604929027,
+        "random_risk": 0.29898670620983897,
+        "oracle_risk": 0.09307765446330156,
+        "position_random0_oracle1": 0.39615898120379955
+      },
+      "spearman_vs_reference": 1.0
+    },
+    "offset0_K20": {
+      "oof_auc": 0.7747436729427936,
+      "routing": {
+        "deferral_rate": 0.22656676812612192,
+        "selective_risk": 0.21562394887319206,
+        "random_risk": 0.29701605140612397,
+        "oracle_risk": 0.09108644466868483,
+        "position_random0_oracle1": 0.3952423540375478
+      },
+      "spearman_vs_reference": 0.993868966457365
+    },
+    "offset0_K50": {
+      "oof_auc": 0.7746998313880074,
+      "routing": {
+        "deferral_rate": 0.2263456385441869,
+        "selective_risk": 0.21631891319333524,
+        "random_risk": 0.2976534249069955,
+        "oracle_risk": 0.09217008255291961,
+        "position_random0_oracle1": 0.39582046302084073
+      },
+      "spearman_vs_reference": 0.9901144010153252
+    },
+    "offset100_K5": {
+      "oof_auc": 0.7747719409745951,
+      "routing": {
+        "deferral_rate": 0.22674887484065662,
+        "selective_risk": 0.2165915284459846,
+        "random_risk": 0.2964827388849866,
+        "oracle_risk": 0.09018268680819568,
+        "position_random0_oracle1": 0.3872573449921582
+      },
+      "spearman_vs_reference": 0.6527552331868272
+    },
+    "offset100_K10": {
+      "oof_auc": 0.7746326382410756,
+      "routing": {
+        "deferral_rate": 0.2273212102291943,
+        "selective_risk": 0.1984360795932797,
+        "random_risk": 0.27917609719295505,
+        "oracle_risk": 0.0671105349988216,
+        "position_random0_oracle1": 0.38073139629225916
+      },
+      "spearman_vs_reference": 0.675871544930741
+    },
+    "offset100_K20": {
+      "oof_auc": 0.774558180727521,
+      "routing": {
+        "deferral_rate": 0.22737974453029475,
+        "selective_risk": 0.19951176396312975,
+        "random_risk": 0.28080855381253417,
+        "oracle_risk": 0.06915274211877605,
+        "position_random0_oracle1": 0.3840990200024917
+      },
+      "spearman_vs_reference": 0.6817381481081328
+    },
+    "offset100_K50": {
+      "oof_auc": 0.7745134685146193,
+      "routing": {
+        "deferral_rate": 0.22723666068316034,
+        "selective_risk": 0.2003501182490721,
+        "random_risk": 0.2812768282213377,
+        "oracle_risk": 0.06993107046971393,
+        "position_random0_oracle1": 0.3829114472568298
+      },
+      "spearman_vs_reference": 0.6839432373191736
+    },
+    "offset200_K5": {
+      "oof_auc": 0.7748963518919099,
+      "routing": {
+        "deferral_rate": 0.22923983454304223,
+        "selective_risk": 0.19304019104034292,
+        "random_risk": 0.2738754910377481,
+        "oracle_risk": 0.057911213494333764,
+        "position_random0_oracle1": 0.3742994022757084
+      },
+      "spearman_vs_reference": 0.6551617354111333
+    },
+    "offset200_K10": {
+      "oof_auc": 0.7747364175534964,
+      "routing": {
+        "deferral_rate": 0.2285699419860038,
+        "selective_risk": 0.1924931710113648,
+        "random_risk": 0.2742852311454512,
+        "oracle_risk": 0.05926044582335683,
+        "position_random0_oracle1": 0.38038433574793146
+      },
+      "spearman_vs_reference": 0.6776067712916287
+    },
+    "offset200_K20": {
+      "oof_auc": 0.7746544879123478,
+      "routing": {
+        "deferral_rate": 0.22836182002653554,
+        "selective_risk": 0.19126125214928694,
+        "random_risk": 0.2730430031998751,
+        "oracle_risk": 0.05790431880246789,
+        "position_random0_oracle1": 0.3801350337325656
+      },
+      "spearman_vs_reference": 0.6845776241490587
+    },
+    "offset200_K50": {
+      "oof_auc": 0.7746098155986723,
+      "routing": {
+        "deferral_rate": 0.2283813314602357,
+        "selective_risk": 0.20609232895879165,
+        "random_risk": 0.288639142537527,
+        "oracle_risk": 0.07809273354068155,
+        "position_random0_oracle1": 0.3920599452255304
+      },
+      "spearman_vs_reference": 0.6872394208208309
+    }
+  }
+}

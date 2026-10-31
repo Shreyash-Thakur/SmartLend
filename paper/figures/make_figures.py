@@ -271,6 +271,65 @@ def fig_fairness():
     save(fig, "fig_fairness")
 
 
+# --------------------------------------------------- fig: cost frontier
+def fig_cost_frontier():
+    d = json.loads((REPO / "reports" / "cost_aware_routing.json").read_text())
+    curves = d["curves"]
+    no_defer = d["no_deferral_cost_final"]
+    lam = d["lambda_star"]
+    spec = [
+        ("random", "random", GRAY, (0, (1, 1.2)), "."),
+        ("chow_margin", "reject-option margin", VERM, (0, (4, 2)), "^"),
+        ("knowledge", "epistemic (SGLB)", GREEN, "-", "o"),
+        ("expected_cost", "expected cost", BLUE, "-", "s"),
+        (f"combined_lambda_{lam}", f"combined ($\\lambda^*{{=}}{lam}$)", ORANGE, (0, (6, 2)), "D"),
+    ]
+    fig, ax = plt.subplots(figsize=(COL_W, 2.5))
+    for key, label, color, ls, marker in spec:
+        pts = curves[key]
+        cap = [p["capacity"] for p in pts]
+        cost = [p["auto_cost_per_applicant"] for p in pts]
+        lo = [p["ci95"][0] for p in pts]
+        hi = [p["ci95"][1] for p in pts]
+        ax.plot(cap, cost, color=color, lw=1.5, linestyle=ls, marker=marker,
+                markersize=3, label=label)
+        ax.fill_between(cap, lo, hi, color=color, alpha=0.15, lw=0)
+    ax.scatter([0], [no_defer], color="#1a1a1a", s=16, zorder=5)
+    ax.annotate(f"no deferral ({no_defer:.3f})", (0.004, no_defer),
+                fontsize=6.5, va="center")
+    ax.axvline(0.225, color=GRAY, lw=0.7, alpha=0.6)
+    ax.annotate("22.5%", (0.225, ax.get_ylim()[0]), textcoords="offset points",
+                xytext=(2, 4), fontsize=6.5, color=GRAY)
+    ax.set_xlabel("Review capacity (share deferred)")
+    ax.set_ylabel("Auto-pile cost per applicant")
+    ax.set_title("Cost vs. capacity: review cost excluded (add $c_{rev}\\times$capacity)")
+    ax.legend(frameon=True, loc="upper right", framealpha=0.95, edgecolor="#cccccc")
+    save(fig, "fig_cost_frontier")
+
+
+# ------------------------------------------------ fig: uncertainty deciles
+def fig_uncertainty_deciles():
+    d = json.loads((REPO / "reports" / "sglb_decile_study.json").read_text())
+    dec = d["deciles"]["knowledge_uncertainty"]
+    overall = d["overall_error_rate_test"]
+    auroc = d["error_detection"]["knowledge_uncertainty"]["auroc"]
+    xs = [e["decile"] for e in dec]
+    ys = [e["error_rate"] for e in dec]
+    fig, ax = plt.subplots(figsize=(COL_W, 2.1))
+    ax.bar(xs, ys, color=GREEN, alpha=0.85, width=0.7)
+    for x, yv in zip(xs, ys):
+        ax.annotate(f"{yv:.0%}", (x, yv), textcoords="offset points",
+                    xytext=(0, 2), ha="center", fontsize=6)
+    ax.axhline(overall, color=GRAY, lw=1.0, linestyle=(0, (4, 2)))
+    ax.annotate(f"overall error ({overall:.0%})", (1.1, overall),
+                textcoords="offset points", xytext=(0, 3), fontsize=6.5, color=GRAY)
+    ax.set_xticks(xs)
+    ax.set_xlabel("Knowledge-uncertainty decile (tune-split edges)")
+    ax.set_ylabel("Decision-error rate")
+    ax.set_title(f"Higher epistemic uncertainty, higher error (AUROC {auroc:.2f})")
+    save(fig, "fig_uncertainty_deciles")
+
+
 if __name__ == "__main__":
     print("[figures]")
     fig_fold_deltas()
@@ -279,3 +338,5 @@ if __name__ == "__main__":
     fig_architecture()
     fig_audit_null()
     fig_fairness()
+    fig_cost_frontier()
+    fig_uncertainty_deciles()

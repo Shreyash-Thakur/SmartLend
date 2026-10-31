@@ -1,0 +1,109 @@
+{
+  "protocol": {
+    "serving_frame": "prediction_outputs.csv held-out half; thresholds from tune (seed 20260831)",
+    "research_frame": "SGLB OOF cache, same split seed; Youden threshold from tune",
+    "target_rate": 0.225,
+    "thin_file_definition": "no record in bureau.csv",
+    "metrics_note": "selective risk = 0/1 loss of the forced engine decision on the group's kept pile"
+  },
+  "serving_frame_policies": {
+    "deployed_band_policy": {
+      "overall_defer_rate": 0.22484976196050885,
+      "thin_file": {
+        "n": 21974,
+        "defer_rate": 0.3430417766451261,
+        "selective_risk": 0.4754087004710446,
+        "default_recall_in_review": 0.22162645218945487,
+        "false_approval_rate_auto": 0.014062067054585757,
+        "false_rejection_rate_auto": 0.4613466334164589
+      },
+      "documented": {
+        "n": 131782,
+        "defer_rate": 0.20514182513545098,
+        "selective_risk": 0.22510214992171687,
+        "default_recall_in_review": 0.22008442132129183,
+        "false_approval_rate_auto": 0.02280711803566655,
+        "false_rejection_rate_auto": 0.20229503188605033
+      }
+    },
+    "random_router": {
+      "overall_defer_rate": 0.22499934961887666,
+      "thin_file": {
+        "n": 21974,
+        "defer_rate": 0.22890688996086284,
+        "selective_risk": 0.35918319169027385,
+        "default_recall_in_review": 0.2515638963360143,
+        "false_approval_rate_auto": 0.02891879131255902,
+        "false_rejection_rate_auto": 0.3302644003777148
+      },
+      "documented": {
+        "n": 131782,
+        "defer_rate": 0.22434778649587955,
+        "selective_risk": 0.23885459365858908,
+        "default_recall_in_review": 0.22047707862962598,
+        "false_approval_rate_auto": 0.02891886868133481,
+        "false_rejection_rate_auto": 0.20993572497725427
+      }
+    },
+    "current_abs_diff": {
+      "overall_defer_rate": 0.22576029553318244,
+      "thin_file": {
+        "n": 21974,
+        "defer_rate": 0.5764084827523437,
+        "selective_risk": 0.46669531585732704,
+        "default_recall_in_review": 0.4195710455764075,
+        "false_approval_rate_auto": 0.024387623549634724,
+        "false_rejection_rate_auto": 0.4423076923076923
+      },
+      "documented": {
+        "n": 131782,
+        "defer_rate": 0.16729143585618672,
+        "selective_risk": 0.2615641175184078,
+        "default_recall_in_review": 0.1094532246981447,
+        "false_approval_rate_auto": 0.027456805423926516,
+        "false_rejection_rate_auto": 0.2341073120944813
+      }
+    },
+    "ml_uncertainty": {
+      "overall_defer_rate": 0.22520747157834492,
+      "thin_file": {
+        "n": 21974,
+        "defer_rate": 0.30408664785655776,
+        "selective_risk": 0.3364504315982213,
+        "default_recall_in_review": 0.27211796246648795,
+        "false_approval_rate_auto": 0.020925974365681402,
+        "false_rejection_rate_auto": 0.3155244572325399
+      },
+      "documented": {
+        "n": 131782,
+        "defer_rate": 0.21205475709884505,
+        "selective_risk": 0.20257711605689688,
+        "default_recall_in_review": 0.24197506626092077,
+        "false_approval_rate_auto": 0.023922108689580786,
+        "false_rejection_rate_auto": 0.17865500736731607
+      }
+    }
+  },
+  "research_frame_policies": {
+    "sglb_knowledge_uncertainty": {
+      "frame_note": "research frame: SGLB pd at Youden t*, not the serving engine",
+      "overall_defer_rate": 0.22704154634615886,
+      "thin_file": {
+        "n": 21974,
+        "defer_rate": 0.24428870483298443,
+        "selective_risk": 0.3378297001083946,
+        "default_recall_in_review": 0.43744414655942804,
+        "false_approval_rate_auto": 0.02529206310971938,
+        "false_rejection_rate_auto": 0.31253763699867515
+      },
+      "documented": {
+        "n": 131782,
+        "defer_rate": 0.2241656675418494,
+        "selective_risk": 0.19785604600893966,
+        "default_recall_in_review": 0.4635319524884657,
+        "false_approval_rate_auto": 0.0253714263358144,
+        "false_rejection_rate_auto": 0.17248461967312526
+      }
+    }
+  }
+}
