@@ -1,0 +1,71 @@
+{
+  "protocol": {
+    "design": "60/20/20 train/val/test stratified (seed 42); one SGLB CatBoost; thresholds from val only",
+    "model": "SGLB CatBoost, 1000 iterations, K=10",
+    "scenarios_note": "CONTROLLED synthetic stress tests (except thin_file_only, a real subpopulation); not evidence of real-world generalisation.",
+    "masked_columns_missing_scenario": 19,
+    "noisy_columns_noise_scenario": 63,
+    "target_deferral_rate": 0.225
+  },
+  "scenarios": {
+    "clean": {
+      "n": 61503,
+      "default_rate": 0.08072776937710356,
+      "auc": 0.779417270784059,
+      "ece_10bin": 0.004196793619435041,
+      "overall_error_rate": 0.28021397330211534,
+      "mean_knowledge": 7.42353836281086e-05,
+      "deferral_rate_at_clean_threshold": 0.22364762694502707,
+      "selective_risk_at_matched_rate": 0.20050351410888492,
+      "deferral_beats_random": true
+    },
+    "missing_info_50": {
+      "n": 61503,
+      "default_rate": 0.08072776937710356,
+      "auc": 0.7197943922217274,
+      "ece_10bin": 0.053419171891182254,
+      "overall_error_rate": 0.522348503325041,
+      "mean_knowledge": 0.000305195384233781,
+      "deferral_rate_at_clean_threshold": 0.5655496479846511,
+      "selective_risk_at_matched_rate": 0.44988985628868144,
+      "deferral_beats_random": true,
+      "mean_knowledge_ratio_vs_clean": 4.111184846335479
+    },
+    "thin_file_only": {
+      "n": 8935,
+      "default_rate": 0.09893676552881925,
+      "auc": 0.7523822958953412,
+      "ece_10bin": 0.009061604300881166,
+      "overall_error_rate": 0.3918298824846111,
+      "mean_knowledge": 7.681910883297835e-05,
+      "deferral_rate_at_clean_threshold": 0.24913262451035253,
+      "selective_risk_at_matched_rate": 0.32582322357019067,
+      "deferral_beats_random": true,
+      "mean_knowledge_ratio_vs_clean": 1.0348044972437032
+    },
+    "prior_shift_2x": {
+      "n": 30751,
+      "default_rate": 0.16145816396214757,
+      "auc": 0.7788799421124322,
+      "ece_10bin": 0.07017681391817777,
+      "overall_error_rate": 0.282299762609346,
+      "mean_knowledge": 8.50395802139865e-05,
+      "deferral_rate_at_clean_threshold": 0.24607329842931938,
+      "selective_risk_at_matched_rate": 0.22318731117824772,
+      "deferral_beats_random": true,
+      "mean_knowledge_ratio_vs_clean": 1.1455397151310331
+    },
+    "noise_20pct": {
+      "n": 61503,
+      "default_rate": 0.08072776937710356,
+      "auc": 0.77574678984096,
+      "ece_10bin": 0.00801632925035296,
+      "overall_error_rate": 0.30092840999626036,
+      "mean_knowledge": 0.00017492970265165248,
+      "deferral_rate_at_clean_threshold": 0.3844040128123831,
+      "selective_risk_at_matched_rate": 0.22656036924367984,
+      "deferral_beats_random": true,
+      "mean_knowledge_ratio_vs_clean": 2.3564194606710003
+    }
+  }
+}

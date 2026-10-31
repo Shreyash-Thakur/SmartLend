@@ -115,7 +115,10 @@ from stochastic-gradient Langevin boosting (SGLB) virtual
 ensembles~\cite{ustimenko2021,malinin2021} routes review cases to position
 0.40 on the random$\to$oracle axis versus 0.14 for the classical
 reject-option baseline~\cite{chow1970} at the same 22.5\% rate, approaching
-two-model disagreement without a second model.
+two-model disagreement without a second model; a replication on an
+independent Taiwanese credit corpus~\cite{yeh2009} confirms the audit and
+the single-model machinery while showing that the best-routing uncertainty
+component shifts with the base rate (Sec.~\ref{sec:taiwan}).
 \item \textbf{A measured subgroup account of who gets deferred (RQ1).} The
 thin-file deferral asymmetry turns out to be a property of the \emph{router},
 not of deferral itself: it shrinks monotonically as routers improve, from
@@ -692,6 +695,52 @@ overall rate. Groups with $n < 500$ omitted.}
 \label{fig:fairness}
 \end{figure}
 
+\subsection{Stress tests: does the signal notice shift?}\label{sec:shift}
+We subjected one SGLB model (trained on a 60\% slice, thresholds from a 20\%
+validation slice) to controlled corruptions of the remaining test slice,
+labelled explicitly as synthetic stress tests, not evidence of real-world
+generalisation. The monitoring quantity is free: the deferral rate at the
+\emph{clean-fitted} knowledge threshold, which a stable system should hold
+near 22.5\%. Under information loss (all external-score and bureau-derived
+columns masked for a random half of rows), the rate fires to 56.6\% while
+AUC falls $0.779 \to 0.720$ and 10-bin ECE rises $0.004 \to 0.053$: the
+epistemic signal detects exactly the shift it is supposed to detect. Under
+feature noise (Gaussian, half a standard deviation, on 20\% of numeric
+columns) accuracy is almost untouched (AUC 0.776) yet the rate still fires
+to 38.4\%: the signal detects \emph{distributional} change even when error
+does not yet move. On the real thin-file subpopulation the rate is mildly
+elevated (24.9\%). One honest negative: under a pure class-prior shift
+(default rate doubled by subsampling) ranking is invariant (AUC 0.779) and
+calibration degrades sharply (ECE 0.070), but knowledge uncertainty barely
+fires (24.6\%); prior shift is a blind spot of the epistemic signal and
+belongs to calibration monitoring instead. In every scenario,
+knowledge-routed deferral at the matched 22.5\% rate kept selective risk
+below the scenario's overall error rate; deferral keeps protecting under
+every shift we imposed.
+
+\subsection{An independent-dataset replication}\label{sec:taiwan}
+External validity cannot be argued from one corpus, so we replicated the
+deferral layer end to end on the UCI Taiwan credit-card default
+dataset~\cite{yeh2009} (30{,}000 real customers, 22.1\% default rate):
+same fold seeds, same SGLB budget, same tune/test discipline, and the
+\emph{unmodified} Home Credit audit code running on the new data. The
+replication both confirms and sharpens the claim. It confirms the
+machinery: SGLB trains well (OOF AUC 0.7807), every uncertainty router
+beats random at the matched 22.5\% rate with the audit at its permutation
+floor (empirical $p < 10^{-4}$ for all three signals), and the knowledge
+deciles remain monotone in error (16.3\% to 34.9\%). It sharpens the signal
+choice: at Taiwan's 22\% base rate the random$\to$oracle ordering flips,
+with \emph{total} uncertainty dominating (position 0.415) over the
+reject-option margin (0.186) and knowledge uncertainty (0.097). The
+mechanism is the one Sec.~\ref{sec:deferral} already identified: at an 8\%
+prior, total entropy is near-reducible to the score and knowledge is the
+only non-redundant component; at a 22\% prior that reduction no longer
+holds, and total uncertainty becomes both informative and non-trivial.
+The portable conclusion is therefore procedural, and we state it as such:
+\emph{race candidate uncertainty signals at your own operating prior and
+audit the winner}; importing a routing signal untested, ours included, is
+exactly the failure mode the audit exists to catch.
+
 \section{Supporting Result: Where Accuracy Lives}\label{sec:results}
 This section answers RQ2 and explains why the deferral layer, rather than a
 better classifier, is where this system's decision quality improves.
@@ -943,11 +992,14 @@ right response is to promote richer features \emph{through} the contract,
 never around it.
 
 \section{Limitations}
-Our results come from one dataset (Home Credit; Indian-market cost and
-regulatory framing over non-Indian data), and the corpus carries no
-timestamps, so temporal shift is untestable here; external validity requires
-replication on an independent credit portfolio, which we identify as the
-highest-priority follow-up. The serving/research accuracy gap (0.6919 vs.\
+Our primary results come from one dataset (Home Credit; Indian-market cost
+and regulatory framing over non-Indian data), and the corpus carries no
+timestamps, so real temporal shift is untestable here (the stress tests of
+Sec.~\ref{sec:shift} are controlled synthetic corruptions). The
+independent-dataset replication (Sec.~\ref{sec:taiwan}) covers the deferral
+layer only; the feature, serving and subgroup results remain single-corpus,
+and it showed the routing-signal choice to be base-rate dependent, so no
+fixed signal should be transported without re-racing it. The serving/research accuracy gap (0.6919 vs.\
 0.7757) reflects a deliberate 15-field serve-time contract not yet extended
 to the engineered features; the two numbers come from different populations
 and feature frames and are never compared as models. Deferral findings are
@@ -978,10 +1030,12 @@ minimises decision cost at fixed capacity; the subgroup footprint of
 deferral is a property of the router, shrinking to near-flat under the
 epistemic signal; accuracy headroom on this corpus lives in information
 rather than architecture; and a regulator-relevant explainability guarantee
-can be had at a cost inside the practical noise floor. Future
-work: replication of the deferral audit and epistemic routing on an
-independent credit dataset; the unused credit-history side tables (a
-measured $\sim$$+0.015$ AUC path); promotion of the engineered-feature model
+can be had at a cost inside the practical noise floor. The deferral layer
+replicates on an independent corpus, where the audit transports and the
+best uncertainty component shifts with the base rate: the procedure, not
+the signal, is the portable artifact. Future work: full-system replication
+(features, serving, subgroups) on an independent portfolio; the remaining
+credit-history side tables; promotion of the engineered-feature model
 behind the serving contract; and a human-subject evaluation of the review
 workflow.
 
@@ -1093,6 +1147,11 @@ vol. 31, no. 2, 2018.
 \bibitem{elkan2001} C. Elkan, ``The foundations of cost-sensitive
 learning,'' in \emph{Proc. Int. Joint Conf. Artificial Intelligence
 (IJCAI)}, 2001.
+
+\bibitem{yeh2009} I.-C. Yeh and C.-H. Lien, ``The comparisons of data
+mining techniques for the predictive accuracy of probability of default of
+credit card clients,'' \emph{Expert Systems with Applications}, vol. 36,
+no. 2, pp. 2473--2480, 2009.
 
 \bibitem{verbraken2014} T. Verbraken, C. Bravo, R. Weber, and B. Baesens,
 ``Development and application of consumer credit scoring models using

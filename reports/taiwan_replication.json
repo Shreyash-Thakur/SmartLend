@@ -1,0 +1,81 @@
+{
+  "dataset": {
+    "name": "UCI default of credit card clients (Taiwan, Yeh & Lien 2009)",
+    "source": "OpenML data id 42477 (verbatim UCI upload), fetched to data/raw/uci_taiwan/",
+    "rows": 30000,
+    "default_rate": 0.2212,
+    "n_features": 23
+  },
+  "protocol": {
+    "folds": "5-fold StratifiedKFold seed 42",
+    "model": "SGLB CatBoost, 1000 iterations, K=10 virtual ensembles",
+    "split": "50/50 tune/test seed 20260831; Youden threshold and quantiles from tune only",
+    "target_deferral_rate": 0.225,
+    "gate": "research.relearning.gate.evaluate_condition_1, unmodified, trials=10000",
+    "note": "same seeds, budgets and audit code as the Home Credit study"
+  },
+  "oof_auc": 0.7807460607959428,
+  "fold_aucs": [
+    0.7915,
+    0.776,
+    0.7804,
+    0.7821,
+    0.7742
+  ],
+  "youden_threshold_tune": 0.26729188951087157,
+  "overall_error_rate_test": 0.21913333333333335,
+  "candidates_at_matched_rate": {
+    "chow_margin": {
+      "routing": {
+        "deferral_rate": 0.2222,
+        "selective_risk": 0.17828062055369848,
+        "random_risk": 0.21913333333333335,
+        "oracle_risk": 0.0,
+        "position_random0_oracle1": 0.18642856455568088
+      },
+      "gate_accuracy_z": -22.88436074936884,
+      "gate_balance_z": -3.8599102904583718,
+      "gate_status": "PASS",
+      "error_detection_auroc": 0.5915619798543043
+    },
+    "knowledge_uncertainty": {
+      "routing": {
+        "deferral_rate": 0.2168,
+        "selective_risk": 0.1980762683009874,
+        "random_risk": 0.21913333333333335,
+        "oracle_risk": 0.002979230507320395,
+        "position_random0_oracle1": 0.09741691116219629
+      },
+      "gate_accuracy_z": -11.769446750895712,
+      "gate_balance_z": -14.113939182300177,
+      "gate_status": "PASS",
+      "error_detection_auroc": 0.5776097669671959
+    },
+    "total_uncertainty": {
+      "routing": {
+        "deferral_rate": 0.21406666666666666,
+        "selective_risk": 0.13079989821019594,
+        "random_risk": 0.21913333333333335,
+        "oracle_risk": 0.006446687590126389,
+        "position_random0_oracle1": 0.4153219625730014
+      },
+      "gate_accuracy_z": -49.3307959009204,
+      "gate_balance_z": -33.41376459639721,
+      "gate_status": "PASS",
+      "error_detection_auroc": 0.7647033239533139
+    }
+  },
+  "knowledge_deciles_error_rate": [
+    0.16344916344916344,
+    0.19236016371077763,
+    0.18409785932721712,
+    0.17541613316261204,
+    0.2021347565043362,
+    0.2020066889632107,
+    0.23207036535859268,
+    0.25,
+    0.25651577503429357,
+    0.3487719298245614
+  ],
+  "corr_knowledge_vs_chow": -0.09816482090553971
+}
