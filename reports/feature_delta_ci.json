@@ -1,0 +1,77 @@
+{
+  "protocol": {
+    "n_rows": 307511,
+    "join": "SK_ID_CURR one-to-one; label consistency asserted (0 mismatches)",
+    "note": "Pooled-OOF paired bootstrap; complements (does not replace) the fold-paired deltas in reports/features_vs_fusion.json. The pre-registered +-0.0036 floor is a PRACTICAL effect-size criterion; the CI answers statistical distinguishability."
+  },
+  "models": {
+    "LightGBM": {
+      "auc_v1": 0.7631065957916762,
+      "auc_v2": 0.7720748051498131,
+      "delta_full_sample": 0.008968209358136914,
+      "bootstrap": {
+        "iterations": 1000,
+        "seed": 20260831,
+        "delta_mean": 0.008942991539970458,
+        "ci95": [
+          0.00753029600961701,
+          0.010222691106891415
+        ],
+        "prob_delta_nonpositive": 0.0
+      },
+      "exceeds_practical_floor_0.0036": true,
+      "ci_excludes_zero": true
+    },
+    "XGBoost": {
+      "auc_v1": 0.765055042229448,
+      "auc_v2": 0.7748703928853297,
+      "delta_full_sample": 0.009815350655881683,
+      "bootstrap": {
+        "iterations": 1000,
+        "seed": 20260831,
+        "delta_mean": 0.009800836157839547,
+        "ci95": [
+          0.00843680519310432,
+          0.011018238581635979
+        ],
+        "prob_delta_nonpositive": 0.0
+      },
+      "exceeds_practical_floor_0.0036": true,
+      "ci_excludes_zero": true
+    },
+    "CatBoost": {
+      "auc_v1": 0.7643025980402539,
+      "auc_v2": 0.7757176176152062,
+      "delta_full_sample": 0.011415019574952279,
+      "bootstrap": {
+        "iterations": 1000,
+        "seed": 20260831,
+        "delta_mean": 0.011423423584338774,
+        "ci95": [
+          0.010369752703511065,
+          0.012501090851274863
+        ],
+        "prob_delta_nonpositive": 0.0
+      },
+      "exceeds_practical_floor_0.0036": true,
+      "ci_excludes_zero": true
+    },
+    "LogisticRegression": {
+      "auc_v1": 0.7378338374493696,
+      "auc_v2": 0.7560114220512436,
+      "delta_full_sample": 0.01817758460187402,
+      "bootstrap": {
+        "iterations": 1000,
+        "seed": 20260831,
+        "delta_mean": 0.01816790641484327,
+        "ci95": [
+          0.016829837534286823,
+          0.019572584369311644
+        ],
+        "prob_delta_nonpositive": 0.0
+      },
+      "exceeds_practical_floor_0.0036": true,
+      "ci_excludes_zero": true
+    }
+  }
+}

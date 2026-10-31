@@ -181,9 +181,101 @@ def fig_architecture():
     save(fig, "fig_architecture")
 
 
+# ------------------------------------------------- fig: audit null (10k)
+def fig_audit_null():
+    d = json.loads((REPO / "reports" / "deferral_audit_10k.json").read_text())
+    routers = {r["router"]: r for r in d["routers"]}
+    panels = [
+        ("current_abs_diff", "Disagreement router (inverted)", VERM),
+        ("ml_uncertainty", "Repaired uncertainty router", GREEN),
+    ]
+    fig, axes = plt.subplots(2, 1, figsize=(COL_W, 2.9))
+    for ax, (key, label, color) in zip(axes, panels):
+        r = routers[key]
+        null = r["null_samples_thinned"]["accuracy"]
+        obs = r["observed"]["accuracy"]
+        floor = r["p_resolution_floor"]
+        m_plus_1 = round(1.0 / floor)
+        # Tail in the observed direction. p_empirical is the 'harder-than-
+        # random' (<=) tail; for an inverted router (obs above the null) the
+        # relevant tail is the reverse one, recovered exactly from p_le.
+        inverted = obs > float(np.mean(null))
+        if inverted:
+            hits_le = round(r["p_empirical"]["accuracy"] * m_plus_1) - 1
+            p = (1 + (m_plus_1 - 1) - hits_le) / m_plus_1
+        else:
+            p = r["p_empirical"]["accuracy"]
+        p_txt = r"$p<10^{-4}$" if p <= floor + 1e-12 else rf"$p={p:.2g}$"
+        ax.hist(null, bins=40, color=GRAY, alpha=0.45, lw=0)
+        ax.axvline(obs, color=color, lw=1.8)
+        ha = "right" if inverted else "left"
+        off = -5 if inverted else 5
+        ax.annotate(
+            f"observed ({obs:.3f})\n$z={r['accuracy_z']:+.1f}$, " + p_txt,
+            (obs, ax.get_ylim()[1] * 0.50), textcoords="offset points",
+            xytext=(off, 0), fontsize=6.5, color=color, ha=ha)
+        ax.set_title(label, fontsize=7.5, loc="left")
+        ax.set_yticks([])
+    axes[0].annotate("random-router null (10,000 trials)",
+                     (0.02, 0.84), xycoords="axes fraction", fontsize=6.5, color=GRAY)
+    axes[1].set_xlabel("Model accuracy on the deferred pile")
+    fig.suptitle("Deferral audit: permutation null vs. observed", fontsize=8.5, y=1.00)
+    fig.tight_layout()
+    save(fig, "fig_audit_null")
+
+
+# ------------------------------------------------------- fig: fairness
+def fig_fairness():
+    d = json.loads((REPO / "reports" / "fairness_subgroups.json").read_text())
+    overall = d["overall"]["defer_rate"]
+    rows = []
+    for axis, title in [
+        ("by_bureau_file", "Bureau file"),
+        ("by_age_band", "Age band"),
+        ("by_region_rating", "Region rating"),
+        ("by_gender", "Gender"),
+    ]:
+        for name, g in d[axis]["groups"].items():
+            if g["n"] < 500:
+                continue
+            label = {"has_bureau_record": "has bureau record",
+                     "thin_file_no_bureau": "thin-file (no bureau)",
+                     "rating_1": "rating 1 (best)", "rating_2": "rating 2",
+                     "rating_3": "rating 3 (worst)", "F": "female", "M": "male"}.get(name, name)
+            rows.append((title, label, g["defer_rate"], g["n"]))
+
+    fig, ax = plt.subplots(figsize=(COL_W, 2.9))
+    ypos = []
+    labels = []
+    y = 0
+    last_axis = None
+    for title, label, rate, n in rows:
+        if last_axis is not None and title != last_axis:
+            y -= 0.6  # gap between axes
+        color = GREEN if title == "Bureau file" else BLUE
+        ax.barh(y, rate, height=0.62, color=color, alpha=0.85 if title == "Bureau file" else 0.55)
+        ax.annotate(f"{rate:.1%}", (rate, y), textcoords="offset points",
+                    xytext=(3, 0), va="center", fontsize=6.5)
+        ypos.append(y)
+        labels.append(label)
+        last_axis = title
+        y -= 1
+    ax.axvline(overall, color=GRAY, lw=1.0, linestyle=(0, (4, 2)))
+    ax.annotate(f"overall ({overall:.1%})", (overall, ypos[0] + 0.9),
+                fontsize=6.5, color=GRAY, ha="center")
+    ax.set_yticks(ypos)
+    ax.set_yticklabels(labels, fontsize=6.8)
+    ax.set_xlabel("Deferral rate under the deployed policy")
+    ax.set_title("Human review concentrates where information is missing")
+    ax.set_xlim(0, 0.40)
+    save(fig, "fig_fairness")
+
+
 if __name__ == "__main__":
     print("[figures]")
     fig_fold_deltas()
     fig_risk_coverage()
     fig_learning_curve()
     fig_architecture()
+    fig_audit_null()
+    fig_fairness()

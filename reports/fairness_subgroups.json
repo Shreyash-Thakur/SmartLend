@@ -1,0 +1,302 @@
+{
+  "protocol": {
+    "data": "backend/artifacts/prediction_outputs.csv joined to application_train.csv on SK_ID_CURR",
+    "n_rows": 307511,
+    "policy_evaluated": "deployed decision artifact (alpha=0.10 blend, 22.5% capacity deferral)",
+    "label_semantics": "y_true==1 GOOD; best_model_prob is an approval probability",
+    "scope_note": "Descriptive subgroup measurement of the deployed policy's decision mix, ranking and calibration. It is NOT a regulatory fairness compliance assessment, and gender/age are NOT model inputs to the 15-field serving contract; they are joined here for measurement only."
+  },
+  "overall": {
+    "n": 307511,
+    "default_rate": 0.08072881945686494,
+    "approve_rate": 0.5455121930597605,
+    "reject_rate": 0.22956251971474192,
+    "defer_rate": 0.22492528722549762,
+    "approve_rate_given_good": 0.5751399078836589,
+    "approve_rate_given_default": 0.20813695871097684,
+    "defer_rate_given_good": 0.22505536177950092,
+    "defer_rate_given_default": 0.2234441087613293,
+    "auc": 0.7650550422294479,
+    "ece_10bin": 0.0027900265811629955
+  },
+  "by_gender": {
+    "groups": {
+      "F": {
+        "n": 202448,
+        "default_rate": 0.06999328222555912,
+        "approve_rate": 0.5912382438947286,
+        "reject_rate": 0.18749506045996997,
+        "defer_rate": 0.22126669564530152,
+        "approve_rate_given_good": 0.6171193660438288,
+        "approve_rate_given_default": 0.24735356386732535,
+        "defer_rate_given_good": 0.21980263227780197,
+        "defer_rate_given_default": 0.24071983062808752,
+        "auc": 0.7620068935811316,
+        "ece_10bin": 0.0024406358175927596
+      },
+      "M": {
+        "n": 105059,
+        "default_rate": 0.10141920254333281,
+        "approve_rate": 0.45740012754737813,
+        "reject_rate": 0.3106254580759383,
+        "defer_rate": 0.2319744143766836,
+        "approve_rate_given_good": 0.491419855090886,
+        "approve_rate_given_default": 0.15598310652275926,
+        "defer_rate_given_good": 0.23553027414092623,
+        "defer_rate_given_default": 0.200469263256687,
+        "auc": 0.7577499733515496,
+        "ece_10bin": 0.003894787252876795
+      },
+      "XNA": {
+        "n": 4,
+        "default_rate": 0.0,
+        "approve_rate": 0.5,
+        "reject_rate": 0.25,
+        "defer_rate": 0.25,
+        "approve_rate_given_good": 0.5,
+        "approve_rate_given_default": null,
+        "defer_rate_given_good": 0.25,
+        "defer_rate_given_default": null,
+        "auc": null,
+        "ece_10bin": 0.07537349999999998
+      }
+    },
+    "max_gaps_groups_n_ge_500": {
+      "approve_rate": {
+        "max_gap": 0.13383811634735043,
+        "highest": "F",
+        "lowest": "M"
+      },
+      "defer_rate": {
+        "max_gap": 0.010707718731382071,
+        "highest": "M",
+        "lowest": "F"
+      },
+      "approve_rate_given_good": {
+        "max_gap": 0.1256995109529428,
+        "highest": "F",
+        "lowest": "M"
+      },
+      "auc": {
+        "max_gap": 0.0042569202295820174,
+        "highest": "F",
+        "lowest": "M"
+      },
+      "ece_10bin": {
+        "max_gap": 0.0014541514352840353,
+        "highest": "M",
+        "lowest": "F"
+      }
+    }
+  },
+  "by_age_band": {
+    "groups": {
+      "<30": {
+        "n": 44738,
+        "default_rate": 0.1147123250927623,
+        "approve_rate": 0.36682462336268945,
+        "reject_rate": 0.3814430685323439,
+        "defer_rate": 0.2517323081049667,
+        "approve_rate_given_good": 0.39935868302782407,
+        "approve_rate_given_default": 0.11574434918160562,
+        "defer_rate_given_good": 0.25912740493864567,
+        "defer_rate_given_default": 0.1946609508963367,
+        "auc": 0.7421235348030004,
+        "ece_10bin": 0.004183012629084887
+      },
+      "30-44": {
+        "n": 123832,
+        "default_rate": 0.09005749725434464,
+        "approve_rate": 0.5154645002907164,
+        "reject_rate": 0.26164480909619486,
+        "defer_rate": 0.2228906906130887,
+        "approve_rate_given_good": 0.5484025559105431,
+        "approve_rate_given_default": 0.18265781922525107,
+        "defer_rate_given_good": 0.2241657791977281,
+        "defer_rate_given_default": 0.2100071736011478,
+        "auc": 0.7679096615350081,
+        "ece_10bin": 0.004196431269784948
+      },
+      "45-59": {
+        "n": 103276,
+        "default_rate": 0.06571710755645066,
+        "approve_rate": 0.6100739765289128,
+        "reject_rate": 0.17022347883341726,
+        "defer_rate": 0.21970254463766994,
+        "approve_rate_given_good": 0.633896091782483,
+        "approve_rate_given_default": 0.27140120819213204,
+        "defer_rate_given_good": 0.2176932085522702,
+        "defer_rate_given_default": 0.24826874907912186,
+        "auc": 0.7567921564955061,
+        "ece_10bin": 0.0010574666718307956
+      },
+      "60+": {
+        "n": 35665,
+        "default_rate": 0.04917986821814102,
+        "approve_rate": 0.6870321043039395,
+        "reject_rate": 0.09948128417215758,
+        "defer_rate": 0.213486611523903,
+        "approve_rate_given_good": 0.7021025625903099,
+        "approve_rate_given_default": 0.3956670467502851,
+        "defer_rate_given_good": 0.20916516764471704,
+        "defer_rate_given_default": 0.2970353477765108,
+        "auc": 0.7192602091725315,
+        "ece_10bin": 0.003273317818589686
+      }
+    },
+    "max_gaps_groups_n_ge_500": {
+      "approve_rate": {
+        "max_gap": 0.32020748094125,
+        "highest": "60+",
+        "lowest": "<30"
+      },
+      "defer_rate": {
+        "max_gap": 0.03824569658106372,
+        "highest": "<30",
+        "lowest": "60+"
+      },
+      "approve_rate_given_good": {
+        "max_gap": 0.30274387956248583,
+        "highest": "60+",
+        "lowest": "<30"
+      },
+      "auc": {
+        "max_gap": 0.04864945236247653,
+        "highest": "30-44",
+        "lowest": "60+"
+      },
+      "ece_10bin": {
+        "max_gap": 0.0031389645979541525,
+        "highest": "30-44",
+        "lowest": "45-59"
+      }
+    }
+  },
+  "by_region_rating": {
+    "groups": {
+      "rating_1": {
+        "n": 32197,
+        "default_rate": 0.048203248749883576,
+        "approve_rate": 0.7564679939124763,
+        "reject_rate": 0.09345591204149455,
+        "defer_rate": 0.15007609404602915,
+        "approve_rate_given_good": 0.7749714472181433,
+        "approve_rate_given_default": 0.3911082474226804,
+        "defer_rate_given_good": 0.14403654756077663,
+        "defer_rate_given_default": 0.2693298969072165,
+        "auc": 0.7626037193467594,
+        "ece_10bin": 0.0035031514737397674
+      },
+      "rating_2": {
+        "n": 226984,
+        "default_rate": 0.0788910231558172,
+        "approve_rate": 0.5495717759842104,
+        "reject_rate": 0.22128872519648962,
+        "defer_rate": 0.22913949881930004,
+        "approve_rate_given_good": 0.5779258359360427,
+        "approve_rate_given_default": 0.21851789802870386,
+        "defer_rate_given_good": 0.22910697972517302,
+        "defer_rate_given_default": 0.2295191824426202,
+        "auc": 0.7606264570767548,
+        "ece_10bin": 0.0026846249471327954
+      },
+      "rating_3": {
+        "n": 48330,
+        "default_rate": 0.1110283467825367,
+        "approve_rate": 0.38590937306021106,
+        "reject_rate": 0.3590937306021105,
+        "defer_rate": 0.25499689633767847,
+        "approve_rate_given_good": 0.4190485057257239,
+        "approve_rate_given_default": 0.12057398434588147,
+        "defer_rate_given_good": 0.2631272693417745,
+        "defer_rate_given_default": 0.1898993663809169,
+        "auc": 0.7555837883395725,
+        "ece_10bin": 0.004235428367473592
+      }
+    },
+    "max_gaps_groups_n_ge_500": {
+      "approve_rate": {
+        "max_gap": 0.37055862085226526,
+        "highest": "rating_1",
+        "lowest": "rating_3"
+      },
+      "defer_rate": {
+        "max_gap": 0.10492080229164932,
+        "highest": "rating_3",
+        "lowest": "rating_1"
+      },
+      "approve_rate_given_good": {
+        "max_gap": 0.3559229414924194,
+        "highest": "rating_1",
+        "lowest": "rating_3"
+      },
+      "auc": {
+        "max_gap": 0.007019931007186897,
+        "highest": "rating_1",
+        "lowest": "rating_3"
+      },
+      "ece_10bin": {
+        "max_gap": 0.0015508034203407964,
+        "highest": "rating_3",
+        "lowest": "rating_2"
+      }
+    }
+  },
+  "by_bureau_file": {
+    "groups": {
+      "has_bureau_record": {
+        "n": 263491,
+        "default_rate": 0.07730055296006311,
+        "approve_rate": 0.5921226910976086,
+        "reject_rate": 0.2026938301497964,
+        "defer_rate": 0.20518347875259496,
+        "approve_rate_given_good": 0.62190331642831,
+        "approve_rate_given_default": 0.23664571877454832,
+        "defer_rate_given_good": 0.203781624938817,
+        "defer_rate_given_default": 0.22191673212882954,
+        "auc": 0.7685538195522981,
+        "ece_10bin": 0.0028998531107325086
+      },
+      "thin_file_no_bureau": {
+        "n": 44020,
+        "default_rate": 0.10124943207632897,
+        "approve_rate": 0.26651522035438435,
+        "reject_rate": 0.3903907314856883,
+        "defer_rate": 0.3430940481599273,
+        "approve_rate_given_good": 0.2877688749589263,
+        "approve_rate_given_default": 0.07785505945703387,
+        "defer_rate_given_good": 0.3557869726764907,
+        "defer_rate_given_default": 0.2304240520529504,
+        "auc": 0.7353357020694524,
+        "ece_10bin": 0.0025407797819174084
+      }
+    },
+    "max_gaps_groups_n_ge_500": {
+      "approve_rate": {
+        "max_gap": 0.32560747074322427,
+        "highest": "has_bureau_record",
+        "lowest": "thin_file_no_bureau"
+      },
+      "defer_rate": {
+        "max_gap": 0.13791056940733232,
+        "highest": "thin_file_no_bureau",
+        "lowest": "has_bureau_record"
+      },
+      "approve_rate_given_good": {
+        "max_gap": 0.3341344414693837,
+        "highest": "has_bureau_record",
+        "lowest": "thin_file_no_bureau"
+      },
+      "auc": {
+        "max_gap": 0.033218117482845644,
+        "highest": "has_bureau_record",
+        "lowest": "thin_file_no_bureau"
+      },
+      "ece_10bin": {
+        "max_gap": 0.00035907332881510027,
+        "highest": "has_bureau_record",
+        "lowest": "thin_file_no_bureau"
+      }
+    }
+  }
+}
