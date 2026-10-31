@@ -50,9 +50,10 @@ thin-file default recall; and a cost-aware routing study shows that
 expected-loss ranking, not uncertainty, minimises decision cost, cleanly
 separating the two objectives a review budget can serve. Supporting results, all adjudicated
 by one pre-registered fold-paired criterion with committed, dated protocols:
-feature enrichment lifted every model in every fold (best model
-$0.7603{\to}0.7757$ AUC) while no model fusion, tabular foundation model, or
-2026 deep-tabular challenger cleared the noise floor; and 21 domain-signed
+two successive pre-registered feature enrichments lifted every model in
+every fold (best model $0.7603 \to 0.7757 \to 0.7868$ AUC) while no model
+fusion, tabular foundation model, or 2026 deep-tabular challenger ever
+cleared the noise floor; and 21 domain-signed
 monotonicity constraints make directional adverse-action explanations true by
 construction at an AUC cost inside that floor. The complete pipeline, with
 reviewer-outcome capture behind a deliberately closed relearning gate and
@@ -770,6 +771,19 @@ capacity-adaptive learning curve (Fig.~\ref{fig:learning}) still rises at
 full data ($+0.010$ AUC per doubling): optimisation is converged,
 information is not.
 
+The information explanation then made a confirmable prediction: the four
+credit-history side tables not yet used (previous applications, instalment
+payments, point-of-sale and credit-card balances) should move the metric
+that nothing architectural could. A second pre-registered enrichment, 26
+per-applicant aggregates designed from domain knowledge before training
+(late-payment shares and magnitudes, refused-application share, revolving
+utilisation, minimum-payment shortfalls), was judged by the identical rule
+against the recorded v2 fold AUCs: CatBoost gained a fold-paired $+0.0111$
+and XGBoost $+0.0104$, every fold positive, both claims granted
+(Table~\ref{tab:main}). Cumulatively, feature work moved the best model
+$0.7603 \to 0.7868$ while every model change and fusion attempted over the
+same period stayed inside the noise floor.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_fold_deltas.pdf}
@@ -792,17 +806,19 @@ boosted model still gains $\approx0.010$ AUC per data doubling at the full
 
 \begin{table}[t]
 \centering
-\caption{Population A, the main benchmark: 5-fold out-of-fold AUC on
-307{,}511 rows, identical folds, v1 vs.\ v2 features.}
+\caption{Population A, the main benchmark: 5-fold AUC on 307{,}511 rows,
+identical folds. v1: 113 original features; v2: $+$206 application/bureau
+engineered features; v3: $+$26 side-table aggregates. Both enrichment steps
+clear the claim rule in every fold.}
 \label{tab:main}
-\begin{tabular}{@{}l c c c@{}}
+\begin{tabular}{@{}l c c c c c@{}}
 \toprule
-\textbf{Model} & \textbf{v1 (113 feat.)} & \textbf{v2 (319 feat.)} & \textbf{fold-paired $\Delta$} \\
+\textbf{Model} & \textbf{v1} & \textbf{v2} & \textbf{v3} & \textbf{$\Delta$ v2$-$v1} & \textbf{$\Delta$ v3$-$v2} \\
 \midrule
-CatBoost & 0.7603 & \textbf{0.7757} & $+0.0155$ \\
-XGBoost & 0.7584 & 0.7749 & $+0.0164$ \\
-LightGBM & 0.7560 & 0.7721 & $+0.0160$ \\
-Logistic regression & 0.7377 & 0.7560 & $+0.0182$ \\
+CatBoost & 0.7603 & 0.7757 & \textbf{0.7868} & $+0.0155$ & $+0.0111$ \\
+XGBoost & 0.7584 & 0.7749 & 0.7853 & $+0.0164$ & $+0.0104$ \\
+LightGBM & 0.7560 & 0.7721 & -- & $+0.0160$ & -- \\
+Logistic regression & 0.7377 & 0.7560 & -- & $+0.0182$ & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -987,7 +1003,7 @@ challenger selection}: benchmark rank is not deployability, and for
 regulated decisioning the licence of a model's \emph{outputs} is as binding
 as its accuracy. Fifth, \emph{serve-time contracts}: freezing the feature
 derivation shared by training and serving cost us headline accuracy (0.6919
-deployed vs.\ 0.7757 offline) but bought byte-identical provenance; the
+deployed vs.\ 0.7868 offline) but bought byte-identical provenance; the
 right response is to promote richer features \emph{through} the contract,
 never around it.
 
@@ -1000,7 +1016,7 @@ independent-dataset replication (Sec.~\ref{sec:taiwan}) covers the deferral
 layer only; the feature, serving and subgroup results remain single-corpus,
 and it showed the routing-signal choice to be base-rate dependent, so no
 fixed signal should be transported without re-racing it. The serving/research accuracy gap (0.6919 vs.\
-0.7757) reflects a deliberate 15-field serve-time contract not yet extended
+0.7868) reflects a deliberate 15-field serve-time contract not yet extended
 to the engineered features; the two numbers come from different populations
 and feature frames and are never compared as models. Deferral findings are
 reported in two operating frames (serving and research) whose baselines
@@ -1034,10 +1050,11 @@ can be had at a cost inside the practical noise floor. The deferral layer
 replicates on an independent corpus, where the audit transports and the
 best uncertainty component shifts with the base rate: the procedure, not
 the signal, is the portable artifact. Future work: full-system replication
-(features, serving, subgroups) on an independent portfolio; the remaining
-credit-history side tables; promotion of the engineered-feature model
-behind the serving contract; and a human-subject evaluation of the review
-workflow.
+(features, serving, subgroups) on an independent portfolio; temporal and
+recency-windowed aggregates of the credit-history tables (the global
+aggregates of v3 leave trend information unused); promotion of the
+engineered-feature model behind the serving contract; and a human-subject
+evaluation of the review workflow.
 
 \section*{Reproducibility}
 All experiments are committed scripts writing machine-readable reports;

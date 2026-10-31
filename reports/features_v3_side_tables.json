@@ -1,0 +1,72 @@
+{
+  "protocol": {
+    "claim_rule": "fold-paired mean delta > +0.0036 AND every fold positive (same as features_vs_fusion)",
+    "folds": "StratifiedKFold(5, shuffle, seed 42) on the identical row order",
+    "fit": "imported unchanged from features_vs_fusion (_fit_predict_fold via oof_run)",
+    "v2_baseline": "recorded fold AUCs in reports/features_vs_fusion.json",
+    "n_new_features": 26,
+    "side_tables": [
+      "previous_application",
+      "installments_payments",
+      "POS_CASH_balance",
+      "credit_card_balance"
+    ]
+  },
+  "models": {
+    "CatBoost": {
+      "fold_aucs_v3": [
+        0.7823,
+        0.7928,
+        0.7853,
+        0.7902,
+        0.7833
+      ],
+      "fold_aucs_v2_recorded": [
+        0.7717,
+        0.7826,
+        0.773,
+        0.7808,
+        0.7706
+      ],
+      "oof_auc_v3_mean_of_folds": 0.7868,
+      "fold_paired_delta_v3_minus_v2": [
+        0.0106,
+        0.0102,
+        0.0123,
+        0.0094,
+        0.0127
+      ],
+      "mean_delta": 0.0111,
+      "all_folds_positive": true,
+      "feature_claim": true
+    },
+    "XGBoost": {
+      "fold_aucs_v3": [
+        0.782,
+        0.79,
+        0.7846,
+        0.788,
+        0.7819
+      ],
+      "fold_aucs_v2_recorded": [
+        0.7715,
+        0.7786,
+        0.7728,
+        0.7795,
+        0.772
+      ],
+      "oof_auc_v3_mean_of_folds": 0.7853,
+      "fold_paired_delta_v3_minus_v2": [
+        0.0105,
+        0.0114,
+        0.0118,
+        0.0085,
+        0.0099
+      ],
+      "mean_delta": 0.0104,
+      "all_folds_positive": true,
+      "feature_claim": true
+    }
+  },
+  "generated_seconds": 387.1
+}
