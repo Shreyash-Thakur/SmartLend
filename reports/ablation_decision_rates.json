@@ -1,0 +1,69 @@
+{
+  "derived_from": "reports/blend_decision.json decision_policy_comparison confusion matrices",
+  "population": "test half of population C (153,756 rows), thresholds from tune half, split seed 20260831",
+  "label_semantics": "y_true==1 is GOOD; approve_bad = false approval, reject_good = false rejection",
+  "cost_convention": "deferred cases excluded from decision cost (they carry review cost, identical at the matched ~22.5% rate)",
+  "configurations": {
+    "ml_only_alpha_0": {
+      "n": 153756,
+      "n_defaulters": 12425,
+      "approval_rate": 0.5555,
+      "rejection_rate": 0.2186,
+      "deferral_rate": 0.2259,
+      "false_approvals": 3094,
+      "false_rejections": 26967,
+      "false_approval_rate": 0.0201,
+      "false_rejection_rate": 0.1754,
+      "default_recall_among_deferred": 0.2162,
+      "default_capture_rejected_or_deferred": 0.751,
+      "expected_cost": {
+        "decision_layer_0.45_0.2644": {
+          "per_auto_decided_applicant": 0.0716,
+          "per_applicant_overall": 0.0554
+        },
+        "training_study_0.75_0.10": {
+          "per_auto_decided_applicant": 0.0422,
+          "per_applicant_overall": 0.0326
+        }
+      }
+    },
+    "ml_plus_cbes_blend": {
+      "n": 153756,
+      "n_defaulters": 12425,
+      "approval_rate": 0.5446,
+      "rejection_rate": 0.2306,
+      "deferral_rate": 0.2248,
+      "false_approvals": 2545,
+      "false_rejections": 28314,
+      "false_approval_rate": 0.0166,
+      "false_rejection_rate": 0.1841,
+      "default_recall_among_deferred": 0.2204,
+      "default_capture_rejected_or_deferred": 0.7952,
+      "expected_cost": {
+        "decision_layer_0.45_0.2644": {
+          "per_auto_decided_applicant": 0.0724,
+          "per_applicant_overall": 0.0561
+        },
+        "training_study_0.75_0.10": {
+          "per_auto_decided_applicant": 0.0398,
+          "per_applicant_overall": 0.0308
+        }
+      }
+    }
+  },
+  "reading": {
+    "capture_gain_mechanism": "blend cuts false approvals 3094 -> 2545 but raises false rejections 26967 -> 28314 (rejection rate 21.9% -> 23.1%); part of the capture gain is therefore rejecting more, not reviewing better",
+    "cost_direction_depends_on_ratio": {
+      "decision_layer_0.45_0.2644": {
+        "ml_only": 0.0716,
+        "blend": 0.0724,
+        "blend_cheaper": false
+      },
+      "training_study_0.75_0.10": {
+        "ml_only": 0.0422,
+        "blend": 0.0398,
+        "blend_cheaper": true
+      }
+    }
+  }
+}

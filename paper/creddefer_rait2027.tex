@@ -26,39 +26,30 @@ Email: \{shreyash.thakur, s.karandikar, yuvaan.shah, bhaktiraul\}@somaiya.edu}
 \maketitle
 
 \begin{abstract}
-Credit-risk systems should not only estimate the probability of default; they
-should recognise when their knowledge is insufficient, allocate limited
-human-review capacity accordingly, and leave an auditable account of why. We
-study this deferral problem in CredDefer, a cloud-deployed research prototype
-evaluated on 307{,}511 real loan applications. Our central findings concern
-deferral quality. First, a deployed disagreement-based deferral rule was
+Credit-risk systems should not only estimate the probability of default;
+they should recognise when their knowledge is insufficient and allocate
+scarce human-review capacity accordingly. We study this deferral problem in
+CredDefer, a cloud-deployed research prototype evaluated on 307{,}511 real
+loan applications. A deployed disagreement-based deferral rule proved
 \emph{anti}-selective: it routed the model's most confident cases to human
-review, and a cheap permutation audit against random routers exposes this
-(no router among 10{,}000 random draws produced a deferred pile as easy as
-the production rule's; empirical $p < 10^{-4}$). Second, after diagnosing the
-mechanism (a near-constant calibration offset between the two scores),
+review, a failure invisible to aggregate metrics that a cheap permutation
+audit exposes (no router among 10{,}000 random draws produced a deferred
+pile as easy; empirical $p < 10^{-4}$). We diagnose the mechanism, a
+near-constant calibration offset between the two scores, and repair it:
 uncertainty-based routing reverses the inversion at the mandated 22.5\%
-review rate, a repair confirmed on an untouched final split, and epistemic
+review rate, confirmed on an untouched final split, and epistemic
 (knowledge) uncertainty from a single stochastic-gradient-Langevin-boosted
 model reaches a random-to-oracle routing position of 0.40 versus 0.14 for
-the classical reject-option baseline, without a second model, a result
-stable across ensemble sizes and training seeds. Third, who gets deferred
-depends on the router: the deployed policy defers thin-file applicants (no
-credit-bureau record) at 34.3\% versus 20.5\% for documented applicants,
-while the epistemic router is nearly flat across groups with the highest
-thin-file default recall; and a cost-aware routing study shows that
-expected-loss ranking, not uncertainty, minimises decision cost, cleanly
-separating the two objectives a review budget can serve. Supporting results, all adjudicated
-by one pre-registered fold-paired criterion with committed, dated protocols:
-two successive pre-registered feature enrichments lifted every model in
-every fold (best model $0.7603 \to 0.7757 \to 0.7868$ AUC) while no model
-fusion, tabular foundation model, or 2026 deep-tabular challenger ever
-cleared the noise floor; and 21 domain-signed
-monotonicity constraints make directional adverse-action explanations true by
-construction at an AUC cost inside that floor. The complete pipeline, with
-reviewer-outcome capture behind a deliberately closed relearning gate and
-provenance stamps on every decision, rebuilds from a single
-infrastructure-as-code definition.
+the classical reject-option baseline, without a second model. A cost-aware
+study then separates the two objectives a review budget can serve:
+epistemic uncertainty finds the cases the model is most likely wrong about,
+while expected-loss ranking minimises financial decision cost. A
+replication on an independent Taiwanese credit corpus transports the audit
+and the single-model machinery while showing that the best-routing
+uncertainty component shifts with the base rate, so routing signals must be
+re-raced at the operating prior rather than imported. Every supporting
+modelling claim was adjudicated by one pre-registered fold-paired criterion
+under committed, dated protocols.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -122,8 +113,10 @@ the single-model machinery while showing that the best-routing uncertainty
 component shifts with the base rate (Sec.~\ref{sec:taiwan}).
 \item \textbf{A measured subgroup account of who gets deferred (RQ1).} The
 thin-file deferral asymmetry turns out to be a property of the \emph{router},
-not of deferral itself: it shrinks monotonically as routers improve, from
-3.4$\times$ under the inverted rule to near-flat under the epistemic signal;
+not of deferral itself: the better-audited uncertainty routers reduce it
+substantially, from 3.4$\times$ under the inverted rule to near-flat under
+the epistemic signal, although the reduction is not monotonic across all
+policies;
 we also report the approval, calibration and ranking gaps each policy leaves
 across gender, age and region groups, as measurements rather than claims
 (Sec.~\ref{sec:fairness}).
@@ -133,8 +126,10 @@ committed experiment protocols before results existed (commit hashes in the
 reproducibility statement): a gain counts only if the fold-paired mean AUC
 delta exceeds the measured fold-noise floor. The same rule that rejected our
 own hyperparameter tuning later rejected every model fusion we attempted.
-Under it, feature enrichment cleared the floor for every model in every fold
-while nothing architectural did (Sec.~\ref{sec:results}); and monotonicity
+Under it, the first feature enrichment cleared the floor for all four
+evaluated models in every fold and a second, independent enrichment did so
+for both models carried forward, while nothing architectural ever did
+(Sec.~\ref{sec:results}); and monotonicity
 constraints cost an AUC delta inside the floor while making directional
 explanations structural (Sec.~\ref{sec:studies}).
 \item \textbf{A reproducible deployment of the whole argument.} API, rule
@@ -148,7 +143,11 @@ infrastructure-as-code definition (Sec.~\ref{sec:deploy}).
 \textbf{Learning to defer.} Madras et al.\ framed deferral as joint
 optimization of a predictor and a rejector against a downstream
 decision-maker~\cite{madras2018}; consistent surrogate losses and multi-expert
-extensions followed~\cite{mozannar2020,mao2023}. Empirical studies of humans
+extensions followed~\cite{mozannar2020,mao2023}, deferral under congestion
+and queueing constraints has been analysed
+game-theoretically~\cite{lykouris2024}, and recent work treats the rejector
+itself as an uncertain component via conformal
+prediction~\cite{fang2026}. Empirical studies of humans
 working with erroneous algorithmic scores, notably in the Allegheny County
 screening deployment, document both the value and the fragility of human
 override behaviour~\cite{dearteaga2020}. Our system adopts the L2D framing
@@ -186,11 +185,6 @@ these against tuned gradient boosting~\cite{chen2016,ke2017,prokhorenkova2018}
 under one protocol (Sec.~\ref{sec:results}) and find them dominated on this
 corpus, with output-licensing terms that independently complicate deployment
 for lending decisions.
-
-% TODO(authors): the full ~18-paper survey from our literature review
-% (congestion-aware deferral, conformal rejectors, two-stage multi-expert
-% routing) can be cited here once exact bibliographic entries are confirmed;
-% placeholders deliberately omitted rather than guessed.
 
 \section{System Design}\label{sec:system}
 Fig.~\ref{fig:arch} shows the decision pipeline. We distinguish four roles
@@ -373,18 +367,25 @@ R_{\mathrm{defer}} = \tfrac{1}{|D|}\textstyle\sum_{i \in D}
 \label{eq:rdefer}
 \end{equation}
 where $D$ is the deferred set and $\hat{y}_i$ is the hard decision the
-no-deferral engine would have taken at its own operating threshold: a useful
-router should \emph{raise} the deferred set's expected decision loss relative
-to random routing (one-sided alternative $R_{\mathrm{defer}} >$ null), and we
-report the kept-set loss $R_{\mathrm{auto}}$ alongside it, because a router
+no-deferral engine would have taken at its own operating threshold. A useful
+router should \emph{raise} the deferred set's expected decision loss
+relative to random routing. One sign convention is used throughout this
+paper: the unmodified gate statistic computes the equivalent deferred-pile
+accuracy $T = 1 - R_{\mathrm{defer}}$, so the one-sided alternative is
+lower-tail, $T < \bar{T}_{\mathrm{rand}}$ (equivalently
+$R_{\mathrm{defer}} > R_{\mathrm{rand}}$), every reported $z$ is
+Eq.~\eqref{eq:audit} evaluated on $T$, and a useful router has
+\emph{negative} $z$ with a lower-tail permutation $p$. An anti-selective
+router (an easier-than-random pile) has positive $z$; its $p$ is then
+computed in the upper tail and marked ``inv.'' wherever it appears. We
+report the kept-set loss $R_{\mathrm{auto}}$ alongside $T$, because a router
 must both hand humans harder cases and leave safer automated decisions. The
 deferred pile's class-balance distance is reported as a supplementary
 diagnostic only (a balanced pile is not necessarily a hard one), and because
 0/1 loss weights errors equally at an 8\% default rate, every audit is
 accompanied by cost-weighted metrics (default recall among deferred cases and
 expected decision cost of the auto pile under the stated cost model).
-Tables report the gate's accuracy orientation, $z$ of
-$1 - R_{\mathrm{defer}}$, where negative means a harder pile. The original audit, run with $m=200$ at the rule's historical
+The original audit, run with $m=200$ at the rule's historical
 operating point (it deferred 51.8\% of cases), scored $z \approx +28$: the
 deferred pile was far \emph{easier} than random. Reconstructed at the
 matched 22.5\% capacity rate and re-audited with $m = 10{,}000$, the
@@ -462,8 +463,9 @@ rather than a single winner.
 \begin{table}[t]
 \centering
 \caption{Development race: deferral audit at the matched 22.5\% rate on the
-held-out half ($m=10{,}000$ permutations). $z$: deferred-pile accuracy,
-Eq.~\eqref{eq:rdefer} orientation (negative = harder than random). Recall:
+held-out half ($m=10{,}000$ permutations). $z$: Eq.~\eqref{eq:audit} on the
+deferred-pile accuracy $T = 1 - R_{\mathrm{defer}}$; negative = harder than
+random, lower-tail $p$ (``inv.'' = easier than random, upper-tail $p$). Recall:
 share of all defaulters deferred. Cost: expected decision cost per applicant
 of the auto pile. The selection-bias-free confirmation is in
 Sec.~\ref{sec:finaltest}.}
@@ -650,11 +652,14 @@ between 0.0011 and 0.0042) and ranking AUC spans 0.719--0.768, lowest for
 the oldest and youngest bands.
 
 \textbf{Does the asymmetry depend on the router?} Strongly, and in an
-instructive direction (Table~\ref{tab:subrouting}): the thin-file deferral
-asymmetry \emph{shrinks as the router improves}. The inverted historical
+instructive direction (Table~\ref{tab:subrouting}): the better-audited
+routers substantially reduce the thin-file deferral asymmetry, although the
+reduction is not monotonic across all policies. The inverted historical
 rule concentrated review on thin-file applicants at 3.4$\times$ the
 documented rate while capturing only 10.9\% of documented defaulters; the
-deployed band and margin rules reduce the asymmetry; and the epistemic
+deployed band policy (1.7$\times$) carries a larger asymmetry than a random
+router (1.0$\times$) despite being the better deferral policy; the margin
+rule reduces it to 1.4$\times$; and the epistemic
 router is nearly flat across groups (24.4\% vs.\ 22.4\%) while giving
 thin-file applicants the highest default recall of any serving-frame-
 comparable policy. The 34.3\% headline is thus a property of the deployed
@@ -808,8 +813,9 @@ boosted model still gains $\approx0.010$ AUC per data doubling at the full
 \centering
 \caption{Population A, the main benchmark: 5-fold AUC on 307{,}511 rows,
 identical folds. v1: 113 original features; v2: $+$206 application/bureau
-engineered features; v3: $+$26 side-table aggregates. Both enrichment steps
-clear the claim rule in every fold.}
+engineered features; v3: $+$26 side-table aggregates (evaluated for CatBoost
+and XGBoost). Each enrichment step clears the claim rule in every fold for
+every model evaluated at that step.}
 \label{tab:main}
 \begin{tabular}{@{}l c c c c c@{}}
 \toprule
@@ -869,27 +875,47 @@ RealMLP-TD (30k screen, pop.\ A folds) & 0.7360 ($-0.0121$ paired) \\
 This section answers RQ3 and prices the decision-layer choices.
 
 \textbf{Ablating CBES.} Because CBES is a decision signal and not only an
-explanation layer, we report what the blend costs and buys on the held-out
-half of population C (Table~\ref{tab:ablation}). The blend costs
-discrimination ($-0.0056$ AUC, paired-bootstrap CI $[-0.0067, -0.0045]$,
-statistically real) and buys decision quality under the stated cost
-structure: rejected-or-deferred default capture rises from 75.1\% to 79.5\%
-at an equal 22.5\% review rate. Whether that trade is worth it is a policy
-question; our contribution is that it is now a \emph{measured} one.
+explanation layer (alone it ranks poorly, AUC 0.5621), we report the
+\emph{full decision mix} the blend changes on the held-out half of
+population C, both configurations at the matched review rate
+(Table~\ref{tab:ablation}). The blend costs discrimination ($-0.0056$ AUC,
+paired-bootstrap CI $[-0.0067, -0.0045]$, statistically real) and raises
+rejected-or-deferred default capture from 75.1\% to 79.5\%. The
+decomposition shows where that capture comes from: the blend converts
+3{,}094 false approvals into 2{,}545 at the price of raising false
+rejections from 26{,}967 to 28{,}314 (rejection rate 21.9\% $\to$ 23.1\%),
+while default recall inside the deferred pile is nearly unchanged (21.6\%
+$\to$ 22.0\%). Part of the capture gain is therefore \emph{rejecting more},
+not reviewing better, and the net expected cost depends on the assumed loss
+ratio: under the decision-layer pair (0.45/0.2644) the blend is slightly
+\emph{costlier} per auto-decided applicant (0.0724 vs.\ 0.0716), while
+under the 7.5:1 training pair it is cheaper (0.0398 vs.\ 0.0422). We state
+this as a measured decision-policy trade-off, not an unqualified
+improvement in decision quality; which side of it a lender should take is a
+policy choice over the loss ratio, now priced.
 
 \begin{table}[t]
 \centering
 \caption{Population C, decision-layer ablation on the held-out half
-(76{,}878 rows). Capture = share of eventual defaulters rejected or
-deferred.}
+(153{,}756 rows), both configurations at the matched $\approx$22.5\% review
+rate; thresholds fitted on the tune half. FA/FR = false approval/rejection
+(share of all applicants). Costs: expected decision cost per auto-decided
+applicant under each stated cost pair.}
 \label{tab:ablation}
-\begin{tabular}{@{}l c c c@{}}
+\begin{tabular}{@{}l c c@{}}
 \toprule
-\textbf{Configuration} & \textbf{AUC} & \textbf{Defer} & \textbf{Capture} \\
+\textbf{Metric} & \textbf{ML only ($\alpha{=}0$)} & \textbf{ML$+$CBES} \\
 \midrule
-CBES only & 0.5621 & -- & -- \\
-ML only ($\alpha{=}0$), $+$ deferral & 0.7669 & 22.6\% & 75.1\% \\
-ML$+$CBES blend, $+$ deferral & 0.7613 & 22.5\% & 79.5\% \\
+Blend AUC & 0.7669 & 0.7613 \\
+Approval rate & 55.5\% & 54.5\% \\
+Rejection rate & 21.9\% & 23.1\% \\
+Deferral rate & 22.6\% & 22.5\% \\
+FA rate & 2.0\% & 1.7\% \\
+FR rate & 17.5\% & 18.4\% \\
+Default recall among deferred & 21.6\% & 22.0\% \\
+Default capture (rej.\ or def.) & 75.1\% & 79.5\% \\
+Cost (0.45/0.2644) & \textbf{0.0716} & 0.0724 \\
+Cost (0.75/0.10) & 0.0422 & \textbf{0.0398} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -979,13 +1005,16 @@ closed; 3\% exploration arm & gate evaluation on every inspection \\
 \end{tabular}
 \end{table}
 
-We state one caveat openly: TabPFN-2.5 outperforms the deployed serving
-model on identical features (0.7446 single-holdout best case vs.\ 0.6919;
-its cross-validated interval is $0.7284 \pm 0.0127$) and remains advisory
-because of its output licence, its GPU footprint, and the governance rule
-that advisory AI never writes decisions; the roadmap is to promote the
-engineered-feature gradient-boosted model behind the same serve-time
-contract.
+We state one caveat openly: TabPFN-2.5's measured interval on population B
+($0.7284 \pm 0.0127$, 8{,}000 engineered-feature rows,
+Table~\ref{tab:fm}) sits well above the deliberately feature-constrained
+serving model's 0.6919, which is measured on a different population and
+feature frame (the 15-field contract's own holdout), so the two numbers
+bound a gap rather than form a direct comparison; TabPFN nevertheless
+remains advisory because of its output licence, its GPU footprint, and the
+governance rule that advisory AI never writes decisions. The roadmap is to
+promote the engineered-feature gradient-boosted model, which beats TabPFN-2.5
+on identical rows, behind the same serve-time contract.
 
 \section{Discussion: What Generalises}
 Five practices from this project transfer beyond credit scoring. First, the
@@ -1103,6 +1132,13 @@ learning to defer to an expert,'' in \emph{Proc. Int. Conf. Machine Learning
 \bibitem{mao2023} A. Mao, M. Mohri, and Y. Zhong, ``Two-stage learning to
 defer with multiple experts,'' in \emph{Advances in Neural Information
 Processing Systems (NeurIPS)}, 2023.
+
+\bibitem{lykouris2024} T. Lykouris and W. Weng, ``Learning to defer in
+congested systems: The AI-human interplay,'' arXiv:2402.12237, 2024.
+
+\bibitem{fang2026} Y. Fang and E. Nalisnick, ``Learning to defer with an
+uncertain rejector via conformal prediction,'' \emph{Transactions on Machine
+Learning Research}, 2026.
 
 \bibitem{dearteaga2020} M. De-Arteaga, R. Fogliato, and A. Chouldechova, ``A
 case for humans-in-the-loop: Decisions in the presence of erroneous
