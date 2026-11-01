@@ -2,7 +2,7 @@
 
 Loan decisioning system with a human-in-the-loop deferral layer, built on **307,511 real loan applications** (Home Credit Default Risk + credit-bureau aggregates). Final-year research project; the research contribution is a measured diagnosis — and fix — of an inverted deferral rule.
 
-New here? Read **[`docs/PROJECT-OVERVIEW.md`](docs/PROJECT-OVERVIEW.md)** (what this is) and **[`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md)** (how to work on it).
+New here? Read **[`docs/APPROACH.md`](docs/APPROACH.md)** (the whole approach in plain words), then **[`docs/PROJECT-OVERVIEW.md`](docs/PROJECT-OVERVIEW.md)** (what this is) and **[`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md)** (how to work on it).
 
 ---
 
@@ -105,6 +105,7 @@ reports/           machine-readable experiment results (one JSON per study)
 
 | Document | Contents |
 |---|---|
+| [`docs/APPROACH.md`](docs/APPROACH.md) | **the story first** — the entire approach explained in plain words |
 | [`docs/PROJECT-OVERVIEW.md`](docs/PROJECT-OVERVIEW.md) | **start here** — what the project is, findings, file map |
 | [`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md) | setup, layout, working agreements, pitfalls |
 | [`docs/STATUS.md`](docs/STATUS.md) | current state, results, plan to the November defense |
