@@ -49,6 +49,15 @@ data/*.db-wal
 # Scratch intermediates and retired artifacts
 reports/_*.npy
 backend/artifacts/*.bak
+scripts/_*.json
+
+# Dev-server logs (written by start.sh / start.bat)
+*_dev.log
+*_dev.err.log
+
+# UCI Taiwan credit dataset — fetched via OpenML by the replication script
+# (research/analysis/taiwan_replication.py); third-party data, not committed.
+data/raw/uci_taiwan/
 
 # Terraform — state holds EVERY attribute including secrets; never commit.
 terraform/.terraform/
@@ -57,3 +66,4 @@ terraform/*.tfstate.*
 terraform/*.tfvars
 !terraform/terraform.tfvars.example
 terraform/*.tfplan
+terraform/tfplan

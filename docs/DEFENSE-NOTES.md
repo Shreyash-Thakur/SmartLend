@@ -1,6 +1,6 @@
 # Defense Notes — what changed, what we tuned, and the numbers that justify it
 
-Companion to [`SUGGESTIONS.md`](../SUGGESTIONS.md) (which maps reviewer items
+Companion to [`SUGGESTIONS.md`](SUGGESTIONS.md) (which maps reviewer items
 to outcomes). This document answers the *harder* defense questions: **what
 exactly changed, which parameters were tuned and to what values, and what
 evidence backs each choice.** Every number names its artifact.

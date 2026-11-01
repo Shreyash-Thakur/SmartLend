@@ -2,7 +2,7 @@
 
 One document answering: what we built, what we measured, what runs where
 (Colab vs AWS), and which model is best. Every number traces to
-`reports/*.json`. Companion docs: [`../SUGGESTIONS.md`](../SUGGESTIONS.md)
+`reports/*.json`. Companion docs: [`SUGGESTIONS.md`](SUGGESTIONS.md)
 (reviewer items → results) and [`DEFENSE-NOTES.md`](DEFENSE-NOTES.md)
 (parameters & prepared answers).
 
