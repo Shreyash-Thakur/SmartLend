@@ -116,30 +116,53 @@ ENGINE_VERSION = "hybrid-2stage-5gate/2026-04-27+cbes-v2"
 # scored z = -92.5 / -99.7 (negative = harder-than-random, i.e. correct) at a
 # 22.7% deferral rate.
 #
+# A third mode (2026-11-01, cost-aware routing study) defers on the EXPECTED
+# LOSS of the engine's own hard action rather than on uncertainty: the two
+# objectives are different purchases (reports/cost_aware_routing.json,
+# lambda* = 0). Calibrated in the serving frame by
+# research/deferral/calibrate_expected_loss.py: at the same 22.5% rate the
+# auto-pile cost falls 0.0731 -> 0.0291 per auto-decided applicant and 42.0%
+# of defaulters land in review (vs 24.7% for the margin rule), at the price
+# of deferring near-boundary REJECTS rather than model-uncertain cases.
+#
 # DEFAULT IS THE OLD BEHAVIOUR. Nothing changes under the running demo unless
 # the environment explicitly opts in:
 #
-#   SMARTLEND_DEFERRAL_MODE=uncertainty   # switch the router
-#   SMARTLEND_TAU_U=0.2458                # optional half-width override
+#   SMARTLEND_DEFERRAL_MODE=uncertainty     # margin-uncertainty router
+#   SMARTLEND_TAU_U=0.2458                  # optional half-width override
+#   SMARTLEND_DEFERRAL_MODE=expected_loss   # cost-aware router
+#   SMARTLEND_THETA_EL=0.198976             # optional cutoff override
 #
 # When flipping the flag in production, bump ENGINE_VERSION alongside it so
-# relearning-loop capture rows from the two routers stay separable.
+# relearning-loop capture rows from the different routers stay separable.
 _DEFERRAL_MODE_ENV = "SMARTLEND_DEFERRAL_MODE"
 _TAU_U_ENV = "SMARTLEND_TAU_U"
-DEFERRAL_MODE_DISAGREEMENT = "disagreement"   # legacy default
-DEFERRAL_MODE_UNCERTAINTY = "uncertainty"     # measured fix
+_THETA_EL_ENV = "SMARTLEND_THETA_EL"
+DEFERRAL_MODE_DISAGREEMENT = "disagreement"     # legacy default
+DEFERRAL_MODE_UNCERTAINTY = "uncertainty"       # measured fix
+DEFERRAL_MODE_EXPECTED_LOSS = "expected_loss"   # cost-aware routing
 
 # Uncertainty half-width: the tune-split quantile that defers 22.5% of cases
 # (the mid-point of the 20-25% underwriter-capacity band). Source of truth:
 # reports/deferral_fix.json -> winner_detail.threshold_from_tune_split.
 DEFAULT_TAU_U = 0.2458
 
+# Decision-layer cost pair: false approval 0.45 (Basel II F-IRB supervisory
+# LGD), false rejection 0.2644 (EMP return parameter, Verbraken et al. 2014).
+# Same provenance as reports/t_base_selection.json.
+_COST_FALSE_APPROVAL = 0.45
+_COST_FALSE_REJECTION = 0.2644
+
+# Expected-loss deferral cutoff: the tune-split quantile that defers 22.5%.
+# Source of truth: reports/expected_loss_calibration.json -> wired_constant.
+DEFAULT_THETA_EL = 0.198976
+
 
 def _resolve_deferral_mode(explicit: str | None) -> str:
     """Explicit argument wins; else the env flag; else the legacy default."""
     mode = (explicit or os.environ.get(_DEFERRAL_MODE_ENV, "")).strip().lower()
-    if mode == DEFERRAL_MODE_UNCERTAINTY:
-        return DEFERRAL_MODE_UNCERTAINTY
+    if mode in (DEFERRAL_MODE_UNCERTAINTY, DEFERRAL_MODE_EXPECTED_LOSS):
+        return mode
     return DEFERRAL_MODE_DISAGREEMENT
 
 
@@ -156,6 +179,19 @@ def _resolve_tau_u(explicit: float | None) -> float:
     return DEFAULT_TAU_U
 
 
+def _resolve_theta_el(explicit: float | None) -> float:
+    """Explicit argument wins; else the env override; else the measured default."""
+    if explicit is not None:
+        return _clip(float(explicit), 0.0, _COST_FALSE_APPROVAL)
+    raw = os.environ.get(_THETA_EL_ENV, "").strip()
+    if raw:
+        try:
+            return _clip(float(raw), 0.0, _COST_FALSE_APPROVAL)
+        except ValueError:
+            pass  # malformed override degrades to the measured default
+    return DEFAULT_THETA_EL
+
+
 def hybrid_decision(
     p_ml: float,
     p_cbes: float,
@@ -166,6 +202,7 @@ def hybrid_decision(
     all_model_predictions: dict[str, float] | None = None,
     deferral_mode: str | None = None,
     tau_u: float | None = None,
+    theta_el: float | None = None,
 ) -> DecisionResult:
     """Execute the two-stage blend + 5-gate hybrid decision process.
 
@@ -185,13 +222,19 @@ def hybrid_decision(
     cbes_breakdown : dict, optional
         Per-component CBES scores forwarded from cbes_engine.
     deferral_mode : str, optional
-        "disagreement" (legacy default) or "uncertainty" (measured fix, see
-        docs/DEFERRAL-FIX.md). When None, the SMARTLEND_DEFERRAL_MODE
-        environment variable decides; unset means legacy behaviour.
+        "disagreement" (legacy default), "uncertainty" (measured fix, see
+        docs/DEFERRAL-FIX.md) or "expected_loss" (cost-aware routing,
+        reports/expected_loss_calibration.json). When None, the
+        SMARTLEND_DEFERRAL_MODE environment variable decides; unset means
+        legacy behaviour.
     tau_u : float, optional
         Half-width of the uncertainty deferral band around t_approve. When
         None, SMARTLEND_TAU_U or the measured default (0.2458) applies.
-        Ignored in "disagreement" mode.
+        Only used in "uncertainty" mode.
+    theta_el : float, optional
+        Expected-loss deferral cutoff. When None, SMARTLEND_THETA_EL or the
+        calibrated default (0.198976) applies. Only used in "expected_loss"
+        mode.
     """
     # -- type / range safety ------------------------------------------------
     p_ml   = _clip(float(p_ml),   0.0, 1.0)
@@ -248,6 +291,30 @@ def hybrid_decision(
         if abs(p_ml - t_approve) < tau_u_eff:
             decision = "DEFER"
             reason   = "ml_uncertainty"
+        elif p_ml >= t_approve:
+            decision = "APPROVE"
+            reason   = "ml_approve"
+        else:
+            decision = "REJECT"
+            reason   = "ml_reject"
+
+    elif mode == DEFERRAL_MODE_EXPECTED_LOSS:
+        # COST-AWARE ROUTING (reports/expected_loss_calibration.json): defer
+        # the cases where the engine's own hard action carries the highest
+        # expected decision loss. The auto action below is the same hard
+        # p_ml >= t_approve rule the calibration scored, so the measured
+        # properties (auto-pile cost 0.0731 -> 0.0291 per auto-decided
+        # applicant, 42.0% defaulter recall in review at a 22.5% rate) carry
+        # over unchanged. This buys loss-avoidance, not error-catching; the
+        # uncertainty mode above is the better error detector.
+        theta_eff = _resolve_theta_el(theta_el)
+        if p_ml >= t_approve:
+            exp_loss = _COST_FALSE_APPROVAL * (1.0 - p_ml)
+        else:
+            exp_loss = _COST_FALSE_REJECTION * p_ml
+        if exp_loss > theta_eff:
+            decision = "DEFER"
+            reason   = "expected_loss"
         elif p_ml >= t_approve:
             decision = "APPROVE"
             reason   = "ml_approve"

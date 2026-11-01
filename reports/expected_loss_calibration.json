@@ -1,0 +1,83 @@
+{
+  "protocol": {
+    "data": "backend\\artifacts\\prediction_outputs.csv",
+    "n_total": 307511,
+    "split": "50/50 tune/test, seed 20260831 (research.deferral.evaluate.split_tune_test); threshold from tune, all numbers from test",
+    "target_deferral_rate": 0.225,
+    "gate": "research.relearning.gate.evaluate_condition_1, unmodified, 200 trials seed 20260830",
+    "costs": {
+      "false_approval": 0.45,
+      "false_rejection": 0.2644,
+      "provenance": "decision-layer pair, reports/t_base_selection.json"
+    },
+    "signal": "E[L] of the engine's hard action at its stored per-row approval threshold"
+  },
+  "no_deferral_baseline": {
+    "false_approvals": 4466,
+    "false_rejections": 34887,
+    "cost_per_auto_decided_applicant": 0.073063,
+    "cost_per_applicant_overall": 0.073063,
+    "default_recall_among_deferred": 0.0
+  },
+  "routers_at_matched_rate": [
+    {
+      "router": "expected_loss",
+      "threshold_from_tune_split": 0.19897588572000005,
+      "test_deferral_rate": 0.224953822940243,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -56.11254315223791,
+        "accuracy_z": -280.4745635037476
+      },
+      "risk_coverage": {
+        "coverage": 0.775046177059757,
+        "deferral_rate": 0.224953822940243,
+        "selective_risk": 0.08378088077336197,
+        "random_risk_at_matched_coverage": 0.25594448346731186,
+        "oracle_risk_at_matched_coverage": 0.03998556659505908,
+        "position_random0_oracle1": 0.7972053443655241,
+        "beats_random": true
+      },
+      "cost": {
+        "false_approvals": 4466,
+        "false_rejections": 5518,
+        "cost_per_auto_decided_applicant": 0.029107,
+        "cost_per_applicant_overall": 0.02256,
+        "default_recall_among_deferred": 0.42
+      }
+    },
+    {
+      "router": "ml_uncertainty_wired",
+      "threshold_from_tune_split": -0.029928650000000008,
+      "test_deferral_rate": 0.22520747157834492,
+      "rate_within_20_25_band": true,
+      "gate_condition_1": {
+        "status": "PASS",
+        "balance_distance_z": -6.188934047282203,
+        "accuracy_z": -59.46716088497082
+      },
+      "risk_coverage": {
+        "coverage": 0.7747925284216551,
+        "deferral_rate": 0.22520747157834492,
+        "selective_risk": 0.2197617708534446,
+        "random_risk_at_matched_coverage": 0.25594448346731186,
+        "oracle_risk_at_matched_coverage": 0.03967128071250493,
+        "position_random0_oracle1": 0.16730095154177885,
+        "beats_random": true
+      },
+      "cost": {
+        "false_approvals": 2804,
+        "false_rejections": 23376,
+        "cost_per_auto_decided_applicant": 0.062474,
+        "cost_per_applicant_overall": 0.048404,
+        "default_recall_among_deferred": 0.2474
+      }
+    }
+  ],
+  "wired_constant": {
+    "name": "DEFAULT_THETA_EL",
+    "value": 0.198976,
+    "meaning": "defer when E[L] of the auto action exceeds this; tune-split quantile deferring 22.5%"
+  }
+}

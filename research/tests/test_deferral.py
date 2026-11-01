@@ -288,3 +288,58 @@ class TestEngineWiring:
         monkeypatch.setenv("SMARTLEND_DEFERRAL_MODE", "yolo")
         res = de.hybrid_decision(0.95, 0.30, tau_d=0.43, t_base=0.6425)
         assert res.decision_reason == "disagreement"
+
+
+class TestExpectedLossMode:
+    """Cost-aware routing mode (reports/expected_loss_calibration.json).
+
+    All cases use p_cbes=0.5 so the CBES tilt is zero and t_approve == t_base
+    (0.885, near the artifact's Youden threshold). theta_EL default 0.198976.
+    """
+
+    def _clear_env(self, monkeypatch):
+        monkeypatch.delenv("SMARTLEND_DEFERRAL_MODE", raising=False)
+        monkeypatch.delenv("SMARTLEND_THETA_EL", raising=False)
+
+    def test_defers_expensive_near_boundary_reject(self, monkeypatch):
+        self._clear_env(monkeypatch)
+        # reject side, E[L] = 0.2644 * 0.80 = 0.2115 > 0.198976 -> DEFER
+        res = de.hybrid_decision(
+            0.80, 0.50, tau_d=0.43, t_base=0.885, deferral_mode="expected_loss"
+        )
+        assert res.decision == "DEFER"
+        assert res.decision_reason == "expected_loss"
+
+    def test_auto_decides_cheap_confident_cases(self, monkeypatch):
+        self._clear_env(monkeypatch)
+        # confident reject: E[L] = 0.2644 * 0.10 = 0.026 -> REJECT
+        low = de.hybrid_decision(
+            0.10, 0.50, tau_d=0.43, t_base=0.885, deferral_mode="expected_loss"
+        )
+        assert low.decision == "REJECT"
+        # confident approve: E[L] = 0.45 * 0.03 = 0.0135 -> APPROVE
+        high = de.hybrid_decision(
+            0.97, 0.50, tau_d=0.43, t_base=0.885, deferral_mode="expected_loss"
+        )
+        assert high.decision == "APPROVE"
+
+    def test_env_flag_switches_mode(self, monkeypatch):
+        self._clear_env(monkeypatch)
+        monkeypatch.setenv("SMARTLEND_DEFERRAL_MODE", "expected_loss")
+        res = de.hybrid_decision(0.80, 0.50, tau_d=0.43, t_base=0.885)
+        assert res.decision_reason == "expected_loss"
+
+    def test_theta_env_override_and_malformed_fallback(self, monkeypatch):
+        self._clear_env(monkeypatch)
+        # tight cutoff: even the cheap approve (E[L]=0.0135) now defers
+        monkeypatch.setenv("SMARTLEND_THETA_EL", "0.01")
+        res = de.hybrid_decision(
+            0.97, 0.50, tau_d=0.43, t_base=0.885, deferral_mode="expected_loss"
+        )
+        assert res.decision == "DEFER"
+        # malformed value degrades to the calibrated default -> auto-decides
+        monkeypatch.setenv("SMARTLEND_THETA_EL", "not-a-number")
+        res = de.hybrid_decision(
+            0.97, 0.50, tau_d=0.43, t_base=0.885, deferral_mode="expected_loss"
+        )
+        assert res.decision == "APPROVE"

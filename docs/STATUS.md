@@ -20,6 +20,8 @@
 
 **7. Three model-modification studies, pre-registered, all answered (30 Sep).** (a) **Epistemic-uncertainty deferral — GRANTED:** SGLB CatBoost's virtual ensembles (one model, no partner) route review cases ~3× better than Chow's rule at the matched 22.5% rate (position 0.40 vs 0.14; selective risk 0.217 vs random 0.299) and nearly match two-model disagreement. (b) **Monotone RBI-aligned CatBoost — the guarantee is free:** 21 domain-signed constraints, fold-paired delta −0.0008 (inside noise), 0/14,400 violations — directional adverse-action explanations true by construction. (c) **Cost-sensitive training — DENIED:** class-weighted training never beats cost-optimal thresholding (CI spans zero; Elkan 2001 confirmed) — the economics belong in the decision layer, where SmartLend keeps them. (`reports/uncertainty_deferral.json`, `reports/monotone_catboost.json`, `reports/cost_sensitive_catboost.json`, `docs/FUTURE-SCOPE.md` §6)
 
+**8. Cost-aware routing is wired as a third deferral mode (1 Nov).** The decision engine now exposes `SMARTLEND_DEFERRAL_MODE=expected_loss`: defer where the engine's own hard action carries the highest expected decision loss (costs 0.45/0.2644, cutoff θ_EL = 0.198976 from the tune split). Measured on the held-out half at the matched 22.5% rate: auto-pile cost 0.0731 → **0.0291** per auto-decided applicant and **42.0%** of defaulters reach review (vs 24.7% under the margin rule). Default router unchanged; bump `ENGINE_VERSION` when a flag is flipped in production. Uncertainty routing remains the better *error detector* — the two modes buy different things (`reports/expected_loss_calibration.json`, `reports/cost_aware_routing.json`).
+
 ---
 
 ## Where we are
