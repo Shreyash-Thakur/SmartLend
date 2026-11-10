@@ -32,8 +32,8 @@ scarce human-review capacity accordingly. We study this deferral problem in
 CredDefer, a cloud-deployed research prototype evaluated on 307{,}511 real
 loan applications. A deployed disagreement-based deferral rule proved
 \emph{anti}-selective: it routed the model's most confident cases to human
-review, a failure invisible to aggregate metrics that a cheap permutation
-audit exposes (no router among 10{,}000 random draws produced a deferred
+review. Aggregate metrics cannot see this failure; a cheap permutation
+audit exposes it (no router among 10{,}000 random draws produced a deferred
 pile as easy; empirical $p < 10^{-4}$). We diagnose the mechanism, a
 near-constant calibration offset between the two scores, and repair it:
 uncertainty-based routing reverses the inversion at the mandated 22.5\%
@@ -46,8 +46,8 @@ epistemic uncertainty finds the cases the model is most likely wrong about,
 while expected-loss ranking minimises financial decision cost. A
 replication on an independent Taiwanese credit corpus transports the audit
 and the single-model machinery while showing that the best-routing
-uncertainty component shifts with the base rate, so routing signals must be
-re-raced at the operating prior rather than imported. Every supporting
+uncertainty component shifts with the base rate, so a routing signal must be
+raced afresh at the operating prior rather than imported. Every supporting
 modelling claim was adjudicated by one pre-registered fold-paired criterion
 under committed, dated protocols.
 \end{abstract}
@@ -442,8 +442,8 @@ would auto-reject. Third, the audit also scores the currently deployed
 artifact policy (deferral on the blended score's uncertainty band at
 capacity) as near-random at isolating difficulty ($z = -0.9$, $p = 0.19$):
 it satisfies the capacity constraint and is no longer inverted, but
-difficulty-targeted signals do strictly better, which is exactly the
-decision the audit exists to inform.
+difficulty-targeted signals do strictly better, and choosing between them is
+the decision the audit exists to inform.
 
 Two cost models coexist in this project by design and must not be conflated:
 the \emph{decision-layer} pair used throughout this section (false approval
@@ -521,7 +521,7 @@ $\mathcal{U}_{\mathrm{know}}$ is the deferral signal. At an 8\% base rate
 nearly all predictions sit below $0.5$, making total and data entropy
 near-monotone in $\bar{p}$ itself (correlation 0.94); knowledge uncertainty
 is the only component not reducible to the score (correlation $-0.36$ with
-the reject-option signal), which is precisely why it carries routing
+the reject-option signal), which is why it carries routing
 information the reject-option rule cannot see. We summarise routing quality
 by the normalised random$\to$oracle position
 $(R_{\mathrm{rand}} - R_{\mathrm{sel}})/(R_{\mathrm{rand}} -
@@ -558,7 +558,7 @@ concentrate in the risky band the engine already rejects.
 Across $K \in \{5, 10, 20, 50\}$ virtual ensembles and three training-seed
 sets (twelve configurations, each retrained under the full protocol), the
 random$\to$oracle position stays within 0.37--0.40 and the OOF AUC within
-0.7745--0.7750. One honest nuance: within a seed the per-case uncertainty
+0.7745--0.7750. One caveat: within a seed the per-case uncertainty
 ranks are insensitive to $K$ (Spearman $\rho \geq 0.99$ against the
 reference run), but across training seeds they correlate at
 $\rho \approx 0.68$, so individual routing decisions are moderately
@@ -604,7 +604,7 @@ chooses $\lambda^{*} = 0$, i.e.\ pure expected-cost ranking, which at the
 (95\% CI $[0.0308, 0.0320]$) versus 0.0479 for knowledge uncertainty,
 0.0583 for the margin rule and 0.0831 with no deferral; blending epistemic
 uncertainty into the cost ranking adds nothing. Together with
-Fig.~\ref{fig:riskcov}, the honest summary is that \emph{uncertainty and
+Fig.~\ref{fig:riskcov}, the right summary is that \emph{uncertainty and
 economic risk are different routing objectives}: epistemic uncertainty buys
 error isolation and information-targeted review, expected-loss ranking buys
 cost reduction, and an institution should pick (and audit) the objective it
@@ -716,12 +716,12 @@ generalisation. The monitoring quantity is free: the deferral rate at the
 near 22.5\%. Under information loss (all external-score and bureau-derived
 columns masked for a random half of rows), the rate fires to 56.6\% while
 AUC falls $0.779 \to 0.720$ and 10-bin ECE rises $0.004 \to 0.053$: the
-epistemic signal detects exactly the shift it is supposed to detect. Under
+epistemic signal responds to the kind of shift it was built to flag. Under
 feature noise (Gaussian, half a standard deviation, on 20\% of numeric
 columns) accuracy is almost untouched (AUC 0.776) yet the rate still fires
 to 38.4\%: the signal detects \emph{distributional} change even when error
 does not yet move. On the real thin-file subpopulation the rate is mildly
-elevated (24.9\%). One honest negative: under a pure class-prior shift
+elevated (24.9\%). One negative result: under a pure class-prior shift
 (default rate doubled by subsampling) ranking is invariant (AUC 0.779) and
 calibration degrades sharply (ECE 0.070), but knowledge uncertainty barely
 fires (24.6\%); prior shift is a blind spot of the epistemic signal and
@@ -751,7 +751,7 @@ holds, and total uncertainty becomes both informative and non-trivial.
 The portable conclusion is therefore procedural, and we state it as such:
 \emph{race candidate uncertainty signals at your own operating prior and
 audit the winner}; importing a routing signal untested, ours included, is
-exactly the failure mode the audit exists to catch.
+the failure mode the audit is there to catch.
 
 \section{Supporting Result: Where Accuracy Lives}\label{sec:results}
 This section answers RQ2 and explains why the deferral layer, rather than a
@@ -771,7 +771,7 @@ zero). The bootstrap's v1 baseline is the original production
 cross-validation run, a slightly stronger baseline than this experiment's v1
 protocol, which is why its point estimate is smaller than the fold-paired
 $+0.0155$; both baselines are reported so neither can be mistaken for the
-other. The best honest fusion of the improved models (a simple
+other. The best like-for-like fusion of the improved models (a simple
 average of the three boosted ensembles) gains $+0.0016$: real in direction
 (paired bootstrap CI $[0.0010, 0.0021]$) but below the practical claim
 floor. Out-of-fold correlations among the improved models remain 0.87--0.96:
@@ -801,7 +801,7 @@ same period stayed inside the noise floor.
 \caption{One pre-registered rule judges both claims. Circles: per-fold AUC
 deltas from feature enrichment (v2$-$v1), identical folds; bars: fold-paired
 means. All 20 deltas clear the $\pm0.0036$ noise floor (shaded). The best
-honest fusion of the improved models (dashed) does not.}
+like-for-like fusion of the improved models (dashed) does not.}
 \label{fig:folddeltas}
 \end{figure}
 
@@ -854,8 +854,8 @@ fold), a deployability result in itself. Licensing narrows the field
 further: the TabPFN-2.5 model card restricts commercial and production use
 of its model \emph{outputs} under its licence~\cite{tabpfn25}; we evaluated
 checkpoint \texttt{tabpfn\_2\_5} for research comparison only and our
-deployment screens prioritised permissively licensed challengers. We state
-this precisely for the evaluated checkpoint rather than for every TabPFN
+deployment screens prioritised permissively licensed challengers. This
+statement applies to the evaluated checkpoint rather than to every TabPFN
 version.
 
 \begin{table}[t]
@@ -932,7 +932,7 @@ risk; payment burden, bureau overdues, leverage and prolongations increase
 it; demographic fields deliberately unconstrained) and re-trained the best
 model under them. Fold-paired cost: $-0.0008$ AUC, inside the pre-registered
 practical floor, with zero direction violations in 14{,}400 empirical sweep
-checks. We state the guarantee's scope precisely: the constraint holds by
+checks. The guarantee's scope should be read carefully: the constraint holds by
 model construction for each listed feature \emph{with the other inputs held
 fixed}; the 14{,}400 checks are sampled verification of that construction,
 not an exhaustive proof over the feature space. Within that scope,
@@ -1050,7 +1050,7 @@ Sec.~\ref{sec:shift} are controlled synthetic corruptions). The
 independent-dataset replication (Sec.~\ref{sec:taiwan}) covers the deferral
 layer only; the feature, serving and subgroup results remain single-corpus,
 and it showed the routing-signal choice to be base-rate dependent, so no
-fixed signal should be transported without re-racing it. The serving/research accuracy gap (0.6919 vs.\
+fixed signal should be transported without racing it again at the new prior. The serving/research accuracy gap (0.6919 vs.\
 0.7868) reflects a deliberate 15-field serve-time contract not yet extended
 to the engineered features; the two numbers come from different populations
 and feature frames and are never compared as models. Deferral findings are
@@ -1071,20 +1071,20 @@ seeds ($\rho \approx 0.68$) even though aggregate routing quality does not.
 
 \section{Conclusion}
 Treating the decision pipeline, rather than the classifier, as the research
-object yielded reproducible findings a leaderboard cannot express: deferral
-rules can silently invert, can be audited with a cheap permutation test, and
-the audit's findings survive an untouched final split; a single boosted
-model can supply epistemic routing without an ensemble, robustly across
-ensemble sizes and training seeds; uncertainty and economic risk are
-different routing objectives, and expected-loss ranking, not uncertainty,
-minimises decision cost at fixed capacity; the subgroup footprint of
-deferral is a property of the router, shrinking to near-flat under the
-epistemic signal; accuracy headroom on this corpus lives in information
-rather than architecture; and a regulator-relevant explainability guarantee
-can be had at a cost inside the practical noise floor. The deferral layer
-replicates on an independent corpus, where the audit transports and the
-best uncertainty component shifts with the base rate: the procedure, not
-the signal, is the portable artifact. Future work: full-system replication
+object yielded reproducible findings a leaderboard cannot express. Deferral
+rules can silently invert; a cheap permutation test catches this, and its
+findings survive an untouched final split. A single boosted model can
+supply epistemic routing without an ensemble, robustly across ensemble
+sizes and training seeds. Uncertainty and economic risk are different
+routing objectives, and expected-loss ranking, not uncertainty, minimises
+decision cost at fixed capacity. The subgroup footprint of deferral is a
+property of the router, shrinking to near-flat under the epistemic signal.
+Accuracy headroom on this corpus lives in information rather than
+architecture, and a regulator-relevant explainability guarantee costs an
+AUC delta inside the practical noise floor. The deferral layer replicates
+on an independent corpus, where the audit transports and the best
+uncertainty component shifts with the base rate: the procedure, not the
+signal, is the portable artifact. Future work: full-system replication
 (features, serving, subgroups) on an independent portfolio; temporal and
 recency-windowed aggregates of the credit-history tables (the global
 aggregates of v3 leave trend information unused); promotion of the
