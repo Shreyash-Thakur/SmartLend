@@ -51,7 +51,7 @@ That last rule — the **deferral router** — is where the research happened.
 
 ## 4. The finding: the deferral rule was upside down
 
-The original (and still default) router deferred cases where the ML model and
+The original router (the default until 13 Nov 2026) deferred cases where the ML model and
 CBES *disagreed* — which sounds sensible. We tested it the way you test a
 claim, not the way you demo a feature: shuffle which cases get deferred 10,000
 times at the same deferral rate, and ask whether the real router picks harder
@@ -78,10 +78,12 @@ The engine now has three selectable deferral modes
 (`SMARTLEND_DEFERRAL_MODE`), because we found that "which cases deserve a
 human" has two honest answers:
 
-1. **Legacy disagreement** (default, kept for demo stability) — the measured-
-   inverted rule, retained so the before/after story is reproducible.
-2. **Uncertainty** (`uncertainty`) — defer where the model is least sure. Best
-   at catching the model's *mistakes*.
+1. **Legacy disagreement** (`disagreement`, explicit opt-in since 13 Nov 2026) —
+   the measured-inverted rule, kept selectable so the before/after story is
+   reproducible.
+2. **Uncertainty** (`uncertainty`, **the production default since 13 Nov 2026**,
+   `ENGINE_VERSION` bumped with the flip) — defer where the model is least
+   sure. Best at catching the model's *mistakes*.
 3. **Expected loss** (`expected_loss`) — defer where acting would be most
    *expensive* if wrong. A false approval costs us 0.45 (money lent and lost);
    a false rejection costs 0.2644 (profit forgone) — both derived from the

@@ -82,7 +82,8 @@ def _prediction(p_ml: float, p_cbes: float, tau_d: float, t_base: float = 0.50):
 
 
 def _defer_prediction():
-    result = _prediction(p_ml=0.90, p_cbes=0.10, tau_d=0.10)
+    # Uncertainty gate (default mode since 2026-11-13): |0.60 - 0.50| < TAU_U
+    result = _prediction(p_ml=0.60, p_cbes=0.50, tau_d=0.10)
     assert result.decision == "DEFER"
     return result
 
@@ -197,8 +198,8 @@ def test_relearning_loop_closes_end_to_end(session, wire, tiny_predictions):
     assert row.reviewer_confidence == 4
     assert row.time_spent_seconds == pytest.approx(214.0)
     assert row.human_free_text.startswith("Salary credits")
-    # p_blend 0.70 sat above t_approve, so the engine leaned APPROVE and this
-    # is a genuine override.
+    # p_blend 0.59 sat above t_approve 0.50, so the engine leaned APPROVE and
+    # this is a genuine override.
     assert row.agreed_with_engine is False
     assert row.override_direction == "engine_approve_to_human_reject"
 

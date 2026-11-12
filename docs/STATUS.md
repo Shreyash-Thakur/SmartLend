@@ -22,6 +22,8 @@
 
 **8. Cost-aware routing is wired as a third deferral mode (1 Nov).** The decision engine now exposes `SMARTLEND_DEFERRAL_MODE=expected_loss`: defer where the engine's own hard action carries the highest expected decision loss (costs 0.45/0.2644, cutoff θ_EL = 0.198976 from the tune split). Measured on the held-out half at the matched 22.5% rate: auto-pile cost 0.0731 → **0.0291** per auto-decided applicant and **42.0%** of defaulters reach review (vs 24.7% under the margin rule). Default router unchanged; bump `ENGINE_VERSION` when a flag is flipped in production. Uncertainty routing remains the better *error detector* — the two modes buy different things (`reports/expected_loss_calibration.json`, `reports/cost_aware_routing.json`).
 
+**9. The measured uncertainty router is the production default (13 Nov).** `SMARTLEND_DEFERRAL_MODE` unset now resolves to `uncertainty`; `ENGINE_VERSION` bumped to `hybrid-2stage-5gate/2026-11-13+uncertainty-default` in the same commit so capture rows stay separable. The legacy disagreement rule remains selectable explicitly (`=disagreement`) for the before/after demonstration. Full suite green after the flip (279 passed).
+
 ---
 
 ## Where we are
@@ -90,7 +92,7 @@ Notes to state precisely:
 1. **Go live with the Colab TabPFN endpoint once:** run `python -m backend.export_tabpfn_context` (already run — files in `models/tabpfn/`), open `colab/tabpfn_colab_server.ipynb` in Colab (GPU), upload the context CSV, copy the printed URL/token into `.env`, then `python -m backend.run_tabpfn_connection_check`.
 2. **Set `ANTHROPIC_API_KEY`** in `.env` to enable the reviewer-briefing agent.
 3. **Submit your own application** through the UI (reviewer item) — the demo persona run (`reports/e2e_demo_run.json`) proves the pipeline; your own submission will be captured the same way and can then be adjudicated in `/review` to demo the full loop.
-4. Decide whether to flip `SMARTLEND_DEFERRAL_MODE=uncertainty` for the defense demo (bump `ENGINE_VERSION` if so).
+4. ~~Decide whether to flip `SMARTLEND_DEFERRAL_MODE=uncertainty` for the defense demo~~ — **done 13 Nov 2026**: uncertainty is the default, `ENGINE_VERSION` bumped.
 
 ## Plan to November
 

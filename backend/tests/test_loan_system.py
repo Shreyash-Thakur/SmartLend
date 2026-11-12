@@ -94,8 +94,14 @@ def test_decision_branches_exhaustive():
     """
     T = 0.50   # t_base for most tests
 
-    # 1. Disagreement > TAU_D → DEFER (disagreement)
-    res1 = hybrid_decision(p_ml=0.9, p_cbes=0.1, tau_d=0.3, t_base=T)
+    # 0. Default mode (uncertainty since 2026-11-13): p_ml near t_approve → DEFER
+    res0 = hybrid_decision(p_ml=0.55, p_cbes=0.5, tau_d=0.9, t_base=T)
+    assert res0.decision == "DEFER"
+    assert res0.decision_reason == "ml_uncertainty"
+
+    # 1. Legacy mode (explicit): disagreement > TAU_D → DEFER (disagreement)
+    res1 = hybrid_decision(p_ml=0.9, p_cbes=0.1, tau_d=0.3, t_base=T,
+                           deferral_mode="disagreement")
     assert res1.decision == "DEFER"
     assert res1.decision_reason == "disagreement"
 
@@ -120,7 +126,8 @@ def test_decision_branches_exhaustive():
     #    p_ml=0.55: not >= 0.5575 (approve), not <= 0.5425 (reject) → CBES gate.
     #    p_cbes=0.30 <= 0.40 → cbes_fallback_reject.
     #    D=|0.55-0.30|=0.25 < tau_d=0.50 → passes gate 1.
-    res5_rej = hybrid_decision(p_ml=0.55, p_cbes=0.30, tau_d=0.50, t_base=0.55)
+    res5_rej = hybrid_decision(p_ml=0.55, p_cbes=0.30, tau_d=0.50, t_base=0.55,
+                               deferral_mode="disagreement")
     assert res5_rej.decision == "REJECT"
     assert res5_rej.decision_reason == "cbes_fallback_reject"
 
@@ -131,7 +138,8 @@ def test_decision_branches_exhaustive():
     #    p_ml=0.55: not >= 0.5525, not <= 0.5475 → CBES gate
     #    p_cbes=0.45: not >= 0.60, not <= 0.40 → grey_zone
     #    D=|0.55-0.45|=0.10 < tau_d=0.50 → passes disagreement gate
-    res6 = hybrid_decision(p_ml=0.55, p_cbes=0.45, tau_d=0.50, t_base=0.55)
+    res6 = hybrid_decision(p_ml=0.55, p_cbes=0.45, tau_d=0.50, t_base=0.55,
+                           deferral_mode="disagreement")
     assert res6.decision == "DEFER"
     assert res6.decision_reason == "grey_zone"
 

@@ -103,7 +103,7 @@ _BLEND_ALPHA = 0.10
 # it is what lets a future analysis separate a fixed router's labels from a
 # broken router's (spec section 3, `engine_version`). Without it, capture rows
 # from two different routers are indistinguishable and all of them are useless.
-ENGINE_VERSION = "hybrid-2stage-5gate/2026-04-27+cbes-v2"
+ENGINE_VERSION = "hybrid-2stage-5gate/2026-11-13+uncertainty-default"
 
 # ---------------------------------------------------------------------------
 # Deferral routing mode (2026-08-31 deferral fix, see docs/DEFERRAL-FIX.md)
@@ -125,21 +125,22 @@ ENGINE_VERSION = "hybrid-2stage-5gate/2026-04-27+cbes-v2"
 # of defaulters land in review (vs 24.7% for the margin rule), at the price
 # of deferring near-boundary REJECTS rather than model-uncertain cases.
 #
-# DEFAULT IS THE OLD BEHAVIOUR. Nothing changes under the running demo unless
-# the environment explicitly opts in:
+# DEFAULT IS THE MEASURED FIX (flag flipped 2026-11-13; ENGINE_VERSION bumped
+# in the same commit so capture rows from the two routers stay separable).
+# The environment can still select any mode explicitly:
 #
-#   SMARTLEND_DEFERRAL_MODE=uncertainty     # margin-uncertainty router
+#   SMARTLEND_DEFERRAL_MODE=uncertainty     # margin-uncertainty router (default)
 #   SMARTLEND_TAU_U=0.2458                  # optional half-width override
 #   SMARTLEND_DEFERRAL_MODE=expected_loss   # cost-aware router
 #   SMARTLEND_THETA_EL=0.198976             # optional cutoff override
-#
-# When flipping the flag in production, bump ENGINE_VERSION alongside it so
-# relearning-loop capture rows from the different routers stay separable.
+#   SMARTLEND_DEFERRAL_MODE=disagreement    # legacy rule (measured inverted;
+#                                           # kept selectable for the
+#                                           # before/after demonstration)
 _DEFERRAL_MODE_ENV = "SMARTLEND_DEFERRAL_MODE"
 _TAU_U_ENV = "SMARTLEND_TAU_U"
 _THETA_EL_ENV = "SMARTLEND_THETA_EL"
-DEFERRAL_MODE_DISAGREEMENT = "disagreement"     # legacy default
-DEFERRAL_MODE_UNCERTAINTY = "uncertainty"       # measured fix
+DEFERRAL_MODE_DISAGREEMENT = "disagreement"     # legacy (explicit opt-in)
+DEFERRAL_MODE_UNCERTAINTY = "uncertainty"       # measured fix (default)
 DEFERRAL_MODE_EXPECTED_LOSS = "expected_loss"   # cost-aware routing
 
 # Uncertainty half-width: the tune-split quantile that defers 22.5% of cases
@@ -159,11 +160,15 @@ DEFAULT_THETA_EL = 0.198976
 
 
 def _resolve_deferral_mode(explicit: str | None) -> str:
-    """Explicit argument wins; else the env flag; else the legacy default."""
+    """Explicit argument wins; else the env flag; else the measured fix."""
     mode = (explicit or os.environ.get(_DEFERRAL_MODE_ENV, "")).strip().lower()
-    if mode in (DEFERRAL_MODE_UNCERTAINTY, DEFERRAL_MODE_EXPECTED_LOSS):
+    if mode in (
+        DEFERRAL_MODE_DISAGREEMENT,
+        DEFERRAL_MODE_UNCERTAINTY,
+        DEFERRAL_MODE_EXPECTED_LOSS,
+    ):
         return mode
-    return DEFERRAL_MODE_DISAGREEMENT
+    return DEFERRAL_MODE_UNCERTAINTY
 
 
 def _resolve_tau_u(explicit: float | None) -> float:

@@ -70,8 +70,9 @@ def _prediction(p_ml: float, p_cbes: float, tau_d: float, t_base: float = 0.50):
 
 
 def _defer_prediction():
-    # Disagreement gate: |0.90 - 0.10| = 0.80 > tau_d
-    result = _prediction(p_ml=0.90, p_cbes=0.10, tau_d=0.10)
+    # Uncertainty gate (default mode since 2026-11-13):
+    # |0.60 - t_approve 0.50| = 0.10 < TAU_U (0.2458)
+    result = _prediction(p_ml=0.60, p_cbes=0.50, tau_d=0.10)
     assert result.decision == "DEFER"
     return result
 

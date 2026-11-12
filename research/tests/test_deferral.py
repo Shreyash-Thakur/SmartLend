@@ -229,10 +229,18 @@ class TestEngineWiring:
         monkeypatch.delenv("SMARTLEND_DEFERRAL_MODE", raising=False)
         monkeypatch.delenv("SMARTLEND_TAU_U", raising=False)
 
-    def test_default_behaviour_is_unchanged_legacy_disagreement(self, monkeypatch):
+    def test_default_is_the_measured_uncertainty_fix(self, monkeypatch):
         self._clear_env(monkeypatch)
-        # Big raw disagreement -> legacy rule must DEFER exactly as before.
+        # Offset-dominated pair: under the 2026-11-13 default the confident
+        # model AUTO-decides; the legacy rule would have deferred it.
         res = de.hybrid_decision(p_ml=0.95, p_cbes=0.30, tau_d=0.43, t_base=0.6425)
+        assert res.decision == "APPROVE" and res.decision_reason == "ml_approve"
+
+    def test_legacy_disagreement_still_selectable_explicitly(self, monkeypatch):
+        self._clear_env(monkeypatch)
+        res = de.hybrid_decision(
+            0.95, 0.30, tau_d=0.43, t_base=0.6425, deferral_mode="disagreement"
+        )
         assert res.decision == "DEFER" and res.decision_reason == "disagreement"
 
     def test_uncertainty_mode_defers_near_boundary_not_on_offset(self, monkeypatch):
@@ -283,11 +291,11 @@ class TestEngineWiring:
         )
         assert res.decision == "DEFER"
 
-    def test_unknown_mode_string_falls_back_to_legacy(self, monkeypatch):
+    def test_unknown_mode_string_falls_back_to_uncertainty(self, monkeypatch):
         self._clear_env(monkeypatch)
         monkeypatch.setenv("SMARTLEND_DEFERRAL_MODE", "yolo")
         res = de.hybrid_decision(0.95, 0.30, tau_d=0.43, t_base=0.6425)
-        assert res.decision_reason == "disagreement"
+        assert res.decision_reason == "ml_approve"
 
 
 class TestExpectedLossMode:

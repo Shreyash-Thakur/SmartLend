@@ -64,7 +64,7 @@ The original deferral rule — send a human the cases where ML and CBES disagree
 
 **The fix, measured:** at the required 20–25% deferral rate, plain **model uncertainty** (Chow's rule, `|p_ml − t_approve| < τ_U`) scores z = **−99.7** — humans finally get the hard cases. Notably, every *repaired* disagreement signal (rank, z-score, isotonic) also fixes the inversion but **loses to plain uncertainty** — the publishable negative result. Details: [`docs/DEFERRAL-FIX.md`](docs/DEFERRAL-FIX.md).
 
-The production default is still the legacy router (deliberate demo-stability choice); the fix is wired behind `SMARTLEND_DEFERRAL_MODE=uncertainty`. The decision artifact was regenerated on the α=0.10 blend at a **22.5% deferral rate** (was 52%).
+**The measured fix is the production default since 13 Nov 2026** (`ENGINE_VERSION` bumped in the same commit); the legacy router stays selectable via `SMARTLEND_DEFERRAL_MODE=disagreement` for the before/after demonstration, and cost-aware routing via `=expected_loss`. The decision artifact was regenerated on the α=0.10 blend at a **22.5% deferral rate** (was 52%).
 
 Two companion measurements close the loop:
 - **No roster hybrid helps.** Every honest XGBoost+CBES combination is ≤ XGBoost alone; the best tree-family blend (+0.0021) is inside the ±0.0036 fold noise. See [`docs/FUTURE-SCOPE.md`](docs/FUTURE-SCOPE.md) and `reports/complementarity.json`.
@@ -100,7 +100,7 @@ reports/           machine-readable experiment results (one JSON per study)
 
 - **ML model** — serving artifact on 15 features; research reference (XGBoost) on the full numeric frame
 - **CBES** — 8 portable fields, five weighted pillars, percentile-calibrated thresholds; blend weight α = 0.10 (measured choice, `docs/BLEND-DECISION.md`)
-- **Deferral layer** — legacy disagreement router by default; measured uncertainty router opt-in
+- **Deferral layer** — measured uncertainty router by default (since 13 Nov 2026); legacy disagreement and cost-aware expected-loss modes selectable by flag
 - **Provenance** — every decision records `engine_version`, serving artifact and threshold hash; shown in the UI header, decision panels and audit report
 - **Agent briefing** — optional Claude-generated reviewer briefing (advisory only, never a verdict)
 
@@ -128,7 +128,7 @@ reports/           machine-readable experiment results (one JSON per study)
 
 ## Known limitations
 
-- The **legacy (inverted) deferral router is still the production default**; the measured fix is opt-in via `SMARTLEND_DEFERRAL_MODE=uncertainty`. Flipping it must bump `ENGINE_VERSION`.
+- The relearning-gate audit rows written before 13 Nov 2026 were produced under the legacy (inverted) default router; capture rows are separable by `engine_version` (`hybrid-2stage-5gate/2026-11-13+uncertainty-default` onward uses the measured fix).
 - The serving model (calibrated LogisticRegression, 0.6919 AUC) is deliberately weaker than the research reference (XGBoost 0.7651) — a calibration/simplicity trade-off, stated, not hidden.
 - CBES at ~0.565 AUC is close to uninformative as a predictor; it exists for interpretability and its blend weight is capped at α = 0.10 for a measured cost.
 - TabPFN-2.5 and Google TabFM are non-commercial-licensed research baselines, not deployable models.
