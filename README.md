@@ -7,10 +7,8 @@ New here? Read **[`docs/APPROACH.md`](docs/APPROACH.md)** (the whole approach in
 ---
 
 ## Quick start
-<<<<<<< HEAD
-=======
-Run `start.bat` on Windows or `bash ./start.sh` on macOS/Linux.
->>>>>>> b438d80 (docs: clarify startup instructions for macOS)
+
+Run `start.bat` on Windows or `bash ./start.sh` on macOS/Linux — or start the two services by hand:
 
 ```bash
 # terminal 1 — backend
@@ -87,7 +85,6 @@ On the regenerated 22.5%-deferral artifact, condition 1 improved from +38σ to *
 ---
 
 ## Architecture
-<<<<<<< HEAD
 
 ```
 backend/app/       FastAPI — serves, never trains
@@ -133,7 +130,3 @@ reports/           machine-readable experiment results (one JSON per study)
 - CBES at ~0.565 AUC is close to uninformative as a predictor; it exists for interpretability and its blend weight is capped at α = 0.10 for a measured cost.
 - TabPFN-2.5 and Google TabFM are non-commercial-licensed research baselines, not deployable models.
 - Real repayment outcomes take 12–24 months to season; the relearning gate stays shut until its four conditions pass.
-=======
-Hybrid ML + CBES decision engine with disagreement-driven abstention.
-See /docs for full API reference.
->>>>>>> b438d80 (docs: clarify startup instructions for macOS)
