@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   ResponsiveContainer,
   Scatter,
@@ -72,11 +73,6 @@ function fmtInt(value: unknown): string {
   return Math.round(num).toLocaleString('en-IN')
 }
 
-/** Recharts silently drops NaN but chokes on undefined domains; null is safe. */
-function chartValue(value: unknown): number | null {
-  return asPct(value)
-}
-
 type MetricKey = 'accuracy' | 'precision' | 'recall' | 'f1' | 'auc'
 
 const METRIC_COLUMNS: { key: MetricKey; label: string; hint: string }[] = [
@@ -111,8 +107,9 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
     const second = sortedByAuc[1]
     const gap = second ? (safeNum(first.auc) ?? 0) - (safeNum(second.auc) ?? 0) : null
     lines.push(
-      `${bestModel || first.model} leads on AUC with ${fmtRatioPct(first.auc)}.` +
-        (gap !== null ? ` Margin vs ${second.model}: ${(gap * 100).toFixed(2)}pp.` : ''),
+      `${bestModel || first.model} ranks applicants best (AUC ${fmtRatioPct(first.auc)}` +
+        (gap !== null ? `, ${(gap * 100).toFixed(2)}pp ahead of ${second.model})` : ')') +
+        ' and is the reference for threshold and deferral settings.',
     )
   }
 
@@ -120,7 +117,7 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
   if (withRecall.length) {
     const top = [...withRecall].sort((a, b) => (safeNum(b.recall) ?? 0) - (safeNum(a.recall) ?? 0))[0]
     lines.push(
-      `${top.model} gives highest recall at ${fmtRatioPct(top.recall)}, useful when minimizing missed good applicants.`,
+      `${top.model} has the highest recall (${fmtRatioPct(top.recall)}) — the pick when the priority is not missing good applicants.`,
     )
   }
 
@@ -128,7 +125,7 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
   if (withPrecision.length) {
     const top = [...withPrecision].sort((a, b) => (safeNum(b.precision) ?? 0) - (safeNum(a.precision) ?? 0))[0]
     lines.push(
-      `${top.model} has strongest precision at ${fmtRatioPct(top.precision)}, useful when controlling false approvals.`,
+      `${top.model} has the highest precision (${fmtRatioPct(top.precision)}) — the pick when false approvals are the costlier error.`,
     )
   }
 
@@ -137,7 +134,7 @@ function buildInsightLines(models: ModelMetricItem[], bestModel: string) {
   )
   if (missing.length) {
     lines.push(
-      `Incomplete metrics for: ${missing.map((m) => m.model).join(', ')}. Those cells show a dash instead of a value.`,
+      `Metrics are incomplete for ${missing.map((m) => m.model).join(', ')}; those cells show a dash rather than an estimate.`,
     )
   }
 
@@ -211,19 +208,6 @@ export const ModelAnalysisDashboard: React.FC = () => {
     })
     return copy
   }, [models, sortKey, sortDir])
-
-  const modelMetricsData = useMemo(
-    () =>
-      models.map((model) => ({
-        model: model.model,
-        accuracy: chartValue(model.accuracy),
-        precision: chartValue(model.precision),
-        recall: chartValue(model.recall),
-        auc: chartValue(model.auc),
-        f1: chartValue(model.f1),
-      })),
-    [models],
-  )
 
   const aucChartData = useMemo(() => {
     const rows = models
@@ -321,6 +305,21 @@ export const ModelAnalysisDashboard: React.FC = () => {
     () => buildInsightLines(models, analysis?.summary?.bestModel ?? ''),
     [models, analysis],
   )
+
+  /** Insight bullets plus one operational line derived from the hybrid summary. */
+  const takeaways = useMemo(() => {
+    const lines = [...insightLines]
+    const summary = analysis?.summary
+    const deferralRate = safeNum(summary?.deferralRate)
+    const coverage = safeNum(summary?.automatedCoverage)
+    const autoAccuracy = safeNum(summary?.automatedAccuracy)
+    if (deferralRate !== null && coverage !== null && autoAccuracy !== null) {
+      lines.unshift(
+        `The hybrid engine auto-decides ${fmtPct(coverage)} of cases at ${fmtPct(autoAccuracy)} accuracy and defers ${fmtPct(deferralRate)} to the Review Queue — analyst time is spent only where the model is least sure.`,
+      )
+    }
+    return lines
+  }, [insightLines, analysis])
 
   const topAucModel = useMemo(() => {
     const ranked = models
@@ -440,20 +439,42 @@ export const ModelAnalysisDashboard: React.FC = () => {
           </div>
         </Card>
 
-        <Card title="Hybrid Deferral Summary" description="Live totals plus saved evaluation artifact metrics." className="col-span-2">
+        <Card title="Decisioning at a Glance" description="Live portfolio totals alongside the saved evaluation artifact." className="col-span-2">
           {isLoading || !analysis ? (
             <p className="text-neutral-600">Loading model analysis...</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <KPICard label="Live Total Cases" value={fmtInt(stats?.totalApplications)} />
-              <KPICard label="Evaluation Artifact Cases" value={fmtInt(analysis.summary?.totalCases)} />
-              <KPICard label="Deferred Cases" value={fmtInt(analysis.summary?.deferredCases)} />
-              <KPICard label="Deferral Rate" value={fmtPct(analysis.summary?.deferralRate)} />
-              <KPICard label="Automated Coverage" value={fmtPct(analysis.summary?.automatedCoverage)} />
-              <KPICard label="Automated Accuracy" value={fmtPct(analysis.summary?.automatedAccuracy)} />
-              <KPICard label="Hybrid Overall Accuracy" value={fmtPct(analysis.summary?.overallHybridAccuracy)} />
-              <KPICard label="Best Model (Offline)" value={analysis.summary?.bestModel || '—'} />
+              <KPICard label="Live Applications" value={fmtInt(stats?.totalApplications)} tone="blue" hint="Scored by the serving engine" />
+              <KPICard label="Evaluated Cases" value={fmtInt(analysis.summary?.totalCases)} tone="neutral" hint="Offline evaluation artifact" />
+              <KPICard label="Deferred to Review" value={fmtInt(analysis.summary?.deferredCases)} tone="amber" hint="Routed to a human analyst" />
+              <KPICard label="Deferral Rate" value={fmtPct(analysis.summary?.deferralRate)} tone="amber" hint="Share of cases needing review" />
+              <KPICard label="Automated Coverage" value={fmtPct(analysis.summary?.automatedCoverage)} tone="green" hint="Decided with no analyst time" />
+              <KPICard label="Automated Accuracy" value={fmtPct(analysis.summary?.automatedAccuracy)} tone="green" hint="Correctness of auto decisions" />
+              <KPICard label="Hybrid Accuracy" value={fmtPct(analysis.summary?.overallHybridAccuracy)} tone="violet" hint="Automation + human review combined" />
+              <KPICard label="Best Offline Model" value={analysis.summary?.bestModel || '—'} tone="neutral" hint="Reference, not the serving model" />
             </div>
+          )}
+        </Card>
+      </section>
+
+      <section className="mb-6">
+        <Card
+          title="Key Takeaways"
+          description="What the evaluation numbers mean for day-to-day lending decisions."
+        >
+          {isLoading || !analysis ? (
+            <p className="text-neutral-600">Loading insights...</p>
+          ) : !takeaways.length ? (
+            <p className="text-neutral-600">Not enough model metrics to derive insights.</p>
+          ) : (
+            <ul className="grid gap-3 lg:grid-cols-2">
+              {takeaways.map((line) => (
+                <li key={line} className="flex items-start gap-2.5 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm leading-6 text-neutral-700">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" aria-hidden />
+                  {line}
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
       </section>
@@ -542,24 +563,30 @@ export const ModelAnalysisDashboard: React.FC = () => {
       </section>
 
       <section className="mb-6 grid gap-6 lg:grid-cols-2">
-        <Card title="AUC by Model" description="Primary ranking metric. Best model highlighted in green.">
+        <Card title="Ranking Quality (AUC)" description="The primary model-selection metric. The leader is highlighted; exact values for every metric are in the leaderboard above.">
           <div className="h-96">
             {aucChartData.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={aucChartData}
                   layout="vertical"
-                  margin={{ top: 8, right: 32, left: 24, bottom: 8 }}
+                  margin={{ top: 8, right: 48, left: 24, bottom: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                  <CartesianGrid stroke={chart.grid} horizontal={false} />
                   <XAxis {...chart.axisProps} type="number" domain={[0, 100]} unit="%" />
                   <YAxis {...chart.axisProps} type="category" dataKey="model" width={130} />
                   <Tooltip {...chart.tooltipProps} formatter={(value: number) => [`${value}%`, 'AUC']} />
-                  <Bar dataKey="auc" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="auc" barSize={18} radius={[0, 4, 4, 0]}>
+                    <LabelList
+                      dataKey="auc"
+                      position="right"
+                      formatter={(value: number) => `${value.toFixed(1)}%`}
+                      style={{ fontSize: 12, fill: chart.axis }}
+                    />
                     {aucChartData.map((row) => (
                       <Cell
                         key={row.model}
-                        fill={bestAuc !== null && row.auc === bestAuc ? '#16a34a' : '#2563eb'}
+                        fill={bestAuc !== null && row.auc === bestAuc ? '#2563eb' : '#cbd5e1'}
                       />
                     ))}
                   </Bar>
@@ -571,42 +598,21 @@ export const ModelAnalysisDashboard: React.FC = () => {
           </div>
         </Card>
 
-        <Card title="Model Performance Comparison" description="All five metrics side by side per model.">
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={modelMetricsData} margin={{ top: 8, right: 16, left: 0, bottom: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
-                <XAxis {...chart.axisProps} dataKey="model" angle={-18} textAnchor="end" height={60} />
-                <YAxis {...chart.axisProps} domain={[0, 100]} />
-                <Tooltip {...chart.tooltipProps} formatter={(value: number) => [`${value}%`, '']} />
-                <Legend />
-                <Bar dataKey="accuracy" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="precision" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="recall" fill="#14b8a6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="auc" fill="#f97316" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="f1" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </section>
-
-      <section className="mb-6 grid gap-6">
         <Card
-          title="Error Profile Across Models"
-          description="Stacked false positives vs false negatives — the two failures that cost money."
+          title="Where Each Model Loses Money"
+          description="False approvals lend to defaulters; false rejections turn away good customers. Counts from the evaluation artifact."
         >
-          <div className="h-80">
+          <div className="h-96">
             {confusionDerived.length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={confusionDerived} margin={{ top: 8, right: 16, left: 0, bottom: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                  <CartesianGrid stroke={chart.grid} vertical={false} />
                   <XAxis {...chart.axisProps} dataKey="model" angle={-18} textAnchor="end" height={60} />
                   <YAxis {...chart.axisProps} />
                   <Tooltip {...chart.tooltipProps} formatter={(value: number, name: string) => [value.toLocaleString('en-IN'), name]} />
                   <Legend />
-                  <Bar dataKey="fp" stackId="err" fill="#ef4444" name="False Positives (bad approvals)" />
-                  <Bar dataKey="fn" stackId="err" fill="#f59e0b" name="False Negatives (missed good)" />
+                  <Bar dataKey="fp" stackId="err" fill="#ef4444" name="False approvals (lent & lost)" />
+                  <Bar dataKey="fn" stackId="err" fill="#f59e0b" name="False rejections (profit forgone)" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -656,7 +662,7 @@ export const ModelAnalysisDashboard: React.FC = () => {
           <div className="h-96">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <CartesianGrid stroke={chart.grid} />
                 <XAxis {...chart.axisProps} type="number" dataKey="x" name="ML Prob" unit="%" domain={[0, 100]} />
                 <YAxis {...chart.axisProps} type="number" dataKey="y" name="CBES Prob" unit="%" domain={[0, 100]} />
                 <ReferenceLine x={50} stroke={chart.axis} strokeDasharray="4 4" />
@@ -682,11 +688,11 @@ export const ModelAnalysisDashboard: React.FC = () => {
           </div>
         </Card>
 
-        <Card title="Precision vs Recall Frontier" description="Model-selection tradeoff curve from tuned artifacts.">
+        <Card title="Precision vs Recall Frontier" description="Each point is a model. Up-right is better; the cards below carry the exact values.">
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+              <ScatterChart margin={{ top: 16, right: 24, left: 0, bottom: 8 }}>
+                <CartesianGrid stroke={chart.grid} />
                 <XAxis {...chart.axisProps} type="number" dataKey="recall" name="Recall" unit="%" domain={[0, 100]} />
                 <YAxis {...chart.axisProps} type="number" dataKey="precision" name="Precision" unit="%" domain={[0, 100]} />
                 <Tooltip {...chart.tooltipProps}
@@ -694,9 +700,7 @@ export const ModelAnalysisDashboard: React.FC = () => {
                   labelFormatter={() => 'Model Point'}
                 />
                 <Scatter data={precisionRecallData} fill="#2563eb" isAnimationActive={false}>
-                  {precisionRecallData.map((point) => (
-                    <Cell key={point.model} fill={point.auc !== null && point.auc >= 90 ? '#16a34a' : '#2563eb'} />
-                  ))}
+                  <LabelList dataKey="model" position="top" style={{ fontSize: 11, fill: chart.axis }} />
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
@@ -715,11 +719,11 @@ export const ModelAnalysisDashboard: React.FC = () => {
       </section>
 
       <section className="mb-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Decision Mix by Probability Band" description="Shows how hybrid outcomes shift across model confidence bands.">
+        <Card title="Decision Mix by Probability Band" description="How approve / reject / defer outcomes shift as the model's predicted probability rises.">
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={probabilityBandsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
+                <CartesianGrid stroke={chart.grid} vertical={false} />
                 <XAxis {...chart.axisProps} dataKey="band" />
                 <YAxis {...chart.axisProps} domain={[0, 100]} />
                 <Tooltip {...chart.tooltipProps} formatter={(value: number) => [`${value}%`, '']} />
@@ -732,21 +736,27 @@ export const ModelAnalysisDashboard: React.FC = () => {
           </div>
         </Card>
 
-        <Card title="Core ML Theory (Audit Notes)">
+        <Card title="How to Act on This Page" description="Operational notes for analysts and risk officers.">
           <div className="space-y-3 text-sm leading-6 text-neutral-700">
             <p>
-              Hybrid decisioning combines <strong>probabilistic classification</strong> (ML probability) and
-              <strong> rule-based explainability</strong> (CBES score). Cases near decision boundaries are deferred to analysts to reduce wrong auto-decisions.
+              <strong className="text-neutral-900">Deferred cases are work, not errors.</strong> Every DEFER lands in the
+              Review Queue; the engine routes the cases it is least sure about, so analyst time goes where a human
+              changes the outcome most.
             </p>
             <p>
-              Precision = TP / (TP + FP), Recall = TP / (TP + FN), and F1 = 2PR / (P + R). AUC measures ranking quality across thresholds.
+              <strong className="text-neutral-900">The two error types cost different money.</strong> A false approval
+              is principal lent to a defaulter; a false rejection is interest income forgone on a good customer. The
+              error-profile chart shows each model's mix — pick thresholds by which loss the portfolio can afford.
             </p>
             <p>
-              Deferral policy improves reliability by routing low-confidence cases for manual adjudication, maximizing automation where confidence is high and minimizing risk where uncertainty is high.
+              <strong className="text-neutral-900">Switching the active model changes future decisions only.</strong>{' '}
+              Historical decisions keep their recorded engine version and artifact, so any past case can be traced to
+              the exact model that scored it.
             </p>
             <p>
-              Charts and the leaderboard use aggregates computed over the full evaluation set. The case table below shows a bounded
-              sample so the browser stays responsive on the 307k-application Home Credit dataset.
+              <strong className="text-neutral-900">Aggregates are full-dataset; the case table is a sample.</strong>{' '}
+              Charts and the leaderboard are computed over the entire evaluation set (307k applications); the drill-down
+              below shows a bounded slice so the page stays responsive.
             </p>
           </div>
         </Card>
@@ -832,23 +842,6 @@ export const ModelAnalysisDashboard: React.FC = () => {
         </Card>
       </section>
 
-      <section className="mb-6">
-        <Card title="Tuning Insights">
-          {isLoading || !analysis ? (
-            <p className="text-neutral-600">Loading insights...</p>
-          ) : !insightLines.length ? (
-            <p className="text-neutral-600">Not enough model metrics to derive insights.</p>
-          ) : (
-            <ul className="space-y-3 text-sm text-neutral-700">
-              {insightLines.map((line) => (
-                <li key={line} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </section>
     </DashboardLayout>
   )
 }
