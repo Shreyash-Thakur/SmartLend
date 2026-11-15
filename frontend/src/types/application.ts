@@ -88,6 +88,10 @@ export interface LoanApplication {
   finalDecision?: 'APPROVE' | 'REJECT' | 'DEFER'
   modelRecommendation?: DecisionType | 'submitted'
   manualDecisionApplied?: boolean
+  /** 3% exploration arm: auto-decided but still routed to a human reviewer. */
+  explorationFlag?: boolean
+  /** True for every DEFER and for exploration-arm cases. */
+  routedToHumanReview?: boolean
   analystNotes?: string
   applicationData: {
     firstName: string

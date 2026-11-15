@@ -43,9 +43,11 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     created_at = _created_at(app_item.created_at)
     model_recommendation = _decision_to_status(app_item.final_decision)
     manual_decision_applied = bool(input_data.get("_manual_decision_applied", False))
-    # Customer-facing status: stays "submitted" (Under Review) until an org member acts.
-    # finalDecision / modelRecommendation carry the ML signal for the org dashboard.
-    status = model_recommendation if manual_decision_applied else "submitted"
+    # Customer-facing status mirrors the engine instantly: APPROVE/REJECT are
+    # final at submit time and a DEFER is shown as "deferred" until a human
+    # decides. A manual decision overwrites final_decision, so this mapping
+    # stays correct after adjudication too.
+    status = model_recommendation
 
     risk_score = clamp_float(float(meta.get("risk_score", 1 - app_item.ml_prob)))
     confidence = clamp_float(app_item.confidence)
@@ -101,6 +103,10 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
         "finalDecision": app_item.final_decision,
         "modelRecommendation": model_recommendation,
         "manualDecisionApplied": manual_decision_applied,
+        # Exploration-arm cases keep an auto status but still need a reviewer;
+        # the review queue keys off these instead of a blanket "submitted".
+        "explorationFlag": bool(meta.get("exploration_flag", False)),
+        "routedToHumanReview": bool(meta.get("routed_to_human_review", False)),
         "analystNotes": analyst_notes,
         "applicationData": input_data,
         "decision": {

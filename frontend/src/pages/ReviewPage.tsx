@@ -37,7 +37,11 @@ export const ReviewPage: React.FC = () => {
     () => reviewApplications.filter(
       (application) =>
         application.source === 'customer'
-        && (application.status === 'submitted' || application.status === 'deferred'),
+        && (application.status === 'submitted'
+          || application.status === 'deferred'
+          // Exploration-arm cases carry an instant auto status but still owe
+          // the reviewer a verdict until one is recorded.
+          || (application.explorationFlag === true && !application.manualDecisionApplied)),
     ),
     [reviewApplications],
   )

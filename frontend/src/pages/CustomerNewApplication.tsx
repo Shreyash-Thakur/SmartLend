@@ -4,6 +4,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronLeft,
+  Clock3,
   FileText,
   Gem,
   Landmark,
@@ -14,6 +15,7 @@ import {
   Users,
   Volume2,
   Wallet,
+  XCircle,
 } from 'lucide-react'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Button, Card, Input, Select, Textarea } from '@/components/common'
@@ -1203,21 +1205,62 @@ function DecisionResult({
   onListen: () => void
   onDone: () => void
 }) {
-  const decision = (application.finalDecision ?? application.status ?? 'submitted').toString()
+  const decision = (application.finalDecision ?? application.status ?? 'submitted').toString().toUpperCase()
   const explanation = application.decision?.explanation
+
+  // One honest banner per outcome. APPROVE/REJECT are final the moment the
+  // engine decides; DEFER says so plainly instead of hiding behind "submitted".
+  const banner =
+    decision === 'APPROVE'
+      ? {
+          box: 'border-green-200 bg-green-50',
+          Icon: CheckCircle2,
+          iconClass: 'text-green-600',
+          titleClass: 'text-green-900',
+          bodyClass: 'text-green-800/80',
+          title: 'Loan Approved',
+          body: 'Your loan application has been approved. The sanction details are in your application history.',
+        }
+      : decision === 'REJECT'
+        ? {
+            box: 'border-red-200 bg-red-50',
+            Icon: XCircle,
+            iconClass: 'text-red-600',
+            titleClass: 'text-red-900',
+            bodyClass: 'text-red-800/80',
+            title: 'Application Rejected',
+            body: 'Unfortunately, your application could not be approved. The key factors are listed in your application history.',
+          }
+        : decision === 'DEFER'
+          ? {
+              box: 'border-amber-200 bg-amber-50',
+              Icon: Clock3,
+              iconClass: 'text-amber-600',
+              titleClass: 'text-amber-900',
+              bodyClass: 'text-amber-800/80',
+              title: 'Application Deferred — Under Human Review',
+              body: 'The model was not confident enough to decide automatically, so your application has been routed to a human reviewer. The final decision will appear in your application history.',
+            }
+          : {
+              box: 'border-primary-100 bg-primary-50/60',
+              Icon: CheckCircle2,
+              iconClass: 'text-primary-600',
+              titleClass: 'text-primary-900',
+              bodyClass: 'text-primary-800/80',
+              title: `Decision: ${decision}`,
+              body: 'Your application has been recorded and scored. The full breakdown is in your history.',
+            }
 
   return (
     <section>
       <Card title="Application Submitted" className="rounded-2xl border-white/80">
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-xl border border-primary-100 bg-primary-50/60 p-4">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
+          <div className={`flex items-start gap-3 rounded-xl border p-4 ${banner.box}`}>
+            <banner.Icon className={`mt-0.5 h-5 w-5 shrink-0 ${banner.iconClass}`} />
             <div>
-              <p className="text-sm font-semibold text-primary-900">
-                Decision: <span className="uppercase tracking-wide">{decision}</span>
-              </p>
-              <p className="mt-1 text-sm text-primary-800/80">
-                {explanation ?? 'Your application has been recorded and scored. The full breakdown is in your history.'}
+              <p className={`text-sm font-semibold ${banner.titleClass}`}>{banner.title}</p>
+              <p className={`mt-1 text-sm ${banner.bodyClass}`}>
+                {explanation ?? banner.body}
               </p>
             </div>
           </div>
