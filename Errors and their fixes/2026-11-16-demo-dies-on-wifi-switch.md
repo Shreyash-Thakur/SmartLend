@@ -1,0 +1,29 @@
+# Demo becomes unreachable whenever the laptop switches wifi networks
+
+- **Date:** 2026-11-16
+- **Reported as:** "is vercel plus plus aws a better idea plus whenever i switch wifi networks the deployment crashes i need it ready on one click"
+- **Symptom:** Every network switch "crashes the deployment": the running demo stops being reachable and has to be brought up again by hand.
+- **Where:** Not one code line — an infrastructure state gap:
+  - `terraform/terraform.tfstate` — serial 43, **0 resources**: the AWS stack has been destroyed since 2026-10-09 and never rebuilt.
+  - ECR: `aws ecr describe-repositories` → the `smartlend` repository **does not exist** (`RepositoryNotFoundException`), so even a plain `terraform apply` would boot an instance with no image to pull (`terraform/user_data.sh.tpl:25`).
+  - `scripts/aws-start.ps1:11` / `scripts/aws-stop.ps1:13` — hardcoded `i-0207079c8ce7801d1` and EIP `15.207.0.203`, both destroyed; the scripts' comments still promised "the app returns at http://15.207.0.203", which no longer existed.
+- **Root cause:** Nothing has been hosted since `terraform destroy` on 2026-10-09, so every demo since then ran on the laptop itself — and a wifi switch changes the laptop's IP and drops its sockets, killing whatever clients/tunnels pointed at it. The cloud stack (Elastic IP + `--restart unless-stopped` container + port 80 open to 0.0.0.0/0) is immune to the laptop's network by design; it simply wasn't running, and the scripts that implied it could be resumed pointed at dead resource IDs.
+- **Why it wasn't caught:** No script checked actual AWS state; the stale start/stop scripts hardcoded resource IDs instead of reading them from Terraform, so they kept promising a URL that had been gone for a month.
+- **Fix:** One-click lifecycle scripts that derive all IDs from live state instead of hardcoding them:
+  - `demo-up.bat` → `scripts/demo-up.ps1`: creates the ECR repo and builds/pushes the image if missing, `terraform apply` (no-op when up), resumes stopped EC2/RDS, polls `/health` up to 20 min, seeds demo data only when the DB was freshly created (detected from the apply log), opens the browser.
+  - `demo-stop.bat` → `scripts/demo-stop.ps1`: stops EC2 + RDS without deleting anything (instance id from `terraform output`), so resume is ~5 min at the same URL.
+  - `demo-publish.bat` → `scripts/demo-publish.ps1`: rebuild + push + `terraform apply -replace=aws_instance.app` so the live demo picks up current code (needed because `user_data` pulls `:latest` only on first boot — see 2026-10-09 record).
+  - `terraform/outputs.tf`: new `instance_id` output the scripts read.
+  - Deleted the stale `aws-start.ps1`/`aws-stop.ps1` (superseded; kept in git history).
+  - Vercel question answered in chat: the backend (sklearn/SHAP container + Postgres + FastAPI serving the built SPA) cannot run on Vercel; splitting only the React build onto Vercel adds CORS and a second pipeline while the crashing part would still be local. One container on EC2 behind an EIP already solves it — it just has to be running.
+- **Evidence:**
+  - `terraform.tfstate`: `serial 43 | resources: 0`
+  - `aws sts get-caller-identity` → `arn:aws:iam::945323157703:user/smartlend-deployer` (CLI works)
+  - `aws ecr describe-repositories` (no filter) → empty; with name → `RepositoryNotFoundException ... registry id '945323157703'`
+  - `terraform validate` after the outputs change → `Success! The configuration is valid.`
+  - PowerShell AST parse of all three scripts → `parse OK` each
+  - `terraform output -raw instance_id` on the empty state → rc=0, empty string (confirms the `if (-not $instanceId)` "nothing to stop" guard in demo-stop.ps1)
+  - `terraform apply` itself NOT run — creating billable resources is the user's click, by design.
+- **Blast radius:** Deployment tooling only; no app, engine, or research code touched. `my_ip_cidr` in `terraform.tfvars` gates SSH only (HTTP was always 0.0.0.0/0), so wifi switches never affected visitors — only SSH, which the scripts don't use.
+- **Still open:** (1) The `smartlend-deployer` access key (AdministratorAccess) pasted in an earlier chat is still the active credential — rotate it and scope it down. (2) First `demo-up.bat` run will take ~15–20 min (image build + RDS creation) and starts billing (~$1/day running, ~$0.26/day stopped) — user-initiated. (3) `my_ip_cidr` is stale after network switches; only matters if SSH is needed.
+- **Related:** [2026-10-09-user-data-change-did-not-redeploy.md](2026-10-09-user-data-change-did-not-redeploy.md) — why demo-publish must replace the instance rather than rerun user_data.

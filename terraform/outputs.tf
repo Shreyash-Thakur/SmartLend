@@ -6,6 +6,11 @@ output "app_url" {
   value       = "http://${aws_eip.app.public_ip}"
 }
 
+output "instance_id" {
+  description = "EC2 instance id - the demo scripts use it for stop/start"
+  value       = aws_instance.app.id
+}
+
 output "ssh_command" {
   description = "Log into the app server"
   value       = "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${aws_eip.app.public_ip}"

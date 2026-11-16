@@ -24,6 +24,18 @@ cd frontend && npm run dev
 python -m pytest backend/tests research/tests -q
 ```
 
+### One-click cloud demo (AWS)
+
+The demo does not depend on your laptop or wifi once it is up — it runs on an EC2 instance behind a fixed Elastic IP.
+
+| Double-click | What it does |
+|---|---|
+| `demo-up.bat` | Build/push the image if missing, `terraform apply`, resume stopped instances, wait for `/health`, seed a fresh DB, open the URL (~5 min resume, ~15–20 min full build) |
+| `demo-stop.bat` | Stop EC2 + RDS, keep everything (~$0.26/day while stopped; same URL on resume) |
+| `demo-publish.bat` | Rebuild the image and roll the running demo onto the current code (URL unchanged) |
+
+Full teardown back to $0: `cd terraform && terraform destroy`. Running costs ~$1/day against the AWS credits.
+
 Optional services (both degrade to a calm 503 when unconfigured):
 - **Remote TabPFN** — run `colab/tabpfn_colab_server.ipynb` on a Colab GPU, set `SMARTLEND_TABPFN_URL`/`SMARTLEND_TABPFN_TOKEN`, verify with `python -m backend.run_tabpfn_connection_check`.
 - **Reviewer-briefing agent** (Claude) — set `ANTHROPIC_API_KEY`.
