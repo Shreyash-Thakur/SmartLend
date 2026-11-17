@@ -418,6 +418,8 @@ export interface AgentBriefing {
   dataQualityFlags: string[]
   suggestedChecks: string[]
   suggestedReasonCodes: string[]
+  /** Plain-language reading of the SHAP factors; absent on older briefings. */
+  factorExplanation?: string
   model?: string
   generatedAt?: string
   advisoryOnly?: boolean
@@ -429,8 +431,11 @@ export interface AgentBriefing {
  */
 export async function generateAgentBriefing(applicationId: string): Promise<AgentBriefing> {
   try {
+    // LLMs are slow, a local Ollama model especially: the 20 s default is too short.
     const response = await apiClient.post<{ briefing: AgentBriefing }>(
       `/applications/${applicationId}/agent-briefing`,
+      undefined,
+      { timeout: 300_000 },
     )
     return response.data.briefing
   } catch (error) {
