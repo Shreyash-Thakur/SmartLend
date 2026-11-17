@@ -415,9 +415,7 @@ export interface AgentBriefing {
   summary: string
   riskFactors: string[]
   mitigants: string[]
-  dataQualityFlags: string[]
   suggestedChecks: string[]
-  suggestedReasonCodes: string[]
   /** Plain-language reading of the SHAP factors; absent on older briefings. */
   factorExplanation?: string
   model?: string
