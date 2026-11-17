@@ -1,0 +1,21 @@
+{
+  "engineVersion": "hybrid-2stage-5gate/2026-11-17+uncertainty-default+foir-gate",
+  "commonInputs": "Everything not listed stays at its default: EMIs at other lenders 0, additional income 0, collateral none, employment not changed recently. Tick all declarations. Interest is 12% p.a. (backend default).",
+  "cases": [
+    { "id": 1, "customerId": "100061", "loanAmount": 100000, "tenureMonths": 36, "purpose": "other", "expected": "APPROVE", "decidedBy": "model", "why": "Strong profile, high external score; EMI is about 25% of income." },
+    { "id": 2, "customerId": "109515", "loanAmount": 200000, "tenureMonths": 36, "purpose": "other", "expected": "APPROVE", "decidedBy": "model", "why": "Model approval score 0.96; EMI about 54% of income." },
+    { "id": 3, "customerId": "104346", "loanAmount": 50000, "tenureMonths": 36, "purpose": "medical", "expected": "APPROVE", "decidedBy": "model", "why": "High credit use, but a small loan the model is confident about." },
+    { "id": 4, "customerId": "103729", "loanAmount": 100000, "tenureMonths": 36, "purpose": "education", "expected": "APPROVE", "decidedBy": "model", "why": "Thin bureau file, but a clean record and an affordable EMI." },
+    { "id": 5, "customerId": "100061", "loanAmount": 500000, "tenureMonths": 60, "purpose": "home_improvement", "expected": "APPROVE", "decidedBy": "model", "why": "Same strong customer; a larger loan over 5 years is still affordable (FOIR about 67%)." },
+    { "id": 6, "customerId": "102279", "loanAmount": 100000, "tenureMonths": 36, "purpose": "other", "expected": "DEFER", "decidedBy": "model", "why": "Prior delinquencies: approval score 0.74 sits in the model's uncertain band." },
+    { "id": 7, "customerId": "105969", "loanAmount": 200000, "tenureMonths": 36, "purpose": "other", "expected": "DEFER", "decidedBy": "model", "why": "Weak external score (366): the model is unsure, a human decides." },
+    { "id": 8, "customerId": "111514", "loanAmount": 100000, "tenureMonths": 36, "purpose": "medical", "expected": "DEFER", "decidedBy": "model", "why": "Pensioner with no employment record: uncertain, sent to review." },
+    { "id": 9, "customerId": "101672", "loanAmount": 300000, "tenureMonths": 36, "purpose": "other", "expected": "DEFER", "decidedBy": "policy", "why": "The model would approve (0.95), but EMIs reach about 136% of income, so a human must verify income first." },
+    { "id": 10, "customerId": "109515", "loanAmount": 1000000, "tenureMonths": 60, "purpose": "business", "expected": "DEFER", "decidedBy": "policy", "why": "Good customer, large loan: FOIR about 144%, so it goes to review instead of auto-approval." },
+    { "id": 11, "customerId": "156227", "loanAmount": 100000, "tenureMonths": 36, "purpose": "other", "expected": "REJECT", "decidedBy": "model", "why": "Prior delinquencies and a near-zero external score: approval score 0.24 (type this ID manually)." },
+    { "id": 12, "customerId": "236551", "loanAmount": 50000, "tenureMonths": 36, "purpose": "other", "expected": "REJECT", "decidedBy": "model", "why": "Prior delinquencies and a very low external score: approval score 0.26 (type this ID manually)." },
+    { "id": 13, "customerId": "105969", "loanAmount": 2500000, "tenureMonths": 24, "purpose": "medical", "expected": "REJECT", "decidedBy": "policy", "why": "Rs 25L on Rs 2.7L a year: EMIs would be about 5x income. Rejected whatever the model says." },
+    { "id": 14, "customerId": "101672", "loanAmount": 1000000, "tenureMonths": 60, "purpose": "business", "expected": "REJECT", "decidedBy": "policy", "why": "Rs 10L on Rs 1.1L a year: FOIR about 267%." },
+    { "id": 15, "customerId": "100061", "loanAmount": 2500000, "tenureMonths": 24, "purpose": "home_improvement", "expected": "REJECT", "decidedBy": "policy", "why": "Even the strongest customer (model score 0.98) cannot repay Rs 25L in 2 years on Rs 2.25L a year." }
+  ]
+}

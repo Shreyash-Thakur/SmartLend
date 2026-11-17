@@ -3,6 +3,7 @@ import {
   BrainCircuit,
   ClipboardCheck,
   FilePlus2,
+  FlaskConical,
   History,
   LayoutDashboard,
   MapPinned,
@@ -30,6 +31,7 @@ export const ORG_NAV: NavGroup[] = [
       { label: 'Geo Analytics', to: '/analytics/geo', icon: MapPinned },
     ],
   },
+  { heading: 'Demo', items: [{ label: 'Demo Test Cases', to: '/dashboard/demo-cases', icon: FlaskConical }] },
 ]
 
 export const CUSTOMER_NAV: NavGroup[] = [
@@ -41,6 +43,7 @@ export const CUSTOMER_NAV: NavGroup[] = [
       { label: 'My Applications', to: '/dashboard/customer?view=history', icon: History },
     ],
   },
+  { heading: 'Demo', items: [{ label: 'Demo Test Cases', to: '/dashboard/demo-cases', icon: FlaskConical }] },
 ]
 
 /** Exact path + query match, so "/dashboard/customer" and

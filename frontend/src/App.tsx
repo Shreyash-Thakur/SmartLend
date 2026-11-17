@@ -37,6 +37,9 @@ const ReviewPage = lazy(async () => ({
 const GeoAnalytics = lazy(async () => ({
   default: (await import('@/pages/GeoAnalytics')).GeoAnalytics,
 }))
+const DemoTestCases = lazy(async () => ({
+  default: (await import('@/pages/DemoTestCases')).DemoTestCases,
+}))
 
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'customer' | 'org' }) => {
   const { isAuthenticated, role } = useAuth()
@@ -154,6 +157,14 @@ export default function App() {
                     element={
                       <ProtectedRoute requiredRole="org">
                         <ReviewPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard/demo-cases"
+                    element={
+                      <ProtectedRoute>
+                        <DemoTestCases />
                       </ProtectedRoute>
                     }
                   />
