@@ -50,6 +50,8 @@ export interface ApplicationDecision {
   featureImportance: FeatureContribution[]
   /** "shap" | "heuristic" — see FeatureContribution.source. */
   explanationSource?: 'shap' | 'heuristic'
+  /** Technical provenance of the factors, shown as a footnote. */
+  explanationNote?: string
   analystId?: string
   analystNotes?: string
   modelVersion?: string

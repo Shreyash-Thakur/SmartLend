@@ -14,6 +14,9 @@ export const DecisionExplanation: React.FC<DecisionExplanationProps> = ({ decisi
         <div>
           <h4 className="font-semibold text-neutral-900 mb-2">Why this decision?</h4>
           <p className="text-neutral-700 leading-relaxed">{decision.explanation}</p>
+          {decision.explanationNote && (
+            <p className="mt-2 text-xs text-neutral-400 leading-relaxed">{decision.explanationNote}</p>
+          )}
         </div>
 
         {/* Factors Supporting Decision */}
@@ -75,12 +78,6 @@ export const DecisionExplanation: React.FC<DecisionExplanationProps> = ({ decisi
               <p className="text-neutral-600 mb-1">Decision Time</p>
               <p className="font-semibold text-neutral-900">{new Date(decision.decidedAt).toLocaleDateString()}</p>
             </div>
-            {decision.modelVersion && (
-              <div>
-                <p className="text-neutral-600 mb-1">Model Version</p>
-                <p className="font-semibold text-neutral-900">{decision.modelVersion}</p>
-              </div>
-            )}
             {decision.analystId && (
               <div>
                 <p className="text-neutral-600 mb-1">Analyst ID</p>

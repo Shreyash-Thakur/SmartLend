@@ -353,6 +353,22 @@ def _build_counterfactuals(top_factors: list[dict[str, Any]], decision: str) -> 
     return recs[:3]
 
 
+def _plain_explanation(decision: str, reason: str, p_default: float) -> str:
+    """One plain sentence for staff and applicants; the jargon goes in the note."""
+    risk = f"The model estimates a {p_default:.0%} chance this applicant defaults"
+    factors = " The factors below had the biggest effect on this score."
+    if reason.startswith("affordability_"):  # policy set the outcome; text prepended below
+        return f"On its own, the model estimates a {p_default:.0%} chance this applicant defaults.{factors}"
+    if decision == "APPROVE":
+        return f"{risk}, low enough to approve automatically.{factors}"
+    if decision == "REJECT":
+        return f"{risk}, too high to approve.{factors}"
+    if reason == "ml_uncertainty":
+        return (f"{risk}. That falls in the uncertain range, so a human reviewer "
+                f"makes the final decision.{factors}")
+    return f"{risk}. This case was sent to a human reviewer for the final decision.{factors}"
+
+
 def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
     data = app_item.input_data or {}
     meta = data.get("_decision_meta", {}) if isinstance(data.get("_decision_meta", {}), dict) else {}
@@ -391,24 +407,27 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
         "stabilityWeighted": round(stability_component * stability_weight, 4),
     }
 
+    # Technical provenance, shown as a small footnote under the plain text.
     if explanation_source == "shap":
-        explanation_text = (
+        explanation_note = (
             "Top factors are SHAP attributions from the serving logistic-regression model, "
             "re-signed to show which features supported the decision actually taken. "
             "They rank the drivers of the model's log-odds; they do not sum to the displayed risk score, "
             "because the served probability comes from the isotonic-calibrated sibling model."
         )
     else:
-        explanation_text = (
+        explanation_note = (
             "SHAP attributions were unavailable for this application, so top factors come from a "
             "hand-written rule table over the CBES components and engineered features. "
             "These are NOT SHAP values."
         )
 
+    reason = str(meta.get("decision_reason", ""))
+    explanation_text = _plain_explanation(app_item.final_decision, reason, 1.0 - float(app_item.ml_prob))
+
     # The FOIR policy gate (policy_rules.py) overrides the model; say so first
     # so the SHAP factors below are not read as the reason for the outcome.
     affordability = meta.get("affordability") if isinstance(meta.get("affordability"), dict) else None
-    reason = str(meta.get("decision_reason", ""))
     if affordability and reason.startswith("affordability_"):
         foir_pct = round(float(affordability.get("foir", 0.0)) * 100)
         emi = float(affordability.get("newEmi", 0.0))
@@ -442,6 +461,7 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
         "confidence": round(app_item.confidence, 4),
         "riskScore": round(1 - app_item.ml_prob, 4),
         "explanation": explanation_text,
+        "explanationNote": explanation_note,
         # Real provenance stamped at decision time; "cbes-v2" only for rows
         # written before engine_version reached _decision_meta.
         "modelVersion": str(meta.get("engine_version") or "cbes-v2"),
