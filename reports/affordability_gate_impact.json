@@ -1,0 +1,80 @@
+{
+  "population": "510 seeded customer profiles (in the serving model's training data)",
+  "gate": {
+    "reject_if_foir_above": 2.0,
+    "approve_to_defer_if_foir_above": 1.0
+  },
+  "assumptions": "interest 12% p.a.; no other-bank EMIs; no additional income",
+  "grid": [
+    {
+      "loan_amount": 100000,
+      "tenure_months": 36,
+      "before": {
+        "APPROVE": 0.651,
+        "DEFER": 0.3451,
+        "REJECT": 0.0039
+      },
+      "after": {
+        "APPROVE": 0.6412,
+        "DEFER": 0.3549,
+        "REJECT": 0.0039
+      }
+    },
+    {
+      "loan_amount": 200000,
+      "tenure_months": 36,
+      "before": {
+        "APPROVE": 0.6667,
+        "DEFER": 0.3294,
+        "REJECT": 0.0039
+      },
+      "after": {
+        "APPROVE": 0.5529,
+        "DEFER": 0.4314,
+        "REJECT": 0.0157
+      }
+    },
+    {
+      "loan_amount": 500000,
+      "tenure_months": 60,
+      "before": {
+        "APPROVE": 0.7098,
+        "DEFER": 0.2863,
+        "REJECT": 0.0039
+      },
+      "after": {
+        "APPROVE": 0.3039,
+        "DEFER": 0.6059,
+        "REJECT": 0.0902
+      }
+    },
+    {
+      "loan_amount": 1000000,
+      "tenure_months": 60,
+      "before": {
+        "APPROVE": 0.7569,
+        "DEFER": 0.2392,
+        "REJECT": 0.0039
+      },
+      "after": {
+        "APPROVE": 0.049,
+        "DEFER": 0.4235,
+        "REJECT": 0.5275
+      }
+    },
+    {
+      "loan_amount": 2500000,
+      "tenure_months": 24,
+      "before": {
+        "APPROVE": 0.8863,
+        "DEFER": 0.1118,
+        "REJECT": 0.002
+      },
+      "after": {
+        "APPROVE": 0.0,
+        "DEFER": 0.0,
+        "REJECT": 1.0
+      }
+    }
+  ]
+}
