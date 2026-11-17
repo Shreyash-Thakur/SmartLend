@@ -67,7 +67,53 @@ def _fake_client(monkeypatch, response):
 
 def test_unconfigured_raises_unavailable(monkeypatch):
     monkeypatch.setattr(svc, "anthropic_configured", lambda: False)
-    with pytest.raises(svc.AgentUnavailableError, match="ANTHROPIC_API_KEY"):
+    # A developer's real .env may set GEMINI_API_KEY / OLLAMA_MODEL.
+    monkeypatch.setattr(svc, "get_secret", lambda name: None)
+    with pytest.raises(svc.AgentUnavailableError, match="GEMINI_API_KEY"):
+        svc.generate_briefing({"engine": {}})
+
+
+def _ollama_only(monkeypatch, model="llama3.1:8b"):
+    monkeypatch.setattr(svc, "anthropic_configured", lambda: False)
+    monkeypatch.setattr(svc, "get_secret", lambda name: model if name == "OLLAMA_MODEL" else None)
+
+
+def test_ollama_happy_path(monkeypatch):
+    import httpx
+
+    _ollama_only(monkeypatch)
+    captured: dict[str, Any] = {}
+    content = json.dumps({**BRIEFING, "factorExplanation": "Low credit score raised the risk."})
+
+    def fake_post(url, json, timeout):  # `json` mirrors httpx.post's keyword
+        captured.update(url=url, body=json)
+        return httpx.Response(200, json={"message": {"content": content}})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    briefing = svc.generate_briefing({"engine": {}})
+
+    assert captured["url"] == "http://localhost:11434/api/chat"
+    assert captured["body"]["format"] == svc.BRIEFING_SCHEMA  # schema-constrained output
+    assert briefing["model"] == "ollama/llama3.1:8b"
+    assert briefing["factorExplanation"].startswith("Low credit score")
+    assert briefing["advisoryOnly"] is True
+    assert svc.active_model() == "llama3.1:8b"
+
+
+def test_ollama_down_or_model_missing_is_unavailable(monkeypatch):
+    import httpx
+
+    _ollama_only(monkeypatch)
+
+    def refused(url, json, timeout):
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(httpx, "post", refused)
+    with pytest.raises(svc.AgentUnavailableError, match="ollama serve"):
+        svc.generate_briefing({"engine": {}})
+
+    monkeypatch.setattr(httpx, "post", lambda url, json, timeout: httpx.Response(404, text="not found"))
+    with pytest.raises(svc.AgentUnavailableError, match="ollama pull llama3.1:8b"):
         svc.generate_briefing({"engine": {}})
 
 
