@@ -130,6 +130,7 @@ reports/           machine-readable experiment results (one JSON per study)
 | [`docs/DEFERRAL-FIX.md`](docs/DEFERRAL-FIX.md) · [`docs/BLEND-DECISION.md`](docs/BLEND-DECISION.md) | the two measured fixes |
 | [`docs/DEFENCE-DECISION-HYBRID.md`](docs/DEFENCE-DECISION-HYBRID.md) · [`docs/DEFENCE-SHAP-CBES.md`](docs/DEFENCE-SHAP-CBES.md) | viva speaking scripts |
 | [`docs/RELEARNING-LOOP.md`](docs/RELEARNING-LOOP.md) | capture flow and gate conditions |
+| [`docs/RESEARCH-SCOPE-IDEAS.md`](docs/RESEARCH-SCOPE-IDEAS.md) | externally sourced roadmap: paper additions ranked by novelty-per-effort, borrower/lender pains, USP claims with required hedges |
 | [`models/README.md`](models/README.md) | model weights, licence and citation traps |
 | [`docs/archive/`](docs/archive/README.md) | superseded documents — history, not current facts |
 
