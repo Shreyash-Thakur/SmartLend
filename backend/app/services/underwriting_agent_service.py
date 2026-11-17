@@ -32,7 +32,13 @@ from backend.app.services.review_reason_codes import catalog as reason_code_cata
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-opus-5"
-GEMINI_MODEL = "gemini-2.5-flash"
+# Google retires Gemini models for new keys (2.5-flash went 404); override
+# with GEMINI_MODEL in .env instead of editing code.
+GEMINI_MODEL = "gemini-3.8-flash"
+
+
+def _gemini_model() -> str:
+    return get_secret("GEMINI_MODEL") or GEMINI_MODEL
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # Local models are slower than hosted ones; a 7-8B model on a laptop CPU/GPU
 # can take a minute or two for a structured briefing.
@@ -137,7 +143,7 @@ def active_model() -> str | None:
     """Model the briefing will use, for /agent/status; None when unconfigured."""
     return {
         "anthropic": MODEL,
-        "gemini": GEMINI_MODEL,
+        "gemini": _gemini_model(),
         "ollama": get_secret("OLLAMA_MODEL"),
     }.get(_provider() or "")
 
@@ -168,7 +174,7 @@ def _generate_gemini(user_text: str) -> tuple[str, str]:
     mapped onto the same exception contract as the Anthropic path."""
     import httpx
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{_gemini_model()}:generateContent"
     body = {
         "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": [{"role": "user", "parts": [{"text": user_text}]}],
@@ -205,7 +211,7 @@ def _generate_gemini(user_text: str) -> tuple[str, str]:
     text = next((p.get("text") for p in parts if p.get("text")), None)
     if not text:
         raise AgentBriefingError("Gemini returned no text content.")
-    return text, GEMINI_MODEL
+    return text, _gemini_model()
 
 
 def _generate_ollama(user_text: str) -> tuple[str, str]:
