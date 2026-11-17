@@ -326,9 +326,10 @@ class MLPredictor:
                     vals = np.array(shap_values)[0]
                     
                 impacts = pd.Series(vals, index=self.feature_names)
-                top = impacts.abs().sort_values(ascending=False).head(3)
-                
-                # We return exact SHAP absolute mapping keys without the giant explanation array
+                # Rank by size but keep the sign: + raises P(default), - lowers it.
+                # explainability_service re-signs per decision and needs the sign.
+                top = impacts.loc[impacts.abs().sort_values(ascending=False).index].head(3)
+
                 top_3_shap = [{"name": k, "impact": float(v), "value": float(sanitized.get(k, 0.0))} for k, v in top.items()]
             except Exception:
                 # Kept non-fatal on purpose: a broken explainer must not fail a
