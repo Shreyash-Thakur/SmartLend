@@ -5,6 +5,7 @@ from typing import Any
 import uuid
 
 from backend.app.models import LoanApplication
+from backend.app.services.decision_engine import decision_economics
 from backend.app.services.explainability_service import build_explainability_payload
 
 
@@ -23,6 +24,25 @@ def _confidence_band(score: float) -> str:
     if score >= 0.55:
         return "medium"
     return "low"
+
+
+def _economics_payload(ml_prob: float) -> dict[str, Any]:
+    """camelCase view of decision_engine.decision_economics for the API.
+
+    Computed at response time from the stored ml_prob (a pure function of it
+    and the wired cost constants), so rows persisted before this field existed
+    show it too.
+    """
+    econ = decision_economics(float(ml_prob))
+    return {
+        "lossIfApproved": econ["loss_if_approved"],
+        "profitForgoneIfRejected": econ["profit_forgone_if_rejected"],
+        "lossRatio": econ["loss_ratio"],
+        "lowerCostAction": econ["lower_cost_action"],
+        "deferCutoff": econ["defer_cutoff"],
+        "costFalseApproval": econ["cost_false_approval"],
+        "costFalseRejection": econ["cost_false_rejection"],
+    }
 
 
 def _full_name(input_data: dict[str, Any]) -> str:
@@ -132,6 +152,7 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
             "modelArtifact": meta.get("model_artifact"),
             "analystNotes": analyst_notes,
             "allModelPredictions": meta.get("all_model_predictions", {}),
+            "decisionEconomics": _economics_payload(app_item.ml_prob),
         },
         "documents": documents,
     }

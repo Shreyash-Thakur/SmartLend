@@ -56,6 +56,17 @@ export interface ApplicationDecision {
   /** Artifact file the score came from, e.g. "pipeline_v3_real.joblib". */
   modelArtifact?: string
   allModelPredictions?: Record<string, number>
+  /** Expected decision loss of each hard action, in cost units per unit of
+   *  exposure (EAD = 1). Display-only reviewer aid — never routes anything. */
+  decisionEconomics?: {
+    lossIfApproved: number
+    profitForgoneIfRejected: number
+    lossRatio: number | null
+    lowerCostAction: 'APPROVE' | 'REJECT'
+    deferCutoff: number
+    costFalseApproval: number
+    costFalseRejection: number
+  }
 }
 
 export interface Document {

@@ -12,6 +12,7 @@ import {
   ReviewerFeedbackForm,
 } from '@/components/sections'
 import type { AgentBriefing } from '@/services/applications'
+import type { ApplicationDecision } from '@/types/application'
 import type { ReviewerFeedback } from '@/components/sections/ReviewerFeedbackForm'
 import { useApplicationData } from '@/hooks/useApplicationData'
 import { formatCurrency } from '@/lib/utils'
@@ -253,6 +254,9 @@ export const ApplicationReview: React.FC = () => {
                   <ScoreTile label="Confidence" value={application.decision.confidence ?? 'medium'} color="green" isText />
                 </div>
               </Card>
+              {role !== 'customer' && application.decision.decisionEconomics && (
+                <DecisionEconomicsCard econ={application.decision.decisionEconomics} />
+              )}
               <FeatureContributionChart features={application.decision.featureImportance} />
               <DecisionExplanation decision={application.decision} />
               {role !== 'customer' && application.decision.allModelPredictions && Object.keys(application.decision.allModelPredictions).length > 0 && (
@@ -355,6 +359,60 @@ function DetailRow({ label, value }: { label: string; value: string | number }) 
       <p className="text-xs text-neutral-500 mb-0.5">{label}</p>
       <p className="text-sm font-medium text-neutral-900">{value}</p>
     </div>
+  )
+}
+
+/** Expected decision loss of each hard action, so the reviewer sees the
+ *  economic stakes, not just a probability. Display-only: the engine's
+ *  routing and the reviewer's verdict are untouched by it. */
+function DecisionEconomicsCard({ econ }: { econ: NonNullable<ApplicationDecision['decisionEconomics']> }) {
+  const rows = [
+    { label: 'Expected loss if approved', sub: 'default risk × LGD', value: econ.lossIfApproved },
+    { label: 'Profit forgone if rejected', sub: 'repay likelihood × return', value: econ.profitForgoneIfRejected },
+  ]
+  const maxValue = Math.max(econ.lossIfApproved, econ.profitForgoneIfRejected, 1e-9)
+  const ratioText =
+    econ.lossRatio === null
+      ? null
+      : econ.lossRatio >= 1
+        ? `A wrongful approval here costs ${econ.lossRatio.toFixed(1)}× a wrongful rejection — the economics favour caution.`
+        : `A wrongful rejection here costs ${(1 / econ.lossRatio).toFixed(1)}× a wrongful approval — the economics favour approving.`
+  return (
+    <Card
+      title="Decision Economics"
+      description="Expected cost of each action for this applicant, in cost units per unit of exposure (EAD = 1). Advisory only — it does not decide."
+    >
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const isCostlier = row.value === maxValue && econ.lossIfApproved !== econ.profitForgoneIfRejected
+          return (
+            <div key={row.label}>
+              <div className="flex items-baseline justify-between gap-4">
+                <p className="text-sm text-neutral-700">
+                  <span className={isCostlier ? 'font-semibold text-neutral-900' : ''}>{row.label}</span>
+                  <span className="ml-2 text-xs text-neutral-400">{row.sub}</span>
+                </p>
+                <p className={`text-sm tabular-nums ${isCostlier ? 'font-bold text-neutral-900' : 'text-neutral-600'}`}>
+                  {row.value.toFixed(4)}
+                </p>
+              </div>
+              <div className="mt-1 h-2 rounded-full bg-neutral-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${isCostlier ? 'bg-blue-600' : 'bg-neutral-300'}`}
+                  style={{ width: `${Math.max((row.value / maxValue) * 100, 2)}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {ratioText && <p className="mt-4 text-sm text-neutral-700">{ratioText}</p>}
+      <p className="mt-3 text-xs text-neutral-400">
+        Cost weights: false approval {econ.costFalseApproval} (Basel II F-IRB supervisory LGD), false rejection{' '}
+        {econ.costFalseRejection} (Verbraken et al. 2014 EMP ROI). The cost-aware router defers when the chosen
+        action&apos;s expected loss exceeds θ = {econ.deferCutoff.toFixed(3)}.
+      </p>
+    </Card>
   )
 }
 

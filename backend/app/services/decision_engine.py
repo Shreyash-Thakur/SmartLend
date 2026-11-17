@@ -197,6 +197,35 @@ def _resolve_theta_el(explicit: float | None) -> float:
     return DEFAULT_THETA_EL
 
 
+def decision_economics(p_ml: float) -> dict[str, Any]:
+    """Expected decision loss of each hard action, per unit of exposure.
+
+    Display-only decision aid for the reviewer UI: it never routes or decides
+    anything, so it carries no ENGINE_VERSION weight. Uses the same wired cost
+    pair as expected-loss routing (provenance: reports/t_base_selection.json,
+    cost_model — Basel II F-IRB supervisory LGD 0.45 for a false approval,
+    Verbraken et al. 2014 EMP ROI 0.2644 for a false rejection; EAD normalised
+    to 1, so figures are cost units per unit of exposure, not currency).
+    """
+    p = _clip(float(p_ml), 0.0, 1.0)  # P(no default), serving convention
+    loss_if_approved = _COST_FALSE_APPROVAL * (1.0 - p)
+    profit_forgone_if_rejected = _COST_FALSE_REJECTION * p
+    ratio = (
+        loss_if_approved / profit_forgone_if_rejected
+        if profit_forgone_if_rejected > 1e-9
+        else None
+    )
+    return {
+        "loss_if_approved": round(loss_if_approved, 6),
+        "profit_forgone_if_rejected": round(profit_forgone_if_rejected, 6),
+        "loss_ratio": round(ratio, 4) if ratio is not None else None,
+        "lower_cost_action": "APPROVE" if loss_if_approved < profit_forgone_if_rejected else "REJECT",
+        "defer_cutoff": _resolve_theta_el(None),
+        "cost_false_approval": _COST_FALSE_APPROVAL,
+        "cost_false_rejection": _COST_FALSE_REJECTION,
+    }
+
+
 def hybrid_decision(
     p_ml: float,
     p_cbes: float,
