@@ -254,11 +254,14 @@ export const ApplicationReview: React.FC = () => {
                   <ScoreTile label="Confidence" value={application.decision.confidence ?? 'medium'} color="green" isText />
                 </div>
               </Card>
-              {role !== 'customer' && application.decision.decisionEconomics && (
-                <DecisionEconomicsCard econ={application.decision.decisionEconomics} />
-              )}
               <FeatureContributionChart features={application.decision.featureImportance} />
               <DecisionExplanation decision={application.decision} />
+              {role !== 'customer' && application.decision.decisionEconomics && (
+                <DecisionEconomicsCard
+                  econ={application.decision.decisionEconomics}
+                  loanAmount={application.loanAmount}
+                />
+              )}
               {role !== 'customer' && application.decision.allModelPredictions && Object.keys(application.decision.allModelPredictions).length > 0 && (
                 <Card title="Ensemble Predictions Deep Dive" description="Approval probabilities from all underlying models (for research purposes).">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -362,55 +365,63 @@ function DetailRow({ label, value }: { label: string; value: string | number }) 
   )
 }
 
-/** Expected decision loss of each hard action, so the reviewer sees the
- *  economic stakes, not just a probability. Display-only: the engine's
- *  routing and the reviewer's verdict are untouched by it. */
-function DecisionEconomicsCard({ econ }: { econ: NonNullable<ApplicationDecision['decisionEconomics']> }) {
-  const rows = [
-    { label: 'Expected loss if approved', sub: 'default risk × LGD', value: econ.lossIfApproved },
-    { label: 'Profit forgone if rejected', sub: 'repay likelihood × return', value: econ.profitForgoneIfRejected },
-  ]
-  const maxValue = Math.max(econ.lossIfApproved, econ.profitForgoneIfRejected, 1e-9)
-  const ratioText =
-    econ.lossRatio === null
-      ? null
-      : econ.lossRatio >= 1
-        ? `A wrongful approval here costs ${econ.lossRatio.toFixed(1)}× a wrongful rejection — the economics favour caution.`
-        : `A wrongful rejection here costs ${(1 / econ.lossRatio).toFixed(1)}× a wrongful approval — the economics favour approving.`
+/** What approving this loan is worth to the bank, in rupees: the gain if the
+ *  applicant repays, the loss if they default, and the average of the two.
+ *  Display-only: the engine's routing and the reviewer's verdict are untouched.
+ *  Rupees = the engine's per-unit-exposure costs x the loan amount (EAD taken
+ *  as the principal, a simplification stated in the footnote). */
+function DecisionEconomicsCard({
+  econ,
+  loanAmount,
+}: {
+  econ: NonNullable<ApplicationDecision['decisionEconomics']>
+  loanAmount: number
+}) {
+  // Probabilities recovered from the same p_ml the engine used.
+  const pDefault = econ.costFalseApproval > 0 ? econ.lossIfApproved / econ.costFalseApproval : 0
+  const pRepay = 1 - pDefault
+  const gainIfRepaid = econ.costFalseRejection * loanAmount
+  const lossIfDefault = econ.costFalseApproval * loanAmount
+  const expectedGain = econ.profitForgoneIfRejected * loanAmount
+  const expectedLoss = econ.lossIfApproved * loanAmount
+  // Numbers only, no recommendation: the default probability comes from the
+  // model alone and ignores affordability, so a verdict here would mislead.
+  const net = expectedGain - expectedLoss
+  const pct = (value: number) => `${Math.round(value * 100)}%`
+
   return (
     <Card
       title="Decision Economics"
-      description="Expected cost of each action for this applicant, in cost units per unit of exposure (EAD = 1). Advisory only — it does not decide."
+      description="What approving this loan is worth to the bank. Advisory only: it does not decide."
     >
-      <div className="space-y-3">
-        {rows.map((row) => {
-          const isCostlier = row.value === maxValue && econ.lossIfApproved !== econ.profitForgoneIfRejected
-          return (
-            <div key={row.label}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="text-sm text-neutral-700">
-                  <span className={isCostlier ? 'font-semibold text-neutral-900' : ''}>{row.label}</span>
-                  <span className="ml-2 text-xs text-neutral-400">{row.sub}</span>
-                </p>
-                <p className={`text-sm tabular-nums ${isCostlier ? 'font-bold text-neutral-900' : 'text-neutral-600'}`}>
-                  {row.value.toFixed(4)}
-                </p>
-              </div>
-              <div className="mt-1 h-2 rounded-full bg-neutral-100 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${isCostlier ? 'bg-blue-600' : 'bg-neutral-300'}`}
-                  style={{ width: `${Math.max((row.value / maxValue) * 100, 2)}%` }}
-                />
-              </div>
-            </div>
-          )
-        })}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <p className="text-xs uppercase tracking-wide text-green-700">If approved and repaid ({pct(pRepay)} likely)</p>
+          <p className="mt-1 text-2xl font-semibold text-green-800">+{formatCurrency(gainIfRepaid)}</p>
+          <p className="text-xs text-green-700">Bank earns its return on the loan</p>
+        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-xs uppercase tracking-wide text-red-700">If approved and defaults ({pct(pDefault)} likely)</p>
+          <p className="mt-1 text-2xl font-semibold text-red-800">−{formatCurrency(lossIfDefault)}</p>
+          <p className="text-xs text-red-700">Bank loses this share of the loan</p>
+        </div>
       </div>
-      {ratioText && <p className="mt-4 text-sm text-neutral-700">{ratioText}</p>}
+
+      <div className="mt-4 space-y-1 text-sm text-neutral-700">
+        <p>
+          Average outcome of approving: {pct(pRepay)} × {formatCurrency(gainIfRepaid)} − {pct(pDefault)} ×{' '}
+          {formatCurrency(lossIfDefault)} ={' '}
+          <span className="font-semibold text-neutral-900">
+            {net >= 0 ? '+' : '−'}{formatCurrency(Math.abs(net))}
+          </span>
+        </p>
+        <p>Rejecting: no gain, no loss.</p>
+      </div>
+
       <p className="mt-3 text-xs text-neutral-400">
-        Cost weights: false approval {econ.costFalseApproval} (Basel II F-IRB supervisory LGD), false rejection{' '}
-        {econ.costFalseRejection} (Verbraken et al. 2014 EMP ROI). The cost-aware router defers when the chosen
-        action&apos;s expected loss exceeds θ = {econ.deferCutoff.toFixed(3)}.
+        Loss if default = {Math.round(econ.costFalseApproval * 100)}% of the loan (Basel II F-IRB supervisory LGD);
+        gain if repaid = {(econ.costFalseRejection * 100).toFixed(1)}% (Verbraken et al. 2014 EMP ROI). Exposure is
+        taken as the loan amount. The model&apos;s default probability is an estimate; the reviewer decides.
       </p>
     </Card>
   )
