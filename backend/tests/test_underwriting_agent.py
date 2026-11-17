@@ -37,9 +37,7 @@ BRIEFING = {
     "summary": "Applicant shows stable income but a thin credit file.",
     "riskFactors": ["Thin bureau file"],
     "mitigants": ["Long employment tenure"],
-    "dataQualityFlags": ["monthly_income and annual_income disagree"],
     "suggestedChecks": ["Verify income documents"],
-    "suggestedReasonCodes": ["REJ-THIN-FILE", "APR-EMP-STABLE"],
 }
 
 
@@ -126,9 +124,9 @@ def test_happy_path_returns_stamped_briefing(monkeypatch):
     assert briefing["summary"] == BRIEFING["summary"]
     assert briefing["advisoryOnly"] is True
     assert briefing["model"] == "claude-opus-5"
-    # Structured output requested, taxonomy included in the prompt.
+    # Structured output requested; the report is in the prompt.
     assert captured["output_config"]["format"]["type"] == "json_schema"
-    assert "REJ-THIN-FILE" in captured["messages"][0]["content"]
+    assert "500000" in captured["messages"][0]["content"]
     assert captured["model"] == svc.MODEL
 
 

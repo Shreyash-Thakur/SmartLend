@@ -3,8 +3,8 @@
 What this is: a Claude-powered analyst assistant that reads one application's
 full decision report (the same audit record `GET /api/applications/{id}/report`
 serves) and produces a structured briefing for the human reviewer — a summary,
-data-consistency flags, risk factors and mitigants, checks worth doing before
-ruling, and suggested reason codes drawn from the live taxonomy.
+a plain reading of the SHAP factors, risk factors and mitigants, and checks
+worth doing before ruling.
 
 What this is NOT — three hard boundaries, all load-bearing:
 
@@ -27,7 +27,6 @@ import logging
 from typing import Any
 
 from backend.app.config import anthropic_api_key, anthropic_configured, get_secret
-from backend.app.services.review_reason_codes import catalog as reason_code_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -55,20 +54,10 @@ BRIEFING_SCHEMA: dict[str, Any] = {
         },
         "riskFactors": {"type": "array", "items": {"type": "string"}},
         "mitigants": {"type": "array", "items": {"type": "string"}},
-        "dataQualityFlags": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Internal inconsistencies, implausible or missing values, citing the exact fields",
-        },
         "suggestedChecks": {
             "type": "array",
             "items": {"type": "string"},
             "description": "Concrete verifications the reviewer should perform before ruling",
-        },
-        "suggestedReasonCodes": {
-            "type": "array",
-            "items": {"type": "string"},
-            "description": "Codes from the provided taxonomy that the evidence could support",
         },
         "factorExplanation": {
             "type": "string",
@@ -80,9 +69,7 @@ BRIEFING_SCHEMA: dict[str, Any] = {
         "summary",
         "riskFactors",
         "mitigants",
-        "dataQualityFlags",
         "suggestedChecks",
-        "suggestedReasonCodes",
         "factorExplanation",
     ],
     "additionalProperties": False,
@@ -97,13 +84,11 @@ data are provided as JSON.
 Rules:
 - You are advisory only. The human reviewer decides; never recommend APPROVE or \
 REJECT as a verdict, and never claim authority over the outcome.
-- Ground every statement in the provided JSON. Cite field names for every data \
-quality flag. If a value is missing, say it is missing — never invent applicant facts.
+- Ground every statement in the provided JSON. If a value is missing, say it \
+is missing — never invent applicant facts.
 - Look for internal inconsistencies (e.g. income vs EMIs vs requested amount, \
 tenure vs age, CBES pillars contradicting the headline score) and for places \
 where the ML score and CBES disagree, and say what would explain them.
-- suggestedReasonCodes must come from the provided taxonomy codes verbatim; \
-suggest only codes the evidence could genuinely support, for either verdict.
 - engine.topFactors are SHAP attributions re-signed for the decision taken: \
 impact > 0 ("supports_decision") pushed toward that decision, impact < 0 \
 ("opposes_decision") pushed against it. For APPROVE and DEFER, > 0 means the \
@@ -268,10 +253,6 @@ def generate_briefing(report: dict[str, Any]) -> dict[str, Any]:
 
     import anthropic
 
-    taxonomy = [
-        {"code": item["code"], "label": item["label"], "direction": item["direction"]}
-        for item in reason_code_catalog()
-    ]
     # The report is already PII-minimal for its audience (the reviewer sees the
     # same payload); underscore-prefixed internals were stripped upstream.
     user_payload = {
@@ -280,7 +261,6 @@ def generate_briefing(report: dict[str, Any]) -> dict[str, Any]:
             "engine": report.get("engine"),
             "humanReview": report.get("humanReview"),
         },
-        "reason_code_taxonomy": taxonomy,
     }
 
     user_text = "Brief the reviewer on this application:\n" + json.dumps(
