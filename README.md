@@ -1,6 +1,6 @@
 # SmartLend
 
-Loan decisioning system with a human-in-the-loop deferral layer, built on **307,511 real loan applications** (Home Credit Default Risk + credit-bureau aggregates). Final-year research project; the research contribution is a measured diagnosis — and fix — of an inverted deferral rule.
+Loan decisioning system with a human-in-the-loop deferral layer, built on **307,511 real loan applications** (Home Credit Default Risk + confidence aware uncertainty detection). Final-year research project; the research contribution is a measured diagnosis — and fix — of an inverted deferral rule.
 
 New here? Read **[`docs/APPROACH.md`](docs/APPROACH.md)** (the whole approach in plain words), then **[`docs/PROJECT-OVERVIEW.md`](docs/PROJECT-OVERVIEW.md)** (what this is) and **[`docs/DEV-GUIDE.md`](docs/DEV-GUIDE.md)** (how to work on it).
 
