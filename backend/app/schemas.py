@@ -269,6 +269,11 @@ class DecisionPayload(BaseModel):
     modelArtifact: str | None = None
     analystId: str | None = None
     analystNotes: str | None = None
+    #: "shap" | "heuristic"; explanationNote is the technical footnote.
+    explanationSource: str | None = None
+    explanationNote: str | None = None
+    #: Display-only reviewer aid (decision_service._economics_payload).
+    decisionEconomics: dict[str, Any] | None = None
 
 
 class LoanApplicationResponse(BaseModel):
