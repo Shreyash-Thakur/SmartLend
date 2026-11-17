@@ -165,7 +165,8 @@ def _build_top_factors(app_item: LoanApplication) -> tuple[list[dict[str, Any]],
             elif app_item.final_decision == "REJECT":
                 reason = f"Applicant's {label} ({value}) strongly contributed to the rejection." if direction_impact >= 0 else f"Applicant's {label} ({value}) was a positive factor, but insufficient."
             else:
-                reason = f"Applicant's {label} ({value}) requires analyst review." if direction_impact >= 0 else f"Applicant's {label} ({value}) is generally favorable."
+                # DEFER is re-signed like APPROVE: >= 0 lowered the default risk.
+                reason = f"Applicant's {label} ({value}) is generally favorable." if direction_impact >= 0 else f"Applicant's {label} ({value}) raised the risk and needs analyst review."
 
             target = _counterfactual_target(feature, value)
             normalized.append(
