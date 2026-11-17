@@ -404,6 +404,26 @@ def build_explainability_payload(app_item: LoanApplication) -> dict[str, Any]:
             "These are NOT SHAP values."
         )
 
+    # The FOIR policy gate (policy_rules.py) overrides the model; say so first
+    # so the SHAP factors below are not read as the reason for the outcome.
+    affordability = meta.get("affordability") if isinstance(meta.get("affordability"), dict) else None
+    reason = str(meta.get("decision_reason", ""))
+    if affordability and reason.startswith("affordability_"):
+        foir_pct = round(float(affordability.get("foir", 0.0)) * 100)
+        emi = float(affordability.get("newEmi", 0.0))
+        if reason == "affordability_reject":
+            policy_text = (
+                f"Bank affordability policy: the new EMI of Rs {emi:,.0f}/month plus existing debts would take "
+                f"{foir_pct}% of income (limit 200%), so the loan cannot be repaid and is rejected "
+                "regardless of the model score. "
+            )
+        else:
+            policy_text = (
+                f"Bank affordability policy: the new EMI of Rs {emi:,.0f}/month plus existing debts would take "
+                f"{foir_pct}% of income (above 100%), so a model approval was sent to a human to verify income. "
+            )
+        explanation_text = policy_text + explanation_text
+
     return {
         "id": app_item.id,
         "decision": app_item.final_decision,

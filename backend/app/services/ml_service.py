@@ -26,6 +26,7 @@ from sklearn.metrics import roc_auc_score, recall_score, f1_score
 # We import the exact conservative risk-aware defaults defined directly in CBES Engine
 from backend.app.services.cbes_engine import DEFAULTS
 from backend.app.services.decision_engine import ENGINE_VERSION, hybrid_decision
+from backend.app.services.policy_rules import apply_affordability_gate, check_affordability
 from backend.app.services.threshold_selection import select_t_base
 
 logger = logging.getLogger(__name__)
@@ -408,6 +409,17 @@ class MLPredictor:
         decision_result.cbes_weights = {} # Weight is fixed inside cbes natively now
         decision_result.cbes_components = cbes_breakdown
         decision_result.selected_model = used_model_name
+
+        # Bank policy after the model: FOIR affordability gate (policy_rules.py).
+        # It can only make a decision stricter; the model output is unchanged.
+        affordability = check_affordability(input_data)
+        decision_result.decision, decision_result.decision_reason = apply_affordability_gate(
+            decision_result.decision, decision_result.decision_reason, affordability
+        )
+        decision_result.affordability = (
+            None if affordability is None
+            else {"foir": affordability.foir, "newEmi": affordability.new_emi, "action": affordability.action}
+        )
 
         # --- relearning-loop provenance -----------------------------------
         # `hybrid_decision` returns t_approve/t_reject but not the t_base they

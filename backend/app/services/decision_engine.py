@@ -103,7 +103,7 @@ _BLEND_ALPHA = 0.10
 # it is what lets a future analysis separate a fixed router's labels from a
 # broken router's (spec section 3, `engine_version`). Without it, capture rows
 # from two different routers are indistinguishable and all of them are useless.
-ENGINE_VERSION = "hybrid-2stage-5gate/2026-11-13+uncertainty-default"
+ENGINE_VERSION = "hybrid-2stage-5gate/2026-11-17+uncertainty-default+foir-gate"
 
 # ---------------------------------------------------------------------------
 # Deferral routing mode (2026-08-31 deferral fix, see docs/DEFERRAL-FIX.md)
