@@ -8,7 +8,8 @@
 >   Unlike every other doc in `docs/`, the numbers here come from the cited external
 >   sources, NOT from `reports/*.json` — do not quote them in the paper without opening
 >   the source.
-> - **Project state this builds on:** the paper is `paper/creddefer_rait2027.tex`
+> - **Project state this builds on:** the paper is `research paper/creddefer_rait2027.tex`
+>   (Overleaf upload checklist: `research paper/OVERLEAF-UPLOAD.md`)
 >   (core finding: the incumbent disagreement-based deferral rule was measured inverted,
 >   z = +38 sigma vs a random-router null, and plain Chow's-rule uncertainty fixes it,
 >   z = -99.7 at a matched 22.5% rate; repaired disagreement signals also fix the
