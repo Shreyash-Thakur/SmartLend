@@ -443,6 +443,8 @@ def _create_application_record(form_data: dict[str, Any], db: Session, documents
         "threshold_artifact_hash": str(getattr(prediction, "threshold_artifact_hash", "unknown")),
         "t_base": float(getattr(prediction, "t_base", 0.50)),
         "tau_d": float(getattr(prediction, "tau_d", 0.30)),
+        # FOIR affordability gate outcome (policy_rules.py); None = not computable.
+        "affordability": getattr(prediction, "affordability", None),
     }
 
     # --- relearning loop: decide routing BEFORE persisting -----------------
@@ -569,7 +571,7 @@ def _normalize_state(input_data: dict[str, Any]) -> str:
                 "tamil nadu": "Tamil Nadu",
                 "uttar pradesh": "Uttar Pradesh",
                 "west bengal": "West Bengal",
-            }[normalized]
+            }.get(normalized, state.title())  # single-word states title-case fine
         return state.title()
 
     city = str(input_data.get("city") or "").strip().lower()
@@ -601,6 +603,18 @@ def _finalize_geo_bucket(bucket: dict[str, float | int]) -> None:
 
 @router.post("/applications", response_model=LoanApplicationResponse)
 def create_application(form_data: dict[str, Any], db: Session = Depends(get_db)) -> dict[str, Any]:
+    # The application form is for existing customers: without a customer_id
+    # there is no bureau/KYC block, and the model would silently score
+    # defaults. Document upload (/upload-form) keeps its own path.
+    if not (form_data.get("customer_id") or form_data.get("customerId")):
+        raise HTTPException(
+            status_code=422,
+            detail=_error_payload(
+                "Customer ID required",
+                "Enter your existing bank customer number. The application is scored on the "
+                "bank's own KYC and bureau data, which is looked up by this ID.",
+            ),
+        )
     return _create_application_record(form_data, db)
 
 
