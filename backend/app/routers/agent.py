@@ -33,11 +33,12 @@ router = APIRouter(tags=["agent"])
 def agent_status() -> dict[str, Any]:
     return {
         "configured": underwriting_agent_service.configured(),
-        "model": underwriting_agent_service.MODEL,
+        "model": underwriting_agent_service.active_model(),
         "detail": (
             "ready"
             if underwriting_agent_service.configured()
-            else "ANTHROPIC_API_KEY is not set; add it to .env to enable reviewer briefings."
+            else "No agent is configured; add GEMINI_API_KEY, ANTHROPIC_API_KEY or "
+            "OLLAMA_MODEL to .env to enable reviewer briefings."
         ),
     }
 
