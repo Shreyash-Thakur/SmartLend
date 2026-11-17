@@ -87,7 +87,9 @@ DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 DEFAULT_ELEVENLABS_MODEL_ID = "eleven_multilingual_v2"
 
 SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text"
-DEFAULT_SARVAM_MODEL = "saarika:v2"
+# saarika:v2 is retired; v2.5 is Sarvam's backward-compatible REST model.
+# Override with SARVAM_STT_MODEL (e.g. a newer saaras model) without a code change.
+DEFAULT_SARVAM_MODEL = "saarika:v2.5"
 
 # Short ISO codes -> the BCP-47-ish codes Sarvam expects. Unknown codes are
 # passed through unchanged so a new language does not require a code change.
@@ -161,7 +163,9 @@ def _encode_multipart(
             f"{value}\r\n".encode("utf-8")
         )
     for name, (filename, content) in files.items():
-        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        extension = filename.rsplit(".", 1)[-1].lower()
+        content_type = (AUDIO_CONTENT_TYPES.get(extension)
+                        or mimetypes.guess_type(filename)[0] or "application/octet-stream")
         parts.append(
             f"--{boundary}\r\n"
             f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'
@@ -171,6 +175,29 @@ def _encode_multipart(
         parts.append(b"\r\n")
     parts.append(f"--{boundary}--\r\n".encode("utf-8"))
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
+
+
+# mimetypes guesses video/webm and audio/mp4a-latm; speech APIs want these.
+AUDIO_CONTENT_TYPES = {
+    "webm": "audio/webm", "ogg": "audio/ogg", "m4a": "audio/mp4",
+    "mp3": "audio/mpeg", "flac": "audio/flac", "wav": "audio/wav",
+}
+
+
+def _audio_filename(audio_bytes: bytes) -> str:
+    """Filename whose extension matches the audio container (magic bytes)."""
+    head = audio_bytes[:12]
+    if head.startswith(b"\x1aE\xdf\xa3"):
+        return "audio.webm"
+    if head.startswith(b"OggS"):
+        return "audio.ogg"
+    if head[4:8] == b"ftyp":
+        return "audio.m4a"
+    if head.startswith(b"ID3") or head[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
+        return "audio.mp3"
+    if head.startswith(b"fLaC"):
+        return "audio.flac"
+    return "audio.wav"
 
 
 def _normalise_language(language: str | None) -> str | None:
@@ -326,7 +353,9 @@ class SarvamSpeechToText(SpeechToText):
             # Sarvam auto-detects when given the unknown-language sentinel.
             fields["language_code"] = "unknown"
 
-        body, content_type = _encode_multipart(fields, {"file": ("audio.wav", audio_bytes)})
+        # Browsers record webm/ogg/m4a, not wav: name the part after what the
+        # bytes really are so the provider decodes the right container.
+        body, content_type = _encode_multipart(fields, {"file": (_audio_filename(audio_bytes), audio_bytes)})
         raw = _http_post(
             SARVAM_STT_URL,
             headers={"api-subscription-key": api_key, "Content-Type": content_type},

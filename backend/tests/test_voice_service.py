@@ -330,3 +330,15 @@ def test_transcribe_endpoint_returns_words_when_configured(client, monkeypatch):
     assert body["text"] == "namaste"
     assert body["words"][0]["word"] == "namaste"
     assert body["words"][0]["confidence"] is None
+
+
+def test_sarvam_upload_is_named_after_the_real_container():
+    """Browsers record webm; sending it labelled .wav makes the provider misdecode."""
+    from backend.app.services.voice_service import _audio_filename, _encode_multipart
+
+    assert _audio_filename(b"\x1aE\xdf\xa3rest-of-webm") == "audio.webm"
+    assert _audio_filename(b"OggS\x00\x02") == "audio.ogg"
+    assert _audio_filename(b"\x00\x00\x00\x20ftypM4A ") == "audio.m4a"
+    assert _audio_filename(b"RIFF\x24\x00\x00\x00WAVE") == "audio.wav"
+    body, _ = _encode_multipart({}, {"file": ("audio.webm", b"x")})
+    assert b"Content-Type: audio/webm" in body
