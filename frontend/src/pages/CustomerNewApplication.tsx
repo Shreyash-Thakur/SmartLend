@@ -23,6 +23,7 @@ import { useApplicationData } from '@/hooks/useApplicationData'
 import { useAuth } from '@/hooks/useAuth'
 import { getCustomerProfile, getCustomerSamples } from '@/services/applications'
 import { trackEvent } from '@/services/analytics'
+import { useLanguageStore } from '@/store/languageStore'
 import {
   getVoiceStatus,
   isRecordingSupported,
@@ -282,6 +283,8 @@ export const CustomerNewApplication: React.FC = () => {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [voiceNotice, setVoiceNotice] = useState<string | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  // Read-aloud follows the EN / हिं / मरा switch in the top bar.
+  const language = useLanguageStore((state) => state.language)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -459,7 +462,7 @@ export const CustomerNewApplication: React.FC = () => {
     const explanation =
       result.decision?.explanation
       ?? `Your application for ${formatCurrency(result.loanAmount)} has been recorded and scored.`
-    const audio = await synthesizeDecision(String(decision), explanation)
+    const audio = await synthesizeDecision(String(decision), explanation, language)
     if (!audio) {
       // Graceful degradation: no TTS key, or the provider call failed. The
       // written decision above stays exactly as it is.
