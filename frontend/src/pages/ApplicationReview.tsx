@@ -5,11 +5,10 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, Button } from '@/components/common'
 import {
   AgentBriefingPanel,
-  DecisionBanner,
-  DecisionReportPanel,
   FeatureContributionChart,
   DecisionExplanation,
   ReviewerFeedbackForm,
+  StatusTimeline,
 } from '@/components/sections'
 import type { AgentBriefing } from '@/services/applications'
 import type { ApplicationDecision } from '@/types/application'
@@ -28,9 +27,6 @@ export const ApplicationReview: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<{ name: string; dataUrl: string; mimeType: string } | null>(null)
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
-  // Bumped after a decision is submitted so the audit panel re-fetches and the
-  // reviewer immediately sees their own feedback in the record.
-  const [reportRefreshKey, setReportRefreshKey] = useState(0)
 
   if (isLoading && !application) {
     return (
@@ -55,9 +51,8 @@ export const ApplicationReview: React.FC = () => {
 
   /** Submit the analyst's verdict together with the structured feedback the
    *  relearning capture layer records against the deferral row. The reviewer is
-   *  kept on the page afterwards so the refreshed Decision Report shows what was
-   *  just captured — leaving immediately would hide the audit trail from the
-   *  person who created it. */
+   *  kept on the page afterwards so the recorded decision and the updated
+   *  status timeline are visible. */
   const handleSubmitDecision = async (
     decision: 'approved' | 'rejected',
     decisionNotes: string,
@@ -67,7 +62,6 @@ export const ApplicationReview: React.FC = () => {
     setIsSubmitting(true)
     try {
       await overrideDecision(application.id, decision, decisionNotes, feedback)
-      setReportRefreshKey((key) => key + 1)
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Submission failed')
     } finally {
@@ -87,10 +81,23 @@ export const ApplicationReview: React.FC = () => {
   const documents: Array<{ id: string; fileName: string; documentType: string; fileSize: number; uploadedAt: string; dataUrl?: string; mimeType?: string }> =
     Array.isArray(application.documents) ? application.documents as never : []
 
+  const isCustomer = role === 'customer'
   const statusIsDeferred = application.modelRecommendation === 'deferred'
-  const statusIsApproved = application.modelRecommendation === 'approved'
-  const statusIsRejected = application.modelRecommendation === 'rejected'
   const orgConfirmed = Boolean(application.manualDecisionApplied)
+  // Once a reviewer has ruled, the banner shows their decision (the model only
+  // recommended); before that it shows the model's recommendation.
+  const bannerStatus = orgConfirmed ? application.status : application.modelRecommendation
+  const statusIsApproved = bannerStatus === 'approved'
+  const statusIsRejected = bannerStatus === 'rejected'
+  const RECOMMENDATION_TEXT: Record<string, string> = {
+    approved: 'Approve', rejected: 'Reject', deferred: 'Defer to Human Review',
+  }
+  const bannerTitle = orgConfirmed
+    ? `Decision: ${statusIsApproved ? 'Approved' : 'Rejected'}`
+    : `Model Recommendation: ${RECOMMENDATION_TEXT[application.modelRecommendation ?? ''] ?? 'Defer to Human Review'}`
+  const bannerSubtitle = orgConfirmed
+    ? `Decided by a loan officer · the model had recommended: ${(RECOMMENDATION_TEXT[application.modelRecommendation ?? ''] ?? 'review').toLowerCase()}`
+    : 'Awaiting analyst confirmation'
 
   return (
     <DashboardLayout title={`Application Review: ${application.id.slice(0, 12)}`} role="organization">
@@ -159,7 +166,17 @@ export const ApplicationReview: React.FC = () => {
               <div className="border-t pt-3 space-y-3">
                 <DetailRow label="Age" value={application.applicationData.age} />
                 <DetailRow label="Monthly Income" value={formatCurrency(application.applicationData.monthlyIncome)} />
-                <DetailRow label="EMI Obligations" value={formatCurrency(application.applicationData.emi)} />
+                {/* existing_emis is the bank's own record (annual, as in the
+                    profile's debt-to-income); emi is what the applicant typed
+                    for other lenders. Showing only the typed value read ₹0
+                    for applicants with four active loans. */}
+                <DetailRow
+                  label="Existing EMIs (per month)"
+                  value={formatCurrency(
+                    Number((application.applicationData as Record<string, unknown>).existing_emis ?? 0) / 12
+                      + Number(application.applicationData.emi ?? 0),
+                  )}
+                />
                 <DetailRow label="Total Assets" value={formatCurrency(application.applicationData.assets)} />
                 <DetailRow
                   label="Credit Score"
@@ -172,7 +189,7 @@ export const ApplicationReview: React.FC = () => {
                 <DetailRow label="Tenure" value={`${application.loanTenure} months`} />
                 <DetailRow
                   label="Debt / Income"
-                  value={`${application.applicationData.debtToIncomeRatio?.toFixed(1) ?? '0'}%`}
+                  value={`${((application.applicationData.debtToIncomeRatio ?? 0) * 100).toFixed(1)}%`}
                 />
               </div>
             </div>
@@ -215,53 +232,64 @@ export const ApplicationReview: React.FC = () => {
               </ul>
             )}
           </Card>
+
+          {!isCustomer && <StatusTimeline application={application} audience="org" />}
         </aside>
 
         {/* Right Panel */}
         <section className="lg:col-span-2 space-y-6">
-          {/* Current Status Banner */}
-          <div className={`rounded-2xl p-5 flex items-center gap-4 ${
-            statusIsApproved ? 'bg-green-50 border border-green-200' :
-            statusIsRejected ? 'bg-red-50 border border-red-200' :
-            'bg-amber-50 border border-amber-200'
-          }`}>
-            {statusIsApproved ? <CheckCircle2 className="h-7 w-7 text-green-600 shrink-0" /> :
-             statusIsRejected ? <XCircle className="h-7 w-7 text-red-600 shrink-0" /> :
-             <Clock className="h-7 w-7 text-amber-600 shrink-0" />}
-            <div>
-              <p className={`font-semibold text-lg ${
-                statusIsApproved ? 'text-green-900' : statusIsRejected ? 'text-red-900' : 'text-amber-900'
-              }`}>
-                {statusIsApproved ? 'Model Recommendation: Approve' :
-                 statusIsRejected ? 'Model Recommendation: Reject' :
-                 'Model Recommendation: Defer to Human Review'}
-              </p>
-              <p className={`text-sm mt-0.5 ${
-                statusIsApproved ? 'text-green-700' : statusIsRejected ? 'text-red-700' : 'text-amber-700'
-              }`}>
-                {orgConfirmed ? '✓ Org decision confirmed' : 'Awaiting analyst confirmation'}
-              </p>
+          {/* Customers see where their application stands, not the model's
+              internal recommendation. Org sees the recommendation until a
+              reviewer rules, then the reviewer's decision. */}
+          {isCustomer ? (
+            <StatusTimeline application={application} audience="customer" />
+          ) : (
+            <div className={`rounded-2xl p-5 flex items-center gap-4 ${
+              statusIsApproved ? 'bg-green-50 border border-green-200' :
+              statusIsRejected ? 'bg-red-50 border border-red-200' :
+              'bg-amber-50 border border-amber-200'
+            }`}>
+              {statusIsApproved ? <CheckCircle2 className="h-7 w-7 text-green-600 shrink-0" /> :
+               statusIsRejected ? <XCircle className="h-7 w-7 text-red-600 shrink-0" /> :
+               <Clock className="h-7 w-7 text-amber-600 shrink-0" />}
+              <div>
+                <p className={`font-semibold text-lg ${
+                  statusIsApproved ? 'text-green-900' : statusIsRejected ? 'text-red-900' : 'text-amber-900'
+                }`}>
+                  {bannerTitle}
+                </p>
+                <p className={`text-sm mt-0.5 ${
+                  statusIsApproved ? 'text-green-700' : statusIsRejected ? 'text-red-700' : 'text-amber-700'
+                }`}>
+                  {bannerSubtitle}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* XAI / Decision breakdown */}
           {application.decision && (
-            <>
+            // data-i18n-live: factor names and explanation sentences carry
+            // numbers, so the customer view translates them live.
+            <div data-i18n-live className="space-y-6">
+              {/* Scores and the top contributing factors in one box (the
+                  separate Decision Report panel repeated the same factors). */}
               <Card title="Decision Analysis">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <ScoreTile label="Risk Score" value={`${(application.decision.riskScore * 100).toFixed(1)}%`} color="red" />
                   <ScoreTile label="CBES Score" value={`${application.decision.cbessScore}/100`} color="blue" />
                   <ScoreTile label="Confidence" value={application.decision.confidence ?? 'medium'} color="green" isText />
                 </div>
+                <div className="mt-6">
+                  <p className="mb-3 text-sm font-semibold text-neutral-900">Top contributing factors</p>
+                  <FeatureContributionChart
+                    bare
+                    features={application.decision.featureImportance}
+                    decisionStatus={application.status}
+                  />
+                </div>
               </Card>
-              <FeatureContributionChart features={application.decision.featureImportance} />
               <DecisionExplanation decision={application.decision} />
-              {role !== 'customer' && application.decision.decisionEconomics && (
-                <DecisionEconomicsCard
-                  econ={application.decision.decisionEconomics}
-                  loanAmount={application.loanAmount}
-                />
-              )}
               {role !== 'customer' && application.decision.allModelPredictions && Object.keys(application.decision.allModelPredictions).length > 0 && (
                 <Card title="Ensemble Predictions Deep Dive" description="Approval probabilities from all underlying models (for research purposes).">
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -276,21 +304,28 @@ export const ApplicationReview: React.FC = () => {
                   </div>
                 </Card>
               )}
-            </>
+            </div>
           )}
 
-          {/* Agent briefing — advisory prep for the reviewer, org only. It
-              renders above the decision form but writes nothing into it: the
-              reviewer's verdict and reason codes stay entirely human. */}
-          {role !== 'customer' && (
-            <AgentBriefingPanel
-              applicationId={application.id}
-              initialBriefing={
-                ((application.applicationData as Record<string, unknown> | undefined)
-                  ?.['_decision_meta'] as { agent_briefing?: AgentBriefing } | undefined)
-                  ?.agent_briefing ?? null
-              }
-            />
+          {/* Decision economics and the agent briefing side by side: both are
+              advisory reading for the reviewer, neither writes the decision. */}
+          {!isCustomer && (
+            <div className="grid gap-6 xl:grid-cols-2">
+              {application.decision?.decisionEconomics && (
+                <DecisionEconomicsCard
+                  econ={application.decision.decisionEconomics}
+                  loanAmount={application.loanAmount}
+                />
+              )}
+              <AgentBriefingPanel
+                applicationId={application.id}
+                initialBriefing={
+                  ((application.applicationData as Record<string, unknown> | undefined)
+                    ?.['_decision_meta'] as { agent_briefing?: AgentBriefing } | undefined)
+                    ?.agent_briefing ?? null
+                }
+              />
+            </div>
           )}
 
           {/* Analyst Decision Section — always visible for org.
@@ -299,7 +334,7 @@ export const ApplicationReview: React.FC = () => {
               reason codes, 1-5 confidence, optional note, and an automatically
               measured time-on-case. All of it is posted through fields
               ManualDecisionRequest already accepts. */}
-          {!orgConfirmed && role !== 'customer' ? (
+          {!orgConfirmed && !isCustomer ? (
             <ReviewerFeedbackForm
               isDeferred={statusIsDeferred}
               reviewerId={user?.email || user?.uid || undefined}
@@ -308,7 +343,7 @@ export const ApplicationReview: React.FC = () => {
               onCancel={() => navigate('/review')}
               onSubmit={handleSubmitDecision}
             />
-          ) : (
+          ) : orgConfirmed && !isCustomer ? (
             <Card title="Org Decision Recorded" className={`border-2 ${
               application.status === 'rejected' ? 'border-red-200 bg-red-50/40' :
               application.status === 'deferred' ? 'border-amber-200 bg-amber-50/40' :
@@ -342,14 +377,7 @@ export const ApplicationReview: React.FC = () => {
                 </div>
               </div>
             </Card>
-          )}
-
-          {/* Full audit record: the engine's probabilities/thresholds/pillars
-              and, once someone has ruled, the reviewer's verdict and reason
-              codes. Org-only — it exposes engine internals, not customer copy. */}
-          {role !== 'customer' && (
-            <DecisionReportPanel applicationId={application.id} refreshKey={reportRefreshKey} />
-          )}
+          ) : null}
         </section>
       </div>
     </DashboardLayout>
@@ -394,15 +422,16 @@ function DecisionEconomicsCard({
       title="Decision Economics"
       description="What approving this loan is worth to the bank. Advisory only: it does not decide."
     >
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Stacked: the card now sits beside the agent briefing at half width. */}
+      <div className="grid gap-3">
         <div className="rounded-lg border border-green-200 bg-green-50 p-4">
           <p className="text-xs uppercase tracking-wide text-green-700">If approved and repaid ({pct(pRepay)} likely)</p>
-          <p className="mt-1 text-2xl font-semibold text-green-800">+{formatCurrency(gainIfRepaid)}</p>
+          <p className="mt-1 whitespace-nowrap text-2xl font-semibold text-green-800">+{formatCurrency(gainIfRepaid)}</p>
           <p className="text-xs text-green-700">Bank earns its return on the loan</p>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-xs uppercase tracking-wide text-red-700">If approved and defaults ({pct(pDefault)} likely)</p>
-          <p className="mt-1 text-2xl font-semibold text-red-800">−{formatCurrency(lossIfDefault)}</p>
+          <p className="mt-1 whitespace-nowrap text-2xl font-semibold text-red-800">−{formatCurrency(lossIfDefault)}</p>
           <p className="text-xs text-red-700">Bank loses this share of the loan</p>
         </div>
       </div>
