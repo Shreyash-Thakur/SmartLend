@@ -14,6 +14,7 @@ from backend.app.routers.customers import router as customers_router
 from backend.app.routers.public import router as public_router
 from backend.app.routers.relearning import router as relearning_router
 from backend.app.routers.tabpfn import router as tabpfn_router
+from backend.app.routers.translate import router as translate_router
 from backend.app.routers.voice import router as voice_router
 from backend.app.services.ml_service import get_predictor
 from backend.app.services.public_api_service import seed_recent_applications
@@ -47,6 +48,7 @@ app.include_router(customers_router, prefix="/api")
 app.include_router(relearning_router, prefix="/api")
 app.include_router(tabpfn_router, prefix="/api")
 app.include_router(voice_router, prefix="/api")
+app.include_router(translate_router, prefix="/api")
 
 
 @app.on_event("startup")
