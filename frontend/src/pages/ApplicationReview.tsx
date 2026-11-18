@@ -366,41 +366,9 @@ export const ApplicationReview: React.FC = () => {
               onCancel={() => navigate('/review')}
               onSubmit={handleSubmitDecision}
             />
-          ) : orgConfirmed && !isCustomer ? (
-            <Card title="Org Decision Recorded" className={`border-2 ${
-              application.status === 'rejected' ? 'border-red-200 bg-red-50/40' :
-              application.status === 'deferred' ? 'border-amber-200 bg-amber-50/40' :
-              'border-green-200 bg-green-50/40'
-            }`}>
-              <div className="flex items-start gap-4">
-                {application.status === 'rejected' ? (
-                  <XCircle className="h-6 w-6 text-red-600 shrink-0 mt-0.5" />
-                ) : application.status === 'deferred' ? (
-                  <Clock className="h-6 w-6 text-amber-600 shrink-0 mt-0.5" />
-                ) : (
-                  <CheckCircle2 className="h-6 w-6 text-green-600 shrink-0 mt-0.5" />
-                )}
-                <div>
-                  <p className={`font-semibold ${
-                    application.status === 'rejected' ? 'text-red-900' :
-                    application.status === 'deferred' ? 'text-amber-900' :
-                    'text-green-900'
-                  }`}>
-                    Decision: {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                  </p>
-                  {application.analystNotes && (
-                    <p className={`mt-2 text-sm rounded-lg px-3 py-2 ${
-                      application.status === 'rejected' ? 'text-red-800 bg-red-100' :
-                      application.status === 'deferred' ? 'text-amber-800 bg-amber-100' :
-                      'text-green-800 bg-green-100'
-                    }`}>
-                      "{application.analystNotes}"
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Card>
           ) : null}
+          {/* After a ruling the banner shows the decision and Decision
+              Analysis shows the reviewer's note, so no separate card. */}
         </section>
       </div>
     </DashboardLayout>
