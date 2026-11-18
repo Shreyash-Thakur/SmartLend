@@ -10,6 +10,7 @@ import {
   type ReasonCode,
 } from '@/lib/reasonCodes'
 import type { ManualDecisionRequest } from '@/types/api'
+import { DictateButton } from './DictateButton'
 
 type AnalystDecision = 'approved' | 'rejected'
 
@@ -259,6 +260,11 @@ export const ReviewerFeedbackForm: React.FC<ReviewerFeedbackFormProps> = ({
         </div>
 
         {/* --- 4. free text ----------------------------------------------- */}
+        <div className="-mb-3 flex justify-end">
+          <DictateButton
+            onText={(text) => setNotes((current) => (current.trim() ? `${current.trim()} ${text}` : text))}
+          />
+        </div>
         <Textarea
           label={otherSelected ? 'Decision Notes' : 'Decision Notes (optional)'}
           required={otherSelected}
