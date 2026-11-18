@@ -18,6 +18,32 @@ def _decision_to_status(decision: str) -> str:
     return mapping.get(decision.upper(), "submitted")
 
 
+_APPROVE_REASONS = {"ml_approve", "cbes_fallback_approve"}
+_REJECT_REASONS = {"ml_reject", "cbes_fallback_reject", "affordability_reject"}
+
+
+def engine_decision(app_item: LoanApplication) -> str:
+    """What the engine decided, even after a reviewer overwrote final_decision.
+
+    apply_manual_decision stores it as _engine_decision. Rows adjudicated before
+    that existed recover it from the stored decision_reason; everything that is
+    not an approve/reject reason was routed to review.
+    """
+    input_data = app_item.input_data or {}
+    stored = input_data.get("_engine_decision")
+    if stored:
+        return str(stored)
+    if not input_data.get("_manual_decision_applied"):
+        return app_item.final_decision
+    meta = input_data.get("_decision_meta") or {}
+    reason = str(meta.get("decision_reason", "")) if isinstance(meta, dict) else ""
+    if reason in _APPROVE_REASONS:
+        return "APPROVE"
+    if reason in _REJECT_REASONS:
+        return "REJECT"
+    return "DEFER"
+
+
 def _confidence_band(score: float) -> str:
     if score >= 0.75:
         return "high"
@@ -61,13 +87,14 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
     input_data = app_item.input_data or {}
     meta = input_data.get("_decision_meta", {}) if isinstance(input_data.get("_decision_meta", {}), dict) else {}
     created_at = _created_at(app_item.created_at)
-    model_recommendation = _decision_to_status(app_item.final_decision)
+    model_recommendation = _decision_to_status(engine_decision(app_item))
     manual_decision_applied = bool(input_data.get("_manual_decision_applied", False))
-    # Customer-facing status mirrors the engine instantly: APPROVE/REJECT are
-    # final at submit time and a DEFER is shown as "deferred" until a human
-    # decides. A manual decision overwrites final_decision, so this mapping
-    # stays correct after adjudication too.
-    status = model_recommendation
+    # Customer-facing status: APPROVE/REJECT are final at submit time and a
+    # DEFER stays "deferred" until a human decides. A manual decision overwrites
+    # final_decision, so status follows the human while modelRecommendation
+    # keeps the engine's own verdict.
+    status = _decision_to_status(app_item.final_decision)
+    manual_decided_at = input_data.get("_manual_decided_at")
 
     risk_score = clamp_float(float(meta.get("risk_score", 1 - app_item.ml_prob)))
     confidence = clamp_float(app_item.confidence)
@@ -123,6 +150,7 @@ def build_application_response(app_item: LoanApplication) -> dict[str, Any]:
         "finalDecision": app_item.final_decision,
         "modelRecommendation": model_recommendation,
         "manualDecisionApplied": manual_decision_applied,
+        "manualDecidedAt": manual_decided_at,
         # Exploration-arm cases keep an auto status but still need a reviewer;
         # the review queue keys off these instead of a blanket "submitted".
         "explorationFlag": bool(meta.get("exploration_flag", False)),
@@ -167,6 +195,15 @@ def apply_manual_decision(app_item: LoanApplication, status: str, notes: str) ->
         "deferred": "DEFER",
     }
     mapped = decision_map.get(status.lower(), "DEFER")
+
+    # Keep notes in persisted JSON for traceability without schema changes, and
+    # remember the engine's verdict before final_decision is overwritten.
+    input_data = dict(app_item.input_data or {})
+    input_data.setdefault("_engine_decision", engine_decision(app_item))
+    input_data["_manual_notes"] = notes
+    input_data["_manual_decision_applied"] = True
+    input_data["_manual_decided_at"] = datetime.now(timezone.utc).isoformat()
+    app_item.input_data = input_data
     app_item.final_decision = mapped
 
     payload = build_application_response(app_item)
@@ -176,13 +213,6 @@ def apply_manual_decision(app_item: LoanApplication, status: str, notes: str) ->
     payload["decision"]["explanation"] = notes
     payload["decision"]["analystId"] = "analyst-placeholder"
     payload["decision"]["analystNotes"] = notes
-
-    # Keep notes in persisted JSON for traceability without schema changes.
-    input_data = dict(app_item.input_data or {})
-    input_data["_manual_notes"] = notes
-    input_data["_manual_decision_applied"] = True
-    app_item.input_data = input_data
-
     return payload
 
 

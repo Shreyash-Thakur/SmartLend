@@ -28,7 +28,7 @@ from backend.app.models import DeferredReview, LoanApplication
 # Imported, not re-declared: the blend weight must come from the engine so a
 # derived p_blend in a report can never disagree with the engine's own.
 from backend.app.services.decision_engine import _BLEND_ALPHA
-from backend.app.services.decision_service import build_application_response
+from backend.app.services.decision_service import build_application_response, engine_decision
 from backend.app.services.explainability_service import build_explainability_payload
 from backend.app.services.review_reason_codes import describe_reason_codes
 
@@ -100,7 +100,7 @@ def build_engine_section(
     )
 
     return {
-        "decision": app_item.final_decision,
+        "decision": engine_decision(app_item),
         "decisionReason": str(
             review.decision_reason if review is not None else meta.get("decision_reason", "model_ensemble")
         ),
