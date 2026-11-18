@@ -101,6 +101,8 @@ export interface LoanApplication {
   finalDecision?: 'APPROVE' | 'REJECT' | 'DEFER'
   modelRecommendation?: DecisionType | 'submitted'
   manualDecisionApplied?: boolean
+  /** ISO time a reviewer recorded the final decision (absent on older rows). */
+  manualDecidedAt?: string | null
   /** 3% exploration arm: auto-decided but still routed to a human reviewer. */
   explorationFlag?: boolean
   /** True for every DEFER and for exploration-arm cases. */
