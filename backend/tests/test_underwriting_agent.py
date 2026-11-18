@@ -35,9 +35,8 @@ def session():
 
 BRIEFING = {
     "summary": "Applicant shows stable income but a thin credit file.",
-    "riskFactors": ["Thin bureau file"],
-    "mitigants": ["Long employment tenure"],
     "suggestedChecks": ["Verify income documents"],
+    "factorExplanation": "A low credit score raised the risk.",
 }
 
 

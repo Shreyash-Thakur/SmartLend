@@ -413,8 +413,6 @@ export async function bulkDecision(
 
 export interface AgentBriefing {
   summary: string
-  riskFactors: string[]
-  mitigants: string[]
   suggestedChecks: string[]
   /** Plain-language reading of the SHAP factors; absent on older briefings. */
   factorExplanation?: string

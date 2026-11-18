@@ -3,8 +3,9 @@
 What this is: a Claude-powered analyst assistant that reads one application's
 full decision report (the same audit record `GET /api/applications/{id}/report`
 serves) and produces a structured briefing for the human reviewer — a summary,
-a plain reading of the SHAP factors, risk factors and mitigants, and checks
-worth doing before ruling.
+a plain reading of the SHAP factors, and checks worth doing before ruling.
+Risk factors and mitigants are left to the Decision Analysis panel, which
+shows the same SHAP factors deterministically.
 
 What this is NOT — three hard boundaries, all load-bearing:
 
@@ -52,8 +53,6 @@ BRIEFING_SCHEMA: dict[str, Any] = {
             "type": "string",
             "description": "3-5 sentence plain-language briefing of the case for the reviewer",
         },
-        "riskFactors": {"type": "array", "items": {"type": "string"}},
-        "mitigants": {"type": "array", "items": {"type": "string"}},
         "suggestedChecks": {
             "type": "array",
             "items": {"type": "string"},
@@ -67,8 +66,6 @@ BRIEFING_SCHEMA: dict[str, Any] = {
     },
     "required": [
         "summary",
-        "riskFactors",
-        "mitigants",
         "suggestedChecks",
         "factorExplanation",
     ],
@@ -98,6 +95,8 @@ when a factor's direction looks counter-intuitive (e.g. a larger loan lowering \
 risk is learned from the training data, not a rule), and do not quote raw SHAP \
 numbers. If the decision reason starts with "affordability_", say that the \
 bank's affordability policy, not the model, set the outcome.
+- The reviewer already sees the factors listed as risk factors and supporting \
+factors, so do not list them again; add what the numbers alone do not say.
 - Keep the briefing focused and brief; the reviewer reads this in under a minute."""
 
 
