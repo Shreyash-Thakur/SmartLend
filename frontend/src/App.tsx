@@ -34,9 +34,6 @@ const ApplicationReview = lazy(async () => ({
 const ReviewPage = lazy(async () => ({
   default: (await import('@/pages/ReviewPage')).ReviewPage,
 }))
-const GeoAnalytics = lazy(async () => ({
-  default: (await import('@/pages/GeoAnalytics')).GeoAnalytics,
-}))
 const DemoTestCases = lazy(async () => ({
   default: (await import('@/pages/DemoTestCases')).DemoTestCases,
 }))
@@ -141,14 +138,6 @@ export default function App() {
                     element={
                       <ProtectedRoute requiredRole="org">
                         <ModelAnalysisDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/analytics/geo"
-                    element={
-                      <ProtectedRoute requiredRole="org">
-                        <GeoAnalytics />
                       </ProtectedRoute>
                     }
                   />

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Activity, BrainCircuit, BriefcaseBusiness, CheckCircle2, MapPinned,
+  Activity, BrainCircuit, BriefcaseBusiness, CheckCircle2,
   XCircle, AlertTriangle,
 } from 'lucide-react'
 import {
@@ -177,9 +177,6 @@ export const OrganizationDashboard: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" leftIcon={<BrainCircuit className="h-4 w-4" />} onClick={() => navigate('/dashboard/models')}>
             Model Analysis
-          </Button>
-          <Button variant="primary" size="sm" leftIcon={<MapPinned className="h-4 w-4" />} onClick={() => navigate('/analytics/geo')}>
-            Geo Analytics
           </Button>
         </div>
       </section>

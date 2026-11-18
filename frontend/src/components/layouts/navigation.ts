@@ -6,7 +6,6 @@ import {
   FlaskConical,
   History,
   LayoutDashboard,
-  MapPinned,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -28,7 +27,8 @@ export const ORG_NAV: NavGroup[] = [
     heading: 'Insights',
     items: [
       { label: 'Model Analysis', to: '/dashboard/models', icon: BrainCircuit },
-      { label: 'Geo Analytics', to: '/analytics/geo', icon: MapPinned },
+      // Geo Analytics hidden: Home Credit has no Indian geography, so the page
+      // only grouped typed city fields. The page and endpoints are kept.
     ],
   },
   { heading: 'Demo', items: [{ label: 'Demo Test Cases', to: '/dashboard/demo-cases', icon: FlaskConical }] },
