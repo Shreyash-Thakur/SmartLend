@@ -89,6 +89,12 @@ export interface KPICardProps {
 export interface FeatureContributionChartProps {
   features: FeatureContribution[]
   maxFeatures?: number
+  /** Render without its own Card, to sit inside another panel. */
+  bare?: boolean
+  /** Final status the impacts were signed for. When given, bars show the
+   *  effect on default risk (red raised it, green lowered it) instead of
+   *  "for/against the decision", which reads backwards on a rejection. */
+  decisionStatus?: string
   isLoading?: boolean
   /** Overrides the per-feature `source`. When either resolves to "heuristic"
    *  the chart labels itself as not-SHAP. */

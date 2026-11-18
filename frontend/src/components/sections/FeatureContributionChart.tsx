@@ -35,14 +35,22 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
   features,
   maxFeatures = 5,
   source,
+  bare = false,
+  decisionStatus,
 }) => {
+  // Impacts arrive signed for the decision taken (> 0 supports it). Re-express
+  // them as the effect on default risk: for a rejection supporting = raising
+  // risk; for an approval or deferral supporting = lowering it.
+  const riskMode = decisionStatus !== undefined
+  const toRisk = (impact: number) => (decisionStatus === 'rejected' ? impact : -impact)
   const topFeatures = [...features]
     .sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact))
     .slice(0, maxFeatures)
     .map((feature) => ({
       ...feature,
-      displayImpact: Number(feature.impact.toFixed(2)),
+      displayImpact: Number((riskMode ? toRisk(feature.impact) : feature.impact).toFixed(2)),
     }))
+  const isGood = (displayImpact: number) => (riskMode ? displayImpact <= 0 : displayImpact >= 0)
 
   const domain = symmetricDomain(topFeatures.map((feature) => feature.displayImpact))
   const resolvedSource = source ?? topFeatures.find((feature) => feature.source)?.source
@@ -50,8 +58,7 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
 
   const chart = useChartTheme()
 
-  return (
-    <Card title="Feature Importance Analysis" className="mt-6">
+  const body = (
       <div className="space-y-6">
         {isHeuristic && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -70,10 +77,10 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
                 labelFormatter={(label) => `Feature: ${label}`}
               />
               <Bar dataKey="displayImpact" radius={[6, 6, 6, 6]}>
-                {topFeatures.map((feature: FeatureContribution) => (
+                {topFeatures.map((feature) => (
                   <Cell
                     key={feature.name}
-                    fill={feature.impact >= 0 ? '#16a34a' : '#ef4444'}
+                    fill={isGood(feature.displayImpact) ? '#16a34a' : '#ef4444'}
                   />
                 ))}
               </Bar>
@@ -86,9 +93,10 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
             <div key={feature.name} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
               <div className="flex items-center justify-between">
                 <p className="font-medium text-neutral-900">{feature.name}</p>
-                <span className={feature.impact >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {feature.impact >= 0 ? '+' : ''}
-                  {feature.impact.toFixed(2)}
+                <span className={isGood(feature.displayImpact) ? 'text-green-600' : 'text-red-600'}>
+                  {riskMode
+                    ? (feature.displayImpact > 0 ? 'Raised risk' : 'Lowered risk')
+                    : `${feature.impact >= 0 ? '+' : ''}${feature.impact.toFixed(2)}`}
                 </span>
               </div>
               <p className="mt-1 text-sm text-neutral-600">
@@ -98,12 +106,24 @@ export const FeatureContributionChart: React.FC<FeatureContributionChartProps> =
           ))}
         </div>
 
+        {riskMode && (
+          <p className="text-xs text-neutral-500">
+            Red bars raised the chance of default, green bars lowered it. Longer bar = bigger effect.
+          </p>
+        )}
+
         {features.length > maxFeatures && (
           <div className="text-sm text-neutral-500 pt-4 border-t border-neutral-200">
             +{features.length - maxFeatures} more factors analyzed
           </div>
         )}
       </div>
+  )
+
+  if (bare) return body
+  return (
+    <Card title="Feature Importance Analysis" className="mt-6">
+      {body}
     </Card>
   )
 }
