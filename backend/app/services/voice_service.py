@@ -14,13 +14,15 @@ Provider-agnostic by construction
 Callers never import a provider. They call :func:`synthesize_decision`,
 :func:`transcribe` and :func:`voice_available`, which resolve a provider through
 :func:`get_tts_provider` / :func:`get_stt_provider`. **That resolver pair is the
-swap seam.** Swapping ElevenLabs for a locally-hosted open-source model means
+swap seam.** Swapping Sarvam for a locally-hosted open-source model means
 writing one new class that implements the ABC and returning it from the
 resolver — no caller, router, or test changes. See ``docs/VOICE-MODULE.md``.
 
 Currently shipped implementations:
-  * :class:`ElevenLabsTextToSpeech` — hosted TTS, multilingual.
+  * :class:`SarvamTextToSpeech`     — hosted TTS (bulbul), Indian languages.
   * :class:`SarvamSpeechToText`     — hosted ASR tuned for Indian languages.
+Both use the one SARVAM_API_KEY. (ElevenLabs TTS was removed in Nov 2026: one
+provider, one key, and it speaks Hindi and Marathi natively.)
 
 Documented drop-in open-source alternatives (NOT implemented here — API credits
 are limited, and these are the intended migration targets once GPU time exists):
@@ -64,6 +66,7 @@ No new dependencies: HTTP uses ``urllib`` from the stdlib.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import mimetypes
@@ -73,7 +76,7 @@ from typing import Any
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
-from backend.app.config import ELEVENLABS_API_KEY, SARVAM_API_KEY, get_secret
+from backend.app.config import SARVAM_API_KEY, get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +84,11 @@ logger = logging.getLogger(__name__)
 # must degrade to an error result quickly rather than pinning a worker.
 HTTP_TIMEOUT_SECONDS = 30
 
-ELEVENLABS_TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-# "Rachel" — ElevenLabs' default public voice. Override with ELEVENLABS_VOICE_ID.
-DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
-DEFAULT_ELEVENLABS_MODEL_ID = "eleven_multilingual_v2"
+SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
+# bulbul:v2 was deprecated by Sarvam; override with SARVAM_TTS_MODEL /
+# SARVAM_TTS_SPEAKER without a code change.
+DEFAULT_SARVAM_TTS_MODEL = "bulbul:v3"
+SARVAM_TTS_MAX_CHARS = 1500
 
 SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text"
 # saarika:v2 is retired; v2.5 is Sarvam's backward-compatible REST model.
@@ -270,49 +274,48 @@ class SpeechToText(ABC):
 # --------------------------------------------------------------------------- #
 
 
-class ElevenLabsTextToSpeech(TextToSpeech):
-    """Hosted multilingual TTS. Needs ELEVENLABS_API_KEY."""
+class SarvamTextToSpeech(TextToSpeech):
+    """Hosted TTS for Indian languages (bulbul). Needs SARVAM_API_KEY."""
 
-    name = "elevenlabs"
+    name = "sarvam"
+    media_type = "audio/wav"
 
     def is_configured(self) -> bool:
         # Lazy, per-call lookup: a key added to .env after boot works without a
         # restart, and a missing key is a value, never an exception.
-        return get_secret(ELEVENLABS_API_KEY) is not None
+        return get_secret(SARVAM_API_KEY) is not None
 
     def unavailable_reason(self) -> str | None:
         if self.is_configured():
             return None
         return (
-            f"{ELEVENLABS_API_KEY} is not set. Add it to the gitignored .env at the "
+            f"{SARVAM_API_KEY} is not set. Add it to the gitignored .env at the "
             "project root (see .env.example) and restart the API."
         )
 
     def synthesize(self, text: str, language: str | None = None) -> bytes:
-        api_key = get_secret(ELEVENLABS_API_KEY)
+        api_key = get_secret(SARVAM_API_KEY)
         if api_key is None:  # belt-and-braces; callers gate on is_configured()
             raise VoiceProviderError(self.unavailable_reason() or "not configured")
 
-        voice_id = get_secret("ELEVENLABS_VOICE_ID") or DEFAULT_ELEVENLABS_VOICE_ID
-        model_id = get_secret("ELEVENLABS_MODEL_ID") or DEFAULT_ELEVENLABS_MODEL_ID
-        # `language` is informational for ElevenLabs: the multilingual model
-        # infers language from the text itself, so we do not send a code.
-        payload = json.dumps(
-            {
-                "text": text,
-                "model_id": model_id,
-                "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
-            }
-        ).encode("utf-8")
-        audio = _http_post(
-            ELEVENLABS_TTS_URL.format(voice_id=voice_id),
-            headers={
-                "xi-api-key": api_key,
-                "Content-Type": "application/json",
-                "Accept": self.media_type,
-            },
-            body=payload,
+        body: dict[str, Any] = {
+            "text": text[:SARVAM_TTS_MAX_CHARS],
+            "target_language_code": _normalise_language(language) or "en-IN",
+            "model": get_secret("SARVAM_TTS_MODEL") or DEFAULT_SARVAM_TTS_MODEL,
+        }
+        speaker = get_secret("SARVAM_TTS_SPEAKER")
+        if speaker:
+            body["speaker"] = speaker
+        raw = _http_post(
+            SARVAM_TTS_URL,
+            headers={"api-subscription-key": api_key, "Content-Type": "application/json"},
+            body=json.dumps(body).encode("utf-8"),
         )
+        # Sarvam answers JSON with base64 WAV clips, not raw audio.
+        try:
+            audio = base64.b64decode(json.loads(raw)["audios"][0])
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise VoiceProviderError(f"could not parse provider response: {exc}") from exc
         if not audio:
             raise VoiceProviderError("provider returned an empty audio body")
         return audio
@@ -421,7 +424,7 @@ class SarvamSpeechToText(SpeechToText):
 # callers — needs to change. To run open-source locally you would add e.g.
 # `class IndicConformerSpeechToText(SpeechToText)` and return it here.
 
-_tts_provider: TextToSpeech = ElevenLabsTextToSpeech()
+_tts_provider: TextToSpeech = SarvamTextToSpeech()
 _stt_provider: SpeechToText = SarvamSpeechToText()
 
 
@@ -500,13 +503,25 @@ def _unavailable_transcript(reason: str, provider: str) -> dict[str, Any]:
     }
 
 
+_SPOKEN_DECISIONS = {
+    "APPROVE": "approved",
+    "APPROVED": "approved",
+    "REJECT": "not approved",
+    "REJECTED": "not approved",
+    "DEFER": "under review by our team",
+    "DEFERRED": "under review by our team",
+}
+
+
 def build_decision_script(decision: str, explanation: str, language: str = "en") -> str:
     """Compose the sentence that gets read aloud.
 
     Separate from synthesis so the wording can be reviewed, tested and
     translated without touching any provider code.
     """
-    decision_text = (decision or "").strip() or "pending"
+    raw = (decision or "").strip()
+    # Engine codes read badly aloud ("DEFER"); say what they mean.
+    decision_text = _SPOKEN_DECISIONS.get(raw.upper(), raw) or "pending"
     explanation_text = (explanation or "").strip()
     script = f"Your loan application decision is: {decision_text}."
     if explanation_text:
@@ -533,6 +548,15 @@ def synthesize_decision(
             logger.info("TTS unavailable: %s", provider.unavailable_reason())
             return None
         script = build_decision_script(decision, explanation, language)
+        if language in ("hi", "mr"):
+            # Speak the customer's chosen language. If translation is down,
+            # read the English rather than English words in a Hindi voice.
+            from backend.app.services import translation_service
+
+            try:
+                script = translation_service.translate(script, language)
+            except translation_service.TranslationUnavailableError:
+                language = "en"
         return provider.synthesize(script, language=language)
     except VoiceProviderError as exc:
         # Degradation path #2: key present, provider failed. Still no raise.
@@ -585,8 +609,8 @@ def transcribe(audio_bytes: bytes, language: str | None = None) -> dict[str, Any
 
 
 __all__ = [
-    "ElevenLabsTextToSpeech",
     "SarvamSpeechToText",
+    "SarvamTextToSpeech",
     "SpeechToText",
     "TextToSpeech",
     "VoiceProviderError",

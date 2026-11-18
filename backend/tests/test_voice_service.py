@@ -10,13 +10,15 @@ Two invariants are under test:
 
 from __future__ import annotations
 
+import base64
 import importlib
+import json
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.config import ELEVENLABS_API_KEY, SARVAM_API_KEY
+from backend.app.config import SARVAM_API_KEY
 from backend.app.routers.voice import router as voice_router
 from backend.app.services import voice_service
 
@@ -24,10 +26,10 @@ from backend.app.services import voice_service
 @pytest.fixture(autouse=True)
 def no_keys_and_no_network(monkeypatch):
     """Default world for every test: no credentials, no network reachable."""
-    monkeypatch.delenv(ELEVENLABS_API_KEY, raising=False)
     monkeypatch.delenv(SARVAM_API_KEY, raising=False)
-    monkeypatch.delenv("ELEVENLABS_VOICE_ID", raising=False)
     monkeypatch.delenv("SARVAM_STT_MODEL", raising=False)
+    monkeypatch.delenv("SARVAM_TTS_MODEL", raising=False)
+    monkeypatch.delenv("SARVAM_TTS_SPEAKER", raising=False)
 
     def _boom(*args, **kwargs):  # pragma: no cover - firing this IS the failure
         raise AssertionError("a test attempted a real network call")
@@ -52,8 +54,12 @@ def client():
 # --------------------------------------------------------------------------- #
 
 
+# Sarvam TTS answers JSON carrying base64 WAV, not raw audio.
+FAKE_WAV = b"RIFF-fake-wav"
+SARVAM_TTS_RESPONSE = json.dumps({"audios": [base64.b64encode(FAKE_WAV).decode()]}).encode()
+
+
 def test_module_imports_without_any_key(monkeypatch):
-    monkeypatch.delenv(ELEVENLABS_API_KEY, raising=False)
     monkeypatch.delenv(SARVAM_API_KEY, raising=False)
     module = importlib.reload(importlib.import_module("backend.app.services.voice_service"))
     assert module is not None
@@ -76,13 +82,13 @@ def test_voice_available_reports_unavailable_with_reasons():
     assert status["available"] is False
     assert status["tts"]["configured"] is False
     assert status["stt"]["configured"] is False
-    assert ELEVENLABS_API_KEY in status["tts"]["reason"]
+    assert SARVAM_API_KEY in status["tts"]["reason"]
     assert SARVAM_API_KEY in status["stt"]["reason"]
     assert status["reasons"], "unavailability must come with at least one reason"
 
 
 def test_voice_available_flips_when_a_key_appears(monkeypatch):
-    monkeypatch.setenv(ELEVENLABS_API_KEY, "test-key")
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
     status = voice_service.voice_available()
     assert status["tts"]["configured"] is True
     assert status["tts"]["reason"] is None
@@ -118,7 +124,7 @@ def test_synthesize_decision_returns_none_without_key():
 
 
 def test_synthesize_decision_returns_none_when_provider_fails(monkeypatch):
-    monkeypatch.setenv(ELEVENLABS_API_KEY, "test-key")
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
 
     def _fail(*args, **kwargs):
         raise voice_service.VoiceProviderError("provider returned HTTP 401")
@@ -128,25 +134,53 @@ def test_synthesize_decision_returns_none_when_provider_fails(monkeypatch):
 
 
 def test_synthesize_decision_returns_audio_bytes_when_configured(monkeypatch):
-    monkeypatch.setenv(ELEVENLABS_API_KEY, "test-key")
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
     captured = {}
 
     def _fake_post(url, *, headers, body):
         captured["url"] = url
         captured["headers"] = headers
-        return b"ID3-fake-mp3"
+        captured["body"] = json.loads(body)
+        return SARVAM_TTS_RESPONSE
 
     monkeypatch.setattr(voice_service, "_http_post", _fake_post)
     audio = voice_service.synthesize_decision("approved", "Stable income.")
-    assert audio == b"ID3-fake-mp3"
-    assert captured["headers"]["xi-api-key"] == "test-key"
+    assert audio == FAKE_WAV
+    assert captured["headers"]["api-subscription-key"] == "test-key"
     assert "text-to-speech" in captured["url"]
+    assert captured["body"]["target_language_code"] == "en-IN"
+    assert captured["body"]["model"] == voice_service.DEFAULT_SARVAM_TTS_MODEL
+
+
+def test_hindi_readout_is_translated_before_speaking(monkeypatch):
+    from backend.app.services import translation_service
+
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
+    monkeypatch.setattr(translation_service, "translate", lambda text, target: "आपका आवेदन समीक्षा में है।")
+    captured = {}
+
+    def _fake_post(url, *, headers, body):
+        captured["body"] = json.loads(body)
+        return SARVAM_TTS_RESPONSE
+
+    monkeypatch.setattr(voice_service, "_http_post", _fake_post)
+    assert voice_service.synthesize_decision("DEFER", "", language="hi") == FAKE_WAV
+    assert captured["body"]["text"] == "आपका आवेदन समीक्षा में है।"
+    assert captured["body"]["target_language_code"] == "hi-IN"
+
+
+def test_unparseable_tts_response_degrades_to_none(monkeypatch):
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
+    monkeypatch.setattr(voice_service, "_http_post", lambda *a, **k: b"<html>oops</html>")
+    assert voice_service.synthesize_decision("approved", "") is None
 
 
 def test_decision_script_includes_decision_and_explanation():
     script = voice_service.build_decision_script("approved", "Your income is stable.")
     assert "approved" in script
     assert "Your income is stable." in script
+    # Engine codes are spoken as words, not read out as "DEFER".
+    assert "under review" in voice_service.build_decision_script("DEFER", "")
 
 
 def test_transcribe_returns_structured_unavailable_without_key():
@@ -255,7 +289,7 @@ def test_synthesize_endpoint_returns_503_without_key(client):
     assert response.status_code == 503
     detail = response.json()["detail"]
     assert detail["error"] == "VOICE_UNAVAILABLE"
-    assert ELEVENLABS_API_KEY in detail["details"]
+    assert SARVAM_API_KEY in detail["details"]
 
 
 def test_transcribe_endpoint_returns_503_without_key(client):
@@ -271,7 +305,7 @@ def test_transcribe_endpoint_returns_503_without_key(client):
 
 def test_synthesize_endpoint_returns_503_when_provider_call_fails(client, monkeypatch):
     """Key present, provider down: still 503 with guidance, never 500."""
-    monkeypatch.setenv(ELEVENLABS_API_KEY, "test-key")
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
 
     def _fail(*args, **kwargs):
         raise voice_service.VoiceProviderError("provider returned HTTP 429")
@@ -298,14 +332,14 @@ def test_transcribe_endpoint_returns_503_when_provider_call_fails(client, monkey
 
 
 def test_synthesize_endpoint_returns_audio_when_configured(client, monkeypatch):
-    monkeypatch.setenv(ELEVENLABS_API_KEY, "test-key")
-    monkeypatch.setattr(voice_service, "_http_post", lambda *a, **k: b"ID3-fake-mp3")
+    monkeypatch.setenv(SARVAM_API_KEY, "test-key")
+    monkeypatch.setattr(voice_service, "_http_post", lambda *a, **k: SARVAM_TTS_RESPONSE)
     response = client.post(
         "/api/voice/synthesize", json={"decision": "approved", "explanation": "Stable income."}
     )
     assert response.status_code == 200
-    assert response.headers["content-type"] == "audio/mpeg"
-    assert response.content == b"ID3-fake-mp3"
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.content == FAKE_WAV
 
 
 def test_transcribe_endpoint_rejects_empty_upload(client, monkeypatch):

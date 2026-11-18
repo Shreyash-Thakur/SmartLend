@@ -97,18 +97,6 @@ def exploration_rate() -> float:
     return max(low, min(high, value))
 
 
-ELEVENLABS_API_KEY = "ELEVENLABS_API_KEY"
-
-
-def elevenlabs_api_key() -> str:
-    return require_secret(ELEVENLABS_API_KEY)
-
-
-def elevenlabs_configured() -> bool:
-    """Check availability without raising — for health checks and feature flags."""
-    return get_secret(ELEVENLABS_API_KEY) is not None
-
-
 SARVAM_API_KEY = "SARVAM_API_KEY"
 
 
