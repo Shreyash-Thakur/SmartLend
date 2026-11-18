@@ -22,7 +22,7 @@ findings, file map, env). `docs/STATUS.md` is the current state.
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000   # backend
 cd frontend && npm run dev                                             # frontend (proxies /api)
 python -m pytest backend/tests research/tests -q                       # full suite
-cd frontend && npx tsc --noEmit                                        # typecheck
+cd frontend && npx tsc --noEmit -p tsconfig.app.json                    # typecheck (root tsconfig lists no files)
 python -m research.relearning.gate                                     # gate (non-zero exit = shut, expected)
 ```
 
