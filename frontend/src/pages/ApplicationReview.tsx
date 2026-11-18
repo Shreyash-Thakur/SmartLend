@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FileText, Trash2, Eye, ChevronLeft, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { FileText, Trash2, Eye, ChevronLeft, CheckCircle2, XCircle, Clock, FolderOpen } from 'lucide-react'
 import { DashboardLayout } from '@/components/layouts/DashboardLayout'
 import { Card, Button } from '@/components/common'
 import {
   AgentBriefingPanel,
+  ApplicantFileDrawer,
   FeatureContributionChart,
   DecisionExplanation,
   ReviewerFeedbackForm,
@@ -27,6 +28,7 @@ export const ApplicationReview: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [previewDoc, setPreviewDoc] = useState<{ name: string; dataUrl: string; mimeType: string } | null>(null)
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+  const [fileOpen, setFileOpen] = useState(false)
 
   if (isLoading && !application) {
     return (
@@ -192,8 +194,29 @@ export const ApplicationReview: React.FC = () => {
                   value={`${((application.applicationData.debtToIncomeRatio ?? 0) * 100).toFixed(1)}%`}
                 />
               </div>
+              {/* The bank's full record and the affordability check, kept out
+                  of the way until the reviewer asks for it. */}
+              {!isCustomer && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  leftIcon={<FolderOpen className="h-4 w-4" />}
+                  onClick={() => setFileOpen(true)}
+                >
+                  View full applicant file
+                </Button>
+              )}
             </div>
           </Card>
+          {!isCustomer && (
+            <ApplicantFileDrawer
+              open={fileOpen}
+              onClose={() => setFileOpen(false)}
+              applicantName={application.applicantName}
+              data={application.applicationData as unknown as Record<string, unknown>}
+            />
+          )}
 
           {/* Documents Panel */}
           <Card title={`Supporting Documents (${documents.length})`}>
