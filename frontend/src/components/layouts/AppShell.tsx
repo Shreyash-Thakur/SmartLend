@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronRight, LogOut, Menu, PanelLeft, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import { DomTranslator } from '@/i18n/DomTranslator'
+import { useLanguageStore, type Language } from '@/store/languageStore'
 import { AppLoader } from '@/components/loader/AppLoader'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/authStore'
@@ -55,7 +57,9 @@ export function AppShell() {
   }, [location.pathname, location.search])
 
   return (
-    <div className="min-h-screen">
+    // Customer pages are translated in place (Hindi/Marathi); org stays English.
+    <div className="min-h-screen" data-i18n-root={isOrg ? undefined : ''}>
+      {!isOrg && <DomTranslator />}
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2"
@@ -140,6 +144,7 @@ export function AppShell() {
             )}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            {!isOrg && <LanguageToggle />}
             <ThemeToggle />
           </div>
         </header>
@@ -288,6 +293,37 @@ function UserBlock({ collapsed }: { collapsed: boolean }) {
       >
         <LogOut className="h-4 w-4" />
       </button>
+    </div>
+  )
+}
+
+const LANGUAGES: Array<{ code: Language; label: string; name: string }> = [
+  { code: 'en', label: 'EN', name: 'English' },
+  { code: 'hi', label: 'हिं', name: 'हिन्दी' },
+  { code: 'mr', label: 'मरा', name: 'मराठी' },
+]
+
+/** EN / हिं / मरा switch for the customer side. data-i18n-skip keeps the
+ *  translator from rewriting its own labels. */
+function LanguageToggle() {
+  const language = useLanguageStore((state) => state.language)
+  const setLanguage = useLanguageStore((state) => state.setLanguage)
+  return (
+    <div data-i18n-skip role="group" aria-label="Language" className="flex rounded-lg border border-neutral-200 p-0.5 text-xs">
+      {LANGUAGES.map(({ code, label, name }) => (
+        <button
+          key={code}
+          type="button"
+          title={name}
+          aria-pressed={language === code}
+          onClick={() => setLanguage(code)}
+          className={`rounded-md px-2 py-1 font-medium transition-colors ${
+            language === code ? 'bg-primary-600 text-white' : 'text-neutral-600 hover:bg-neutral-100'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
