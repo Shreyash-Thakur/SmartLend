@@ -1259,7 +1259,7 @@ function DecisionResult({
             <banner.Icon className={`mt-0.5 h-5 w-5 shrink-0 ${banner.iconClass}`} />
             <div>
               <p className={`text-sm font-semibold ${banner.titleClass}`}>{banner.title}</p>
-              <p className={`mt-1 text-sm ${banner.bodyClass}`}>
+              <p data-i18n-live className={`mt-1 text-sm ${banner.bodyClass}`}>
                 {explanation ?? banner.body}
               </p>
             </div>
@@ -1275,20 +1275,9 @@ function DecisionResult({
               ]}
             />
             <ProfileBlock
-              title="Model output"
-              rows={[
-                ['ML probability', formatPercent(application.ml_prob)],
-                ['CBES probability', formatPercent(application.cbes_prob)],
-                ['Confidence', formatPercent(application.confidence)],
-                ['Model version', application.decision?.modelVersion ?? '—'],
-                ['Model artifact', application.decision?.modelArtifact ?? '—'],
-              ]}
-            />
-            <ProfileBlock
               title="Status"
               rows={[
                 ['Status', formatText(application.status)],
-                ['Recommendation', formatText(application.modelRecommendation)],
                 ['Submitted', new Date(application.createdAt ?? Date.now()).toLocaleString()],
               ]}
             />
