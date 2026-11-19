@@ -37,6 +37,17 @@ resource "aws_subnet" "private_1b" {
   tags = { Name = "smartlend-private-1b" }
 }
 
+resource "aws_subnet" "private_1c" {
+  # Third AZ because AWS periodically has no db.t4g.micro capacity in 1a/1b
+  # (InvalidVPCNetworkStateFault, 2026-11-19); a subnet here lets RDS place
+  # the instance wherever capacity exists. Subnets are free.
+  vpc_id            = aws_vpc.smartlend.id
+  cidr_block        = "10.0.4.0/24"
+  availability_zone = "${var.region}c"
+
+  tags = { Name = "smartlend-private-1c" }
+}
+
 resource "aws_internet_gateway" "igw" {
   # Attachment is implicit here — the console's forgettable "Attach to VPC"
   # step is just this argument.
